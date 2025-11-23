@@ -20,7 +20,6 @@
                 <div class="tabs">
                     <!-- Tabs will be dynamically added here -->
                 </div>
-                <button id="add-tab-btn" class="add-tab-btn" title="Add new tab">+</button>
             </div>
 
             <!-- Tasks Container -->
@@ -36,7 +35,10 @@
 
             <!-- Done Tasks Container -->
             <div class="done-container" id="done-container">
-                <div class="done-heading">Done</div>
+                <div class="done-heading">
+                    <span>Done</span>
+                    <button id="delete-all-btn" class="delete-all-btn hidden" title="Delete all completed tasks">Delete all</button>
+                </div>
                 <div class="done-tasks">
                     <!-- Completed tasks will be dynamically added here -->
                 </div>

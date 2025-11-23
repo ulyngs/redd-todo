@@ -19,6 +19,7 @@ const addTabBtn = document.getElementById('add-tab-btn');
 // Done section elements
 const doneContainer = document.getElementById('done-container');
 const doneTasksContainer = document.querySelector('.done-tasks');
+const deleteAllBtn = document.getElementById('delete-all-btn');
 
 // Modal elements
 const tabNameModal = document.getElementById('tab-name-modal');
@@ -243,6 +244,16 @@ function renderTabs() {
 
         tabsContainer.appendChild(tabElement);
     });
+
+    // Add "Add Tab" button as a subtle plus icon after the last tab
+    const addTabBtn = document.createElement('button');
+    addTabBtn.className = 'add-tab-btn-subtle';
+    addTabBtn.textContent = '+';
+    addTabBtn.title = 'Add new tab';
+    addTabBtn.addEventListener('click', () => {
+        showTabNameModal();
+    });
+    tabsContainer.appendChild(addTabBtn);
 }
 
 function renderTasks() {
@@ -301,6 +312,13 @@ function renderTasks() {
         doneTasksContainer.appendChild(doneBottomDragTarget);
 
         doneContainer.style.display = 'block';
+
+        // Show "Delete all" button if there's more than one completed task
+        if (completedTasks.length > 1) {
+            deleteAllBtn.classList.remove('hidden');
+        } else {
+            deleteAllBtn.classList.add('hidden');
+        }
     } else {
         doneContainer.style.display = 'none';
     }
@@ -361,12 +379,7 @@ function createTaskElement(task) {
 
 // Event listeners
 function setupEventListeners() {
-    // Add tab button
-    if (addTabBtn) {
-        addTabBtn.addEventListener('click', () => {
-            showTabNameModal();
-        });
-    }
+    // Note: addTabBtn is now dynamically created inside renderTabs
 
     // Modal buttons
     if (cancelTabBtn) {
@@ -474,6 +487,18 @@ function setupEventListeners() {
         e.stopPropagation();
         exitFocusMode();
     });
+
+    // Delete all completed tasks
+    if (deleteAllBtn) {
+        deleteAllBtn.addEventListener('click', () => {
+            if (!currentTabId || !tabs[currentTabId]) return;
+            
+            // Keep only incomplete tasks
+            tabs[currentTabId].tasks = tabs[currentTabId].tasks.filter(task => !task.completed);
+            saveData();
+            renderTasks();
+        });
+    }
 
     // Custom drag implementation
     const focusContainer = document.querySelector('.focus-container');
