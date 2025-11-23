@@ -89,5 +89,6 @@ redd-task/
 └── README.md
 ```
 
-## License
-MIT License
+## Terms of Use
+
+This code is licensed under the [CC BY-NC-ND 3.0](https://creativecommons.org/licenses/by-nc-nd/3.0/) licence.

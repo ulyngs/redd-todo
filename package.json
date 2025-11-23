@@ -49,7 +49,7 @@
     "productivity"
   ],
   "author": "ReDD",
-  "license": "MIT",
+  "license": "CC-BY-NC-ND-3.0",
   "devDependencies": {
     "electron": "^25.0.0",
     "electron-builder": "^26.0.12"
