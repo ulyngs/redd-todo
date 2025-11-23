@@ -29,7 +29,13 @@
 
             <!-- Add Task Input -->
             <div class="add-task-container">
-                <input type="text" id="new-task-input" placeholder="New task..." maxlength="100">
+                <div class="input-wrapper">
+                    <input type="text" id="new-task-input" placeholder="New task..." maxlength="100">
+                    <div id="duration-input-container" class="duration-input-container">
+                        <input type="number" id="task-duration-input" placeholder="e.g. 15 mins" min="1" max="999">
+                        <span class="duration-label">m</span>
+                    </div>
+                </div>
                 <button id="add-task-btn">Add</button>
             </div>
 
@@ -67,7 +73,7 @@
             <div class="focus-container">
                 <div class="focus-task-name" id="focus-task-name">Task Name</div>
                 <div class="focus-timer" id="focus-timer">00:00:00</div>
-                <button id="complete-focus-btn" class="complete-focus-btn" title="Complete task">
+                <button id="complete-focus-btn" class="complete-focus-btn" title="Mark task as complete">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>

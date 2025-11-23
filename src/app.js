@@ -6,8 +6,10 @@ let tabs = {};
 let taskCounter = 0;
 let isFocusMode = false;
 let focusStartTime = null;
+let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
 let draggedTaskId = null;
+let focusedTaskId = null; // To track which task is currently in focus mode
 
 // DOM elements
 const tabsContainer = document.querySelector('.tabs');
@@ -15,6 +17,8 @@ const tasksContainer = document.querySelector('.tasks-container');
 const newTaskInput = document.getElementById('new-task-input');
 const addTaskBtn = document.getElementById('add-task-btn');
 const addTabBtn = document.getElementById('add-tab-btn');
+const durationInputContainer = document.getElementById('duration-input-container');
+const taskDurationInput = document.getElementById('task-duration-input');
 
 // Done section elements
 const doneContainer = document.getElementById('done-container');
@@ -111,17 +115,27 @@ function renameTab(tabId, newName) {
 function addTask(text) {
     if (!text.trim() || !currentTabId) return;
 
+    const duration = taskDurationInput.value ? parseInt(taskDurationInput.value) : null;
+
     const task = {
         id: `task_${++taskCounter}`,
         text: text.trim(),
         completed: false,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        expectedDuration: duration,
+        actualDuration: null
     };
 
     tabs[currentTabId].tasks.push(task);
     renderTasks();
     saveData();
+    
+    // Reset inputs
     newTaskInput.value = '';
+    taskDurationInput.value = '';
+    durationInputContainer.classList.remove('visible');
+    durationInputContainer.classList.remove('has-value'); // Reset this class
+    addTaskBtn.disabled = true;
 }
 
 function deleteTask(taskId) {
@@ -143,10 +157,8 @@ function toggleTask(taskId) {
     }
 
     const currentTab = tabs[currentTabId];
-    console.log('Current tab tasks:', currentTab.tasks.map(t => `${t.id}:${t.completed ? 'completed' : 'active'}`));
-
+    
     const taskIndex = currentTab.tasks.findIndex(t => t.id === taskId);
-    console.log('Task index found:', taskIndex);
 
     if (taskIndex === -1) {
         console.log('❌ Task not found, returning');
@@ -155,30 +167,23 @@ function toggleTask(taskId) {
 
     const task = currentTab.tasks[taskIndex];
     const wasCompleted = task.completed;
-    console.log('Task found:', task.id, 'was completed:', wasCompleted);
-
+    
     // Toggle the completion status
     task.completed = !task.completed;
-    console.log('Task is now completed:', task.completed);
-
+    
     // If the task was completed and is now incomplete, move it to the beginning
     if (wasCompleted && !task.completed) {
         console.log('✅ Condition met: was completed and now incomplete, moving to beginning');
         // Remove from current position
         currentTab.tasks.splice(taskIndex, 1);
-        console.log('After splice:', currentTab.tasks.map(t => `${t.id}:${t.completed ? 'completed' : 'active'}`));
         // Insert at the beginning
         currentTab.tasks.unshift(task);
-        console.log('After unshift:', currentTab.tasks.map(t => `${t.id}:${t.completed ? 'completed' : 'active'}`));
-    } else {
-        console.log('❌ Condition NOT met: wasCompleted=', wasCompleted, 'task.completed=', task.completed);
-    }
+        // Also reset actual duration if unchecking?
+        // task.actualDuration = null; // Optional: decided not to clear it, in case accidental uncheck
+    } 
 
-    console.log('Calling renderTasks');
     renderTasks();
-    console.log('Calling saveData');
     saveData();
-    console.log('=== TOGGLE TASK END ===');
 }
 
 function focusTask(taskId) {
@@ -189,10 +194,10 @@ function focusTask(taskId) {
     }
 
     const task = tabs[currentTabId].tasks.find(t => t.id === taskId);
-    console.log('Task found:', task ? task.id : 'null');
     if (task) {
+        focusedTaskId = taskId;
         console.log('Entering focus mode for task:', task.text);
-        enterFocusMode(task.text);
+        enterFocusMode(task.text, task.expectedDuration);
     } else {
         console.log('❌ Task not found');
     }
@@ -352,10 +357,23 @@ function createTaskElement(task) {
         `;
     }
 
+    // Prepare duration display
+    let metaHtml = '';
+    if (task.completed && task.actualDuration) {
+        // Convert ms to minutes
+        const minutes = Math.max(1, Math.round(task.actualDuration / (1000 * 60)));
+        metaHtml = `<span class="task-meta actual-time">${minutes}m</span>`;
+    } else if (!task.completed && task.expectedDuration) {
+        metaHtml = `<span class="task-meta" title="Click to edit duration">${task.expectedDuration}m</span>`;
+    } else if (!task.completed) {
+        // Add a placeholder meta for adding duration
+        metaHtml = `<span class="task-meta add-time" title="Add duration">+</span>`;
+    }
+
     taskElement.innerHTML = `
         <div class="drag-handle">⋮⋮</div>
         <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} data-task-id="${task.id}">
-        <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>
+        <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>${metaHtml}
         <div class="task-actions">
             ${actionButtons}
         </div>
@@ -368,6 +386,22 @@ function createTaskElement(task) {
             e.stopPropagation();
         });
     });
+    
+    const taskTextSpan = taskElement.querySelector('.task-text');
+    if (taskTextSpan && !task.completed) {
+        taskTextSpan.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent triggering other click handlers on the task item
+            editTaskText(task.id, taskTextSpan);
+        });
+    }
+
+    const taskMetaSpan = taskElement.querySelector('.task-meta');
+    if (taskMetaSpan && !task.completed) {
+        taskMetaSpan.addEventListener('click', (e) => {
+            e.stopPropagation();
+            editTaskDuration(task.id, taskMetaSpan);
+        });
+    }
 
     // Drag event listeners
     taskElement.addEventListener('dragstart', handleDragStart);
@@ -433,24 +467,17 @@ function setupEventListeners() {
 
     // Task events for active tasks
     tasksContainer.addEventListener('click', (e) => {
-        console.log('Click detected on:', e.target.tagName, e.target.className, 'dataset:', e.target.dataset);
-
         const taskId = e.target.dataset.taskId || e.target.closest('[data-task-id]')?.dataset.taskId;
-        console.log('Resolved taskId:', taskId);
 
         if (!taskId) {
-            console.log('No taskId found, ignoring click');
             return;
         }
 
         if (e.target.classList.contains('delete-btn') || e.target.closest('.delete-btn')) {
-            console.log('Delete button clicked for task:', taskId);
             deleteTask(taskId);
         } else if (e.target.classList.contains('focus-btn') || e.target.closest('.focus-btn')) {
-            console.log('Focus button clicked for task:', taskId, 'target:', e.target.tagName, e.target.className);
             focusTask(taskId);
         } else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
-            console.log('Checkbox clicked for task:', taskId);
             toggleTask(taskId);
         } else if (e.target.classList.contains('task-text')) {
             // Edit task text
@@ -460,12 +487,12 @@ function setupEventListeners() {
 
     // Task events for completed tasks (done section)
     doneTasksContainer.addEventListener('click', (e) => {
-        const taskId = e.target.dataset.taskId;
+        const taskId = e.target.dataset.taskId || e.target.closest('[data-task-id]')?.dataset.taskId;
         if (!taskId) return;
 
-        if (e.target.classList.contains('delete-btn')) {
+        if (e.target.classList.contains('delete-btn') || e.target.closest('.delete-btn')) {
             deleteTask(taskId);
-        } else if (e.target.classList.contains('task-checkbox')) {
+        } else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
             toggleTask(taskId);
         }
     });
@@ -482,7 +509,30 @@ function setupEventListeners() {
     });
 
     newTaskInput.addEventListener('input', () => {
-        addTaskBtn.disabled = !newTaskInput.value.trim();
+        const hasText = newTaskInput.value.trim().length > 0;
+        addTaskBtn.disabled = !hasText;
+        
+        if (hasText) {
+            durationInputContainer.classList.add('visible');
+        } else {
+            durationInputContainer.classList.remove('visible');
+            // Also clear duration if task input is cleared? Maybe not.
+        }
+    });
+    
+    taskDurationInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            addTask(newTaskInput.value);
+        }
+    });
+    
+    // Toggle label visibility based on input
+    taskDurationInput.addEventListener('input', () => {
+        if (taskDurationInput.value.length > 0) {
+            durationInputContainer.classList.add('has-value');
+        } else {
+            durationInputContainer.classList.remove('has-value');
+        }
     });
 
     // Focus mode events
@@ -496,8 +546,21 @@ function setupEventListeners() {
         e.preventDefault();
         e.stopPropagation();
         
-        // Find the currently focused task
-        if (currentTabId && tabs[currentTabId]) {
+        if (focusedTaskId && currentTabId) {
+             // Calculate elapsed time
+            const elapsed = Date.now() - focusStartTime;
+            
+            // Find the task and update it
+            const task = tabs[currentTabId].tasks.find(t => t.id === focusedTaskId);
+            if (task) {
+                task.actualDuration = elapsed;
+                saveData();
+                
+                // Toggle completion
+                toggleTask(focusedTaskId);
+            }
+        } else if (currentTabId) {
+             // Fallback to find by name if ID is missing for some reason (legacy support)
             const focusedTask = tabs[currentTabId].tasks.find(t => t.text === focusTaskName.textContent);
             if (focusedTask) {
                 toggleTask(focusedTask.id);
@@ -552,23 +615,14 @@ function setupEventListeners() {
             isDragging = false;
         });
     }
-
-    // Double-click to exit focus mode
-    /* 
-    document.addEventListener('dblclick', (e) => {
-        if (isFocusMode) {
-            e.preventDefault();
-            e.stopPropagation();
-            exitFocusMode();
-        }
-    });
-    */
 }
 
 // Focus mode functions
-function enterFocusMode(taskName) {
-    console.log('enterFocusMode called with taskName:', taskName);
+function enterFocusMode(taskName, duration = null) {
+    console.log('enterFocusMode called with taskName:', taskName, 'duration:', duration);
     isFocusMode = true;
+    focusDuration = duration; // Set the duration
+    
     console.log('Hiding normal mode, showing focus mode');
     normalMode.classList.add('hidden');
     focusMode.classList.remove('hidden');
@@ -595,7 +649,14 @@ function enterFocusMode(taskName) {
 
 function exitFocusMode() {
     isFocusMode = false;
+    focusedTaskId = null; // Clear focused task ID
+    focusDuration = null; // Reset duration
     stopFocusTimer();
+    
+    // Reset overtime style
+    if (focusTimer) {
+        focusTimer.classList.remove('overtime');
+    }
 
     focusMode.classList.add('hidden');
     normalMode.classList.remove('hidden');
@@ -605,7 +666,8 @@ function exitFocusMode() {
 
 function startFocusTimer() {
     focusStartTime = Date.now();
-
+    // Update immediately
+    updateFocusTimer();
     focusTimerInterval = setInterval(updateFocusTimer, 1000);
 }
 
@@ -620,11 +682,34 @@ function updateFocusTimer() {
     if (!isFocusMode || !focusStartTime) return;
 
     const elapsed = Date.now() - focusStartTime;
-    const hours = Math.floor(elapsed / (1000 * 60 * 60));
-    const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+    let displayMs = elapsed;
+    let isOvertime = false;
 
-    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    if (focusDuration) {
+        const totalMs = focusDuration * 60 * 1000;
+        if (elapsed >= totalMs) {
+            isOvertime = true;
+            displayMs = elapsed - totalMs;
+        } else {
+            displayMs = totalMs - elapsed;
+            // Round up for countdown behavior (so 100ms left shows 1s)
+            displayMs = Math.ceil(displayMs / 1000) * 1000;
+        }
+    }
+
+    const hours = Math.floor(displayMs / (1000 * 60 * 60));
+    const minutes = Math.floor((displayMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((displayMs % (1000 * 60)) / 1000);
+
+    let timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    if (isOvertime && focusDuration) {
+        timeString = `-${timeString}`;
+        focusTimer.classList.add('overtime');
+    } else {
+        focusTimer.classList.remove('overtime');
+    }
+
     focusTimer.textContent = timeString;
 }
 
@@ -790,12 +875,60 @@ function editTaskText(taskId, textElement) {
     });
 }
 
+function editTaskDuration(taskId, metaElement) {
+    if (!currentTabId) return;
+    
+    const currentTab = tabs[currentTabId];
+    const task = currentTab.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // Create input element for duration
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.value = task.expectedDuration || '';
+    input.className = 'task-edit-input';
+    input.style.width = '40px';
+    input.style.textAlign = 'center';
+    input.min = '1';
+    input.max = '999';
+    input.placeholder = 'm';
+    
+    // Prevent drag start on input
+    input.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
+
+    // Replace meta span with input
+    metaElement.replaceWith(input);
+    input.focus();
+
+    // Save on blur or enter
+    function saveEdit() {
+        const newVal = input.value.trim();
+        if (newVal) {
+            task.expectedDuration = parseInt(newVal);
+        } else {
+            task.expectedDuration = null; // Clear if empty
+        }
+        saveData();
+        renderTasks(); // Re-render to restore span and update UI
+    }
+
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            saveEdit();
+        }
+    });
+}
+
 // Modal functions
 function showTabNameModal() {
     renamingTabId = null;
     modalTitle.textContent = 'Enter list name';
     createTabBtn.textContent = 'Create';
     tabNameInput.value = '';
+    tabNameInput.placeholder = 'My to-do list'; // Reset placeholder if changed elsewhere
     tabNameModal.classList.remove('hidden');
     tabNameInput.focus();
 }

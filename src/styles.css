@@ -217,6 +217,7 @@ body {
     background: hsl(0, 0%, 100%);
     transition: all 0.15s ease;
     position: relative;
+    flex-shrink: 0;
 }
 
 .task-checkbox:checked {
@@ -256,6 +257,42 @@ body {
     opacity: 0.6;
 }
 
+.task-meta {
+    font-size: 11px;
+    color: #999;
+    margin-left: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: pointer; /* Make it clear it's interactive */
+}
+
+.task-meta.add-time {
+    opacity: 0; /* Hide by default */
+    transition: opacity 0.2s ease;
+    color: #ccc;
+    font-weight: bold;
+    padding: 0 4px;
+}
+
+.task-item:hover .task-meta.add-time {
+    opacity: 1; /* Show on hover */
+}
+
+.task-meta.add-time:hover {
+    color: #667eea;
+}
+
+.task-meta:hover {
+    text-decoration: underline; /* Hint at editability */
+}
+
+.task-meta.actual-time {
+    color: #999; /* Reset to default grey */
+    font-weight: normal;
+    cursor: default; /* Actual time is read-only */
+    text-decoration: none;
+}
+
 .task-edit-input {
     flex: 1;
     font-size: 14px;
@@ -276,6 +313,7 @@ body {
     display: flex;
     gap: 8px;
     margin-left: 12px;
+    flex-shrink: 0;
 }
 
 .focus-btn, .delete-btn {
@@ -327,18 +365,77 @@ body {
     gap: 8px;
 }
 
+.input-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    background: white;
+    transition: border-color 0.2s ease;
+    padding-right: 8px;
+}
+
+.input-wrapper:focus-within {
+    border-color: #667eea;
+}
+
 #new-task-input {
     flex: 1;
     padding: 10px 12px;
-    border: 2px solid rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+    border: none;
+    background: transparent;
     font-size: 14px;
     outline: none;
-    transition: border-color 0.2s ease;
+    border-radius: 8px 0 0 8px;
 }
 
-#new-task-input:focus {
-    border-color: #667eea;
+.duration-input-container {
+    display: flex;
+    align-items: center;
+    width: 0;
+    overflow: hidden;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    opacity: 0;
+    white-space: nowrap;
+}
+
+.duration-input-container.visible {
+    width: 110px; /* Increased from 70px to fit "e.g. 15 mins" */
+    opacity: 1;
+}
+
+#task-duration-input {
+    width: 85px; /* Increased from 40px */
+    border: none;
+    background: transparent;
+    text-align: right;
+    font-size: 13px;
+    color: #000; /* User wants black text when typing */
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+#task-duration-input::placeholder {
+    color: #999; /* Lighter placeholder */
+}
+
+#task-duration-input::-webkit-outer-spin-button,
+#task-duration-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.duration-label {
+    color: #999;
+    font-size: 13px;
+    margin-left: 2px;
+    opacity: 0; /* Hidden by default (when showing "e.g. 15 mins") */
+    transition: opacity 0.2s ease;
+}
+
+.duration-input-container.has-value .duration-label {
+    opacity: 1; /* Show "m" only when user has typed a number */
 }
 
 #add-task-btn {
@@ -398,7 +495,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 24px; /* Fixed height for consistency */
+    height: 24px;
 }
 
 .delete-all-btn {
@@ -409,7 +506,7 @@ body {
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 4px;
-    margin-right: 12px; /* Align with task delete buttons (12px padding in task-item) */
+    margin-right: 12px;
     transition: all 0.2s ease;
     font-weight: 500;
 }
@@ -581,8 +678,6 @@ body {
     opacity: 0;
 }
 
-
-
 .exit-focus-btn:hover {
     opacity: 1;
     background: rgba(0, 0, 0, 0.1);
@@ -619,6 +714,10 @@ body {
     width: 120px;
     margin-left: auto;
     transition: opacity 0.2s ease;
+}
+
+.focus-timer.overtime {
+    color: #ef4444;
 }
 
 .exit-focus-btn {
@@ -663,21 +762,4 @@ body {
     transition: all 0.15s ease;
     opacity: 0;
     -webkit-app-region: no-drag;
-}
-
-/* Animation for focus timer pulse */
-.focus-timer.pulse {
-    animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.3);
-    }
-    70% {
-        box-shadow: 0 0 0 8px rgba(102, 126, 234, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
-    }
 }
