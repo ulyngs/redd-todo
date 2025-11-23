@@ -22,7 +22,16 @@ body {
     backdrop-filter: blur(10px);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    padding-bottom: 50px; /* Space for fixed footer */
+    padding-bottom: 42px; /* Space for fixed footer */
+    overflow: hidden; /* Prevent app-wide scroll */
+}
+
+/* Normal Mode UI wrapper */
+#normal-mode {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
 }
 
 /* Title Bar */
@@ -36,6 +45,7 @@ body {
     -webkit-app-region: drag;
     cursor: move;
     position: relative;
+    flex-shrink: 0;
 }
 
 .title {
@@ -154,11 +164,11 @@ body {
 
 /* Tasks Container */
 .tasks-container {
-    flex: 1;
+    flex: 1 1 auto;
     padding: 16px 16px 0 16px;
     overflow-y: auto;
-    max-height: calc(100vh - 140px);
     position: relative;
+    min-height: 0;
 }
 
 /* Task Item */
@@ -387,6 +397,11 @@ body {
     display: flex;
     padding: 8px 16px;
     gap: 8px;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.02);
+    position: relative;
+    z-index: 5;
 }
 
 .input-wrapper {
@@ -438,6 +453,7 @@ body {
     color: #000; /* User wants black text when typing */
     outline: none;
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 #task-duration-input::placeholder {
@@ -506,15 +522,21 @@ body {
 .done-container {
     margin-top: 0;
     padding-top: 16px;
-    padding-bottom: 60px; /* Ensure space for footer */
+    padding-bottom: 16px;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
+    flex-shrink: 0;
+    height: 140px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .done-heading {
     font-size: 14px;
     font-weight: 600;
     color: #666;
-    margin: 0 0 8px 0;
+    margin: 0;
     padding: 0 16px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -522,6 +544,7 @@ body {
     justify-content: space-between;
     align-items: center;
     height: 24px;
+    flex-shrink: 0;
 }
 
 .delete-all-btn {
@@ -545,16 +568,20 @@ body {
 .done-tasks {
     padding: 0 16px;
     position: relative;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    max-height: 100%;
 }
 
 /* Footer */
 .footer {
     position: fixed;
-    bottom: 0;
+    bottom: 3px;
     left: 0;
     right: 0;
     text-align: center;
-    padding: 12px 16px;
+    padding: 8px 16px;
     font-size: 12px;
     color: #888;
     z-index: 100;
