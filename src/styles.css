@@ -256,6 +256,22 @@ body {
     opacity: 0.6;
 }
 
+.task-edit-input {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    color: inherit;
+    outline: none;
+    border-bottom: 1px solid #667eea;
+    width: 100%;
+    -webkit-app-region: no-drag;
+}
+
 .task-actions {
     display: flex;
     gap: 8px;

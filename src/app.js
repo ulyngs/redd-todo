@@ -452,6 +452,9 @@ function setupEventListeners() {
         } else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
             console.log('Checkbox clicked for task:', taskId);
             toggleTask(taskId);
+        } else if (e.target.classList.contains('task-text')) {
+            // Edit task text
+            editTaskText(taskId, e.target);
         }
     });
 
@@ -745,6 +748,46 @@ function moveTaskToBottom(taskId) {
     // Save and re-render
     saveData();
     renderTasks();
+}
+
+function editTaskText(taskId, textElement) {
+    if (!currentTabId) return;
+    
+    const currentTab = tabs[currentTabId];
+    const task = currentTab.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // Create input element
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = task.text;
+    input.className = 'task-edit-input';
+    
+    // Prevent drag start on input
+    input.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
+
+    // Replace text with input
+    textElement.replaceWith(input);
+    input.focus();
+
+    // Save on blur or enter
+    function saveEdit() {
+        const newText = input.value.trim();
+        if (newText) {
+            task.text = newText;
+            saveData();
+        }
+        renderTasks(); // Re-render to restore span and update UI
+    }
+
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            saveEdit();
+        }
+    });
 }
 
 // Modal functions
