@@ -268,7 +268,22 @@ function renderTabs() {
 
         // Tab content
         const tabContent = document.createElement('span');
-        tabContent.textContent = tab.name;
+        
+        // Add Basecamp logo if connected
+        if (tab.basecampListId) {
+            const img = document.createElement('img');
+            img.src = './images/basecamp_logo_icon_147315.png';
+            img.style.width = '14px';
+            img.style.height = '14px';
+            img.style.marginRight = '6px';
+            img.style.verticalAlign = 'middle';
+            img.style.marginBottom = '2px';
+            tabContent.appendChild(img);
+        }
+        
+        const textNode = document.createTextNode(tab.name);
+        tabContent.appendChild(textNode);
+        
         tabElement.appendChild(tabContent);
 
         // Close button (only if more than one tab)
@@ -479,11 +494,19 @@ function setupEventListeners() {
 
     if (createTabBtn) {
         createTabBtn.addEventListener('click', () => {
-            const tabName = tabNameInput.value.trim();
+            let tabName = tabNameInput.value.trim();
             
             // Get Basecamp selection
             const bcProjectId = bcProjectSelect.value;
             const bcListId = bcListSelect.value;
+
+            // If creating from Basecamp list and name is empty, use list name
+            if (bcListId && (!tabName || tabName === '')) {
+                 const selectedOption = bcListSelect.options[bcListSelect.selectedIndex];
+                 if (selectedOption) {
+                     tabName = selectedOption.text;
+                 }
+            }
 
             if (renamingTabId) {
                 // Renaming existing tab
@@ -1270,14 +1293,15 @@ async function updateBasecampCompletion(tabId, task) {
     if (!tab || !task.basecampId) return;
 
     try {
-        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${task.basecampId}.json`;
+        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${task.basecampId}/completion.json`;
+        
+        const method = task.completed ? 'POST' : 'DELETE';
+        
         await fetch(url, {
-            method: 'PUT',
+            method: method,
             headers: {
-                'Authorization': `Bearer ${basecampConfig.accessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ completed: task.completed })
+                'Authorization': `Bearer ${basecampConfig.accessToken}`
+            }
         });
     } catch (e) {
         console.error('Update BC Error:', e);

@@ -19,7 +19,7 @@ function createMainWindow() {
     maximizable: false,
     closable: true,
     titleBarStyle: 'hidden',
-    icon: path.join(__dirname, 'assets/icon.png') // Will add icon later
+    icon: path.join(__dirname, 'src/images/icon.png') // Will add icon later
   });
 
   mainWindow.loadFile('src/index.html');
