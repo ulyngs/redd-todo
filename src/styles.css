@@ -555,7 +555,8 @@ body {
     cursor: grabbing;
 }
 
-.focus-container:hover .exit-focus-btn {
+.focus-container:hover .exit-focus-btn,
+.focus-container:hover .complete-focus-btn {
     opacity: 1;
     pointer-events: auto;
 }
@@ -570,6 +571,13 @@ body {
     opacity: 1;
     background: rgba(0, 0, 0, 0.1);
     color: #333;
+    transform: translateY(-50%) scale(1.05);
+}
+
+.complete-focus-btn:hover {
+    opacity: 1;
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
     transform: translateY(-50%) scale(1.05);
 }
 
@@ -608,6 +616,28 @@ body {
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.05);
     color: #666;
+    font-size: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    opacity: 0;
+    -webkit-app-region: no-drag;
+}
+
+.complete-focus-btn {
+    position: absolute;
+    top: 50%;
+    right: 80px; /* Positioned to the left of exit button */
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(34, 197, 94, 0.05);
+    color: #16a34a;
     font-size: 30px;
     font-weight: 600;
     cursor: pointer;

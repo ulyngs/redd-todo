@@ -37,6 +37,7 @@ const focusMode = document.getElementById('focus-mode');
 const focusTaskName = document.getElementById('focus-task-name');
 const focusTimer = document.getElementById('focus-timer');
 const exitFocusBtn = document.getElementById('exit-focus-btn');
+const completeFocusBtn = document.getElementById('complete-focus-btn');
 
 // Initialize app
 function initApp() {
@@ -488,6 +489,21 @@ function setupEventListeners() {
         exitFocusMode();
     });
 
+    completeFocusBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Find the currently focused task
+        if (currentTabId && tabs[currentTabId]) {
+            const focusedTask = tabs[currentTabId].tasks.find(t => t.text === focusTaskName.textContent);
+            if (focusedTask) {
+                toggleTask(focusedTask.id);
+            }
+        }
+        
+        exitFocusMode();
+    });
+
     // Delete all completed tasks
     if (deleteAllBtn) {
         deleteAllBtn.addEventListener('click', () => {
@@ -507,7 +523,7 @@ function setupEventListeners() {
         let startX, startY;
 
         focusContainer.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.exit-focus-btn')) return; // Don't drag if clicking exit button
+            if (e.target.closest('.exit-focus-btn') || e.target.closest('.complete-focus-btn')) return; // Don't drag if clicking buttons
             
             isDragging = true;
             startX = e.screenX;
