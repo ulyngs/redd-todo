@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReDD Task</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Normal Mode UI -->
+        <div id="normal-mode">
+            <!-- Title Bar -->
+            <div class="title-bar">
+                <div class="title">ReDD Task</div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs-container">
+                <div class="tabs">
+                    <!-- Tabs will be dynamically added here -->
+                </div>
+                <button id="add-tab-btn" class="add-tab-btn" title="Add new tab">+</button>
+            </div>
+
+            <!-- Tasks Container -->
+            <div class="tasks-container">
+                <!-- Active tasks will be dynamically added here -->
+            </div>
+
+            <!-- Add Task Input -->
+            <div class="add-task-container">
+                <input type="text" id="new-task-input" placeholder="New task..." maxlength="100">
+                <button id="add-task-btn">Add</button>
+            </div>
+
+            <!-- Done Tasks Container -->
+            <div class="done-container" id="done-container">
+                <div class="done-heading">Done</div>
+                <div class="done-tasks">
+                    <!-- Completed tasks will be dynamically added here -->
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                made with <span class="heart">♥</span> by <a href="https://reddfocus.org" target="_blank">reddfocus.org</a>
+            </div>
+        </div>
+
+        <!-- Tab Name Modal -->
+        <div id="tab-name-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3 id="modal-title">Enter list name</h3>
+                <input type="text" id="tab-name-input" placeholder="My to-do list" maxlength="50">
+                <div class="modal-buttons">
+                    <button id="cancel-tab-btn" class="modal-btn cancel-btn">Cancel</button>
+                    <button id="create-tab-btn" class="modal-btn create-btn" id="modal-action-btn">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Focus Mode UI -->
+        <div id="focus-mode" class="hidden">
+            <div class="focus-container">
+                <div class="focus-task-name" id="focus-task-name">Task Name</div>
+                <div class="focus-timer" id="focus-timer">00:00:00</div>
+                <button id="exit-focus-btn" class="exit-focus-btn" title="Exit focus mode">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
