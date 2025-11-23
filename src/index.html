@@ -13,6 +13,12 @@
             <!-- Title Bar -->
             <div class="title-bar">
                 <div class="title">ReDD Task</div>
+                <button id="settings-btn" class="settings-btn" title="Settings">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
             </div>
 
             <!-- Tabs -->
@@ -37,6 +43,11 @@
                     </div>
                 </div>
                 <button id="add-task-btn">Add</button>
+                <button id="sync-btn" class="sync-btn hidden" title="Sync with Basecamp">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                    </svg>
+                </button>
             </div>
 
             <!-- Done Tasks Container -->
@@ -61,9 +72,59 @@
             <div class="modal-content">
                 <h3 id="modal-title">Enter list name</h3>
                 <input type="text" id="tab-name-input" placeholder="My to-do list" maxlength="50">
+                
+                <!-- Basecamp Selection (Hidden by default) -->
+                <div id="basecamp-selection" class="basecamp-selection hidden">
+                    <div class="bc-label">Basecamp Project</div>
+                    <select id="bc-project-select" class="bc-select">
+                        <option value="">Select a project...</option>
+                    </select>
+                    
+                    <div id="bc-list-wrapper" class="hidden">
+                        <div class="bc-label">To-do List</div>
+                        <select id="bc-list-select" class="bc-select">
+                            <option value="">Select a list...</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="modal-buttons">
                     <button id="cancel-tab-btn" class="modal-btn cancel-btn">Cancel</button>
                     <button id="create-tab-btn" class="modal-btn create-btn" id="modal-action-btn">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3>Settings</h3>
+                
+                <div class="settings-section">
+                    <h4>Basecamp Integration</h4>
+                    <p class="settings-desc">Connect to Basecamp 3 to sync your to-do lists.</p>
+                    
+                    <div id="bc-auth-container">
+                        <div class="connection-status hidden" id="bc-connection-status">
+                            <span class="status-dot"></span>
+                            <span>Connected to Basecamp</span>
+                        </div>
+                        
+                        <div id="bc-login-form">
+                            <input type="text" id="bc-account-id" placeholder="Account ID" class="settings-input">
+                            <input type="password" id="bc-access-token" placeholder="Access Token (OAuth)" class="settings-input">
+                            <button id="connect-bc-btn" class="modal-btn connect-btn">Connect to Basecamp</button>
+                            <p class="help-text">
+                                You can get a token from the <a href="#" id="bc-help-link">Basecamp Developer Launchpad</a>.
+                            </p>
+                        </div>
+                        
+                        <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden">Disconnect</button>
+                    </div>
+                </div>
+
+                <div class="modal-buttons">
+                    <button id="close-settings-btn" class="modal-btn cancel-btn">Close</button>
                 </div>
             </div>
         </div>

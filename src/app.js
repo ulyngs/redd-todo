@@ -1,4 +1,4 @@
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, shell } = require('electron');
 
 // Application state
 let currentTabId = null;
@@ -11,6 +11,13 @@ let focusTimerInterval = null;
 let draggedTaskId = null;
 let focusedTaskId = null; // To track which task is currently in focus mode
 
+// Basecamp State
+let basecampConfig = {
+    accountId: null,
+    accessToken: null,
+    isConnected: false
+};
+
 // DOM elements
 const tabsContainer = document.querySelector('.tabs');
 const tasksContainer = document.querySelector('.tasks-container');
@@ -19,6 +26,8 @@ const addTaskBtn = document.getElementById('add-task-btn');
 const addTabBtn = document.getElementById('add-tab-btn');
 const durationInputContainer = document.getElementById('duration-input-container');
 const taskDurationInput = document.getElementById('task-duration-input');
+const settingsBtn = document.getElementById('settings-btn');
+const syncBtn = document.getElementById('sync-btn');
 
 // Done section elements
 const doneContainer = document.getElementById('done-container');
@@ -31,6 +40,23 @@ const modalTitle = document.getElementById('modal-title');
 const tabNameInput = document.getElementById('tab-name-input');
 const cancelTabBtn = document.getElementById('cancel-tab-btn');
 const createTabBtn = document.getElementById('create-tab-btn');
+// Basecamp Modal Elements
+const basecampSelection = document.getElementById('basecamp-selection');
+const bcProjectSelect = document.getElementById('bc-project-select');
+const bcListSelect = document.getElementById('bc-list-select');
+const bcListWrapper = document.getElementById('bc-list-wrapper');
+
+// Settings Modal Elements
+const settingsModal = document.getElementById('settings-modal');
+const closeSettingsBtn = document.getElementById('close-settings-btn');
+const bcAuthContainer = document.getElementById('bc-auth-container');
+const bcConnectionStatus = document.getElementById('bc-connection-status');
+const bcLoginForm = document.getElementById('bc-login-form');
+const bcAccountIdInput = document.getElementById('bc-account-id');
+const bcAccessTokenInput = document.getElementById('bc-access-token');
+const connectBcBtn = document.getElementById('connect-bc-btn');
+const disconnectBcBtn = document.getElementById('disconnect-bc-btn');
+const bcHelpLink = document.getElementById('bc-help-link');
 
 // Track which tab is being renamed
 let renamingTabId = null;
@@ -57,21 +83,32 @@ function initApp() {
 
     // Load the first tab
     switchToTab(Object.keys(tabs)[0]);
+    
+    // Check Basecamp connection status
+    updateBasecampUI();
 }
 
 // Tab management
-function createNewTab(name) {
+function createNewTab(name, bcProjectId = null, bcListId = null) {
     const tabId = `tab_${Date.now()}`;
     const tabName = name.trim() || 'New Tab';
 
     tabs[tabId] = {
         id: tabId,
         name: tabName,
-        tasks: []
+        tasks: [],
+        basecampProjectId: bcProjectId,
+        basecampListId: bcListId
     };
 
     renderTabs();
     saveData();
+    
+    // If connected to Basecamp, fetch tasks immediately
+    if (bcProjectId && bcListId) {
+        syncBasecampList(tabId);
+    }
+    
     return tabId;
 }
 
@@ -81,6 +118,13 @@ function switchToTab(tabId) {
     currentTabId = tabId;
     renderTabs();
     renderTasks();
+    
+    // Show/Hide sync button based on tab type
+    if (tabs[tabId].basecampListId) {
+        syncBtn.classList.remove('hidden');
+    } else {
+        syncBtn.classList.add('hidden');
+    }
 }
 
 function closeTab(tabId) {
@@ -123,10 +167,17 @@ function addTask(text) {
         completed: false,
         createdAt: new Date().toISOString(),
         expectedDuration: duration,
-        actualDuration: null
+        actualDuration: null,
+        basecampId: null
     };
 
     tabs[currentTabId].tasks.push(task);
+    
+    // If this is a Basecamp list, create the todo in Basecamp
+    if (tabs[currentTabId].basecampListId && basecampConfig.isConnected) {
+        createBasecampTodo(currentTabId, task);
+    }
+    
     renderTasks();
     saveData();
     
@@ -178,9 +229,12 @@ function toggleTask(taskId) {
         currentTab.tasks.splice(taskIndex, 1);
         // Insert at the beginning
         currentTab.tasks.unshift(task);
-        // Also reset actual duration if unchecking?
-        // task.actualDuration = null; // Optional: decided not to clear it, in case accidental uncheck
     } 
+    
+    // If Basecamp connected, sync status
+    if (currentTab.basecampListId && basecampConfig.isConnected && task.basecampId) {
+        updateBasecampCompletion(currentTabId, task);
+    }
 
     renderTasks();
     saveData();
@@ -426,19 +480,84 @@ function setupEventListeners() {
     if (createTabBtn) {
         createTabBtn.addEventListener('click', () => {
             const tabName = tabNameInput.value.trim();
+            
+            // Get Basecamp selection
+            const bcProjectId = bcProjectSelect.value;
+            const bcListId = bcListSelect.value;
 
             if (renamingTabId) {
                 // Renaming existing tab
                 renameTab(renamingTabId, tabName);
             } else {
                 // Creating new tab
-                const newTabId = createNewTab(tabName);
+                const newTabId = createNewTab(tabName, bcProjectId || null, bcListId || null);
                 switchToTab(newTabId);
             }
 
             hideTabNameModal();
         });
     }
+
+    // Settings buttons
+    settingsBtn.addEventListener('click', () => {
+        settingsModal.classList.remove('hidden');
+    });
+
+    closeSettingsBtn.addEventListener('click', () => {
+        settingsModal.classList.add('hidden');
+    });
+
+    connectBcBtn.addEventListener('click', async () => {
+        const accountId = bcAccountIdInput.value.trim();
+        const token = bcAccessTokenInput.value.trim();
+        
+        if (accountId && token) {
+            basecampConfig.accountId = accountId;
+            basecampConfig.accessToken = token;
+            basecampConfig.isConnected = true;
+            saveData();
+            updateBasecampUI();
+            settingsModal.classList.add('hidden');
+        }
+    });
+
+    disconnectBcBtn.addEventListener('click', () => {
+        basecampConfig.accountId = null;
+        basecampConfig.accessToken = null;
+        basecampConfig.isConnected = false;
+        saveData();
+        updateBasecampUI();
+    });
+    
+    if (bcHelpLink) {
+        bcHelpLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            shell.openExternal('https://launchpad.37signals.com/integrations');
+        });
+    }
+    
+    // Sync Button
+    if (syncBtn) {
+        syncBtn.addEventListener('click', () => {
+            if (currentTabId && tabs[currentTabId].basecampListId) {
+                syncBtn.classList.add('spinning');
+                syncBasecampList(currentTabId).finally(() => {
+                    setTimeout(() => syncBtn.classList.remove('spinning'), 500);
+                });
+            }
+        });
+    }
+    
+    // Basecamp Project Selection
+    bcProjectSelect.addEventListener('change', () => {
+        const projectId = bcProjectSelect.value;
+        if (projectId) {
+            fetchBasecampTodoLists(projectId);
+            bcListWrapper.classList.remove('hidden');
+        } else {
+            bcListWrapper.classList.add('hidden');
+        }
+    });
 
     // Close modal on Enter key
     if (tabNameInput) {
@@ -454,6 +573,9 @@ function setupEventListeners() {
         if (e.key === 'Escape' && !tabNameModal.classList.contains('hidden')) {
             hideTabNameModal();
         }
+        if (e.key === 'Escape' && !settingsModal.classList.contains('hidden')) {
+            settingsModal.classList.add('hidden');
+        }
     });
 
     // Close modal when clicking outside
@@ -461,6 +583,14 @@ function setupEventListeners() {
         tabNameModal.addEventListener('click', (e) => {
             if (e.target === tabNameModal) {
                 hideTabNameModal();
+            }
+        });
+    }
+    
+    if (settingsModal) {
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.add('hidden');
             }
         });
     }
@@ -928,8 +1058,32 @@ function showTabNameModal() {
     modalTitle.textContent = 'Enter list name';
     createTabBtn.textContent = 'Create';
     tabNameInput.value = '';
-    tabNameInput.placeholder = 'My to-do list'; // Reset placeholder if changed elsewhere
+    tabNameInput.placeholder = 'My to-do list'; 
     tabNameModal.classList.remove('hidden');
+    
+    // Handle Basecamp visibility
+    if (basecampConfig.isConnected) {
+        basecampSelection.classList.remove('hidden');
+        bcProjectSelect.innerHTML = '<option value="">Select a project...</option>';
+        bcListSelect.innerHTML = '<option value="">Select a list...</option>';
+        bcListWrapper.classList.add('hidden');
+        
+        fetchBasecampProjects().then(projects => {
+            if (projects.length === 0) {
+                bcProjectSelect.innerHTML = '<option value="">No projects found</option>';
+            } else {
+                projects.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    bcProjectSelect.appendChild(opt);
+                });
+            }
+        });
+    } else {
+        basecampSelection.classList.add('hidden');
+    }
+    
     tabNameInput.focus();
 }
 
@@ -940,9 +1094,10 @@ function showRenameModal(tabId) {
         modalTitle.textContent = 'Rename tab';
         createTabBtn.textContent = 'Rename';
         tabNameInput.value = tab.name;
+        basecampSelection.classList.add('hidden'); // Don't show BC select on rename
         tabNameModal.classList.remove('hidden');
         tabNameInput.focus();
-        tabNameInput.select(); // Select all text for easy replacement
+        tabNameInput.select();
     }
 }
 
@@ -966,7 +1121,8 @@ function saveData() {
     const data = {
         tabs: tabs,
         currentTabId: currentTabId,
-        taskCounter: taskCounter
+        taskCounter: taskCounter,
+        basecampConfig: basecampConfig
     };
     localStorage.setItem('redd-task-data', JSON.stringify(data));
 }
@@ -978,9 +1134,177 @@ function loadData() {
             tabs = data.tabs || {};
             currentTabId = data.currentTabId || null;
             taskCounter = data.taskCounter || 0;
+            basecampConfig = data.basecampConfig || { accountId: null, accessToken: null, isConnected: false };
         }
     } catch (e) {
         console.error('Failed to load data:', e);
+    }
+}
+
+// Basecamp API Logic
+function updateBasecampUI() {
+    if (basecampConfig.isConnected) {
+        bcConnectionStatus.classList.remove('hidden');
+        bcLoginForm.classList.add('hidden');
+        disconnectBcBtn.classList.remove('hidden');
+        bcAccountIdInput.value = basecampConfig.accountId;
+        bcAccessTokenInput.value = basecampConfig.accessToken;
+    } else {
+        bcConnectionStatus.classList.add('hidden');
+        bcLoginForm.classList.remove('hidden');
+        disconnectBcBtn.classList.add('hidden');
+        bcAccountIdInput.value = '';
+        bcAccessTokenInput.value = '';
+    }
+}
+
+async function fetchBasecampProjects() {
+    if (!basecampConfig.isConnected) return [];
+    try {
+        // Basecamp 3 API: GET /projects.json
+        const response = await fetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects.json`, {
+            headers: {
+                'Authorization': `Bearer ${basecampConfig.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (!response.ok) throw new Error('Failed to fetch projects');
+        return await response.json();
+    } catch (e) {
+        console.error('Basecamp Error:', e);
+        return [];
+    }
+}
+
+async function fetchBasecampTodoLists(projectId) {
+    try {
+        // 1. Get the "todoset" (dock) for the project
+        const projectResp = await fetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}.json`, {
+            headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
+        });
+        const projectData = await projectResp.json();
+        
+        const todoset = projectData.dock.find(d => d.name === 'todoset');
+        if (!todoset) return;
+
+        // 2. Get the todolists in that set
+        const listsResp = await fetch(todoset.url, {
+            headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
+        });
+        const listsData = await listsResp.json();
+        
+        // Populate select
+        bcListSelect.innerHTML = '<option value="">Select a list...</option>';
+        // In BC3, listsResp itself might be the list of todolists or the set details containing 'todolists_url'
+        // Actually: GET /buckets/1/todosets/1/todolists.json
+        const realListsUrl = todoset.url.replace('.json', '/todolists.json');
+        
+        const finalListsResp = await fetch(realListsUrl, {
+             headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
+        });
+        const finalLists = await finalListsResp.json();
+
+        finalLists.forEach(list => {
+            const opt = document.createElement('option');
+            opt.value = list.id;
+            opt.textContent = list.name;
+            bcListSelect.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('Basecamp Lists Error:', e);
+    }
+}
+
+async function syncBasecampList(tabId) {
+    const tab = tabs[tabId];
+    if (!tab || !tab.basecampListId || !basecampConfig.isConnected) return;
+
+    try {
+        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json`;
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
+        });
+        const remoteTodos = await response.json();
+
+        // Merge logic: 
+        // 1. Add new remote todos to local
+        // 2. Update status of linked todos
+        
+        let changes = false;
+        remoteTodos.forEach(remote => {
+            const localTask = tab.tasks.find(t => t.basecampId === remote.id);
+            
+            if (localTask) {
+                // Update local status if remote changed
+                if (localTask.completed !== remote.completed) {
+                    localTask.completed = remote.completed;
+                    changes = true;
+                }
+            } else {
+                // New task from remote
+                tab.tasks.push({
+                    id: `task_${++taskCounter}`,
+                    text: remote.content,
+                    completed: remote.completed,
+                    createdAt: remote.created_at,
+                    expectedDuration: null,
+                    actualDuration: null,
+                    basecampId: remote.id
+                });
+                changes = true;
+            }
+        });
+
+        if (changes) {
+            renderTasks();
+            saveData();
+        }
+    } catch (e) {
+        console.error('Sync Error:', e);
+        alert('Failed to sync with Basecamp. Check your connection.');
+    }
+}
+
+async function updateBasecampCompletion(tabId, task) {
+    const tab = tabs[tabId];
+    if (!tab || !task.basecampId) return;
+
+    try {
+        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${task.basecampId}.json`;
+        await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${basecampConfig.accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ completed: task.completed })
+        });
+    } catch (e) {
+        console.error('Update BC Error:', e);
+    }
+}
+
+async function createBasecampTodo(tabId, task) {
+    const tab = tabs[tabId];
+    if (!tab || !tab.basecampListId) return;
+
+    try {
+        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${basecampConfig.accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: task.text })
+        });
+        const data = await response.json();
+        
+        // Link local task to remote ID
+        task.basecampId = data.id;
+        saveData();
+    } catch (e) {
+        console.error('Create BC Error:', e);
     }
 }
 

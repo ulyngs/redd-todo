@@ -35,11 +35,35 @@ body {
     border-radius: 12px 12px 0 0;
     -webkit-app-region: drag;
     cursor: move;
+    position: relative;
 }
 
 .title {
     font-weight: 600;
     font-size: 14px;
+    color: #333;
+}
+
+.settings-btn {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-app-region: no-drag;
+    transition: all 0.2s ease;
+}
+
+.settings-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
     color: #333;
 }
 
@@ -762,4 +786,158 @@ body {
     transition: all 0.15s ease;
     opacity: 0;
     -webkit-app-region: no-drag;
+}
+
+/* Basecamp Settings */
+.settings-section {
+    margin-bottom: 24px;
+}
+
+.settings-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.settings-desc {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 16px;
+}
+
+.settings-input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.settings-input:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+.help-text {
+    font-size: 11px;
+    color: #999;
+    margin-top: 8px;
+}
+
+.help-text a {
+    color: #667eea;
+    text-decoration: none;
+}
+
+.help-text a:hover {
+    text-decoration: underline;
+}
+
+.connect-btn {
+    background: #2ecc71;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s ease;
+    width: 100%;
+}
+
+.connect-btn:hover {
+    background: #27ae60;
+}
+
+.disconnect-btn {
+    background: transparent;
+    color: #ef4444;
+    border: 1px solid #ef4444;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.disconnect-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background: #2ecc71;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+/* Basecamp Selection in Modal */
+.basecamp-selection {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+}
+
+.bc-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.bc-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    background: white;
+}
+
+.bc-select:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+/* Sync Button */
+.sync-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.sync-btn:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 4px;
+}
+
+.sync-btn.spinning svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
