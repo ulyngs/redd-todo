@@ -251,7 +251,7 @@ function focusTask(taskId) {
     if (task) {
         focusedTaskId = taskId;
         console.log('Entering focus mode for task:', task.text);
-        enterFocusMode(task.text, task.expectedDuration);
+        enterFocusMode(task.text, task.expectedDuration, task.timeSpent || 0);
     } else {
         console.log('❌ Task not found');
     }
@@ -430,8 +430,13 @@ function createTaskElement(task) {
     let metaHtml = '';
     if (task.completed && task.actualDuration) {
         // Convert ms to minutes
-        const minutes = Math.max(1, Math.round(task.actualDuration / (1000 * 60)));
-        metaHtml = `<span class="task-meta actual-time">${minutes}m</span>`;
+        let timeDisplay;
+        if (task.actualDuration < 60000) {
+            timeDisplay = '<1m';
+        } else {
+            timeDisplay = `${Math.round(task.actualDuration / (1000 * 60))}m`;
+        }
+        metaHtml = `<span class="task-meta actual-time">${timeDisplay}</span>`;
     } else if (!task.completed && task.expectedDuration) {
         metaHtml = `<span class="task-meta" title="Click to edit duration">${task.expectedDuration}m</span>`;
     } else if (!task.completed) {
@@ -771,8 +776,8 @@ function setupEventListeners() {
 }
 
 // Focus mode functions
-function enterFocusMode(taskName, duration = null) {
-    console.log('enterFocusMode called with taskName:', taskName, 'duration:', duration);
+function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
+    console.log('enterFocusMode called with taskName:', taskName, 'duration:', duration, 'initialTimeSpent:', initialTimeSpent);
     isFocusMode = true;
     focusDuration = duration; // Set the duration
     
@@ -784,7 +789,7 @@ function enterFocusMode(taskName, duration = null) {
     focusTaskName.title = taskName;
 
     console.log('Starting focus timer');
-    startFocusTimer();
+    startFocusTimer(initialTimeSpent);
 
     // Calculate appropriate window width based on content
     setTimeout(() => {
@@ -801,6 +806,16 @@ function enterFocusMode(taskName, duration = null) {
 }
 
 function exitFocusMode() {
+    // Save progress if we have a focused task
+    if (focusedTaskId && currentTabId && isFocusMode && focusStartTime) {
+        const elapsed = Date.now() - focusStartTime;
+        const task = tabs[currentTabId].tasks.find(t => t.id === focusedTaskId);
+        if (task) {
+             task.timeSpent = elapsed;
+             saveData();
+        }
+    }
+
     isFocusMode = false;
     focusedTaskId = null; // Clear focused task ID
     focusDuration = null; // Reset duration
@@ -817,8 +832,8 @@ function exitFocusMode() {
     ipcRenderer.send('exit-focus-mode');
 }
 
-function startFocusTimer() {
-    focusStartTime = Date.now();
+function startFocusTimer(initialTimeSpent = 0) {
+    focusStartTime = Date.now() - initialTimeSpent;
     // Update immediately
     updateFocusTimer();
     focusTimerInterval = setInterval(updateFocusTimer, 1000);
