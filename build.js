@@ -4,9 +4,9 @@ const Platform = builder.Platform;
 
 builder.build({
   config: {
-    appId: 'com.redd.task',
-    productName: 'ReDD Task',
-    copyright: 'Copyright © 2025 ReDD',
+    appId: 'com.redd.todo',
+    productName: 'ReDD Todo',
+    copyright: 'Copyright © 2025 Reduce Digital Distraction Ltd',
     directories: {
       output: 'dist',
       buildResources: 'assets'

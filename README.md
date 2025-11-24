@@ -1,4 +1,4 @@
-# ReDD Task
+# ReDD Todo
 
 A simple, beautiful, and distraction-free todo app for Mac, Windows, and Linux built with Electron.
 
@@ -78,7 +78,7 @@ Note: To build with custom icons, place your icon files in the `assets/` directo
 ## 📁 Project Structure
 
 ```
-redd-task/
+redd-todo/
 ├── main.js              # Electron main process (window mgmt, IPC)
 ├── package.json         # Dependencies and build config
 ├── assets/              # App icons

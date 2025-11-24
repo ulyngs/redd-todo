@@ -1162,12 +1162,24 @@ function saveData() {
         taskCounter: taskCounter,
         basecampConfig: basecampConfig
     };
-    localStorage.setItem('redd-task-data', JSON.stringify(data));
+    localStorage.setItem('redd-todo-data', JSON.stringify(data));
 }
 
 function loadData() {
     try {
-        const data = JSON.parse(localStorage.getItem('redd-task-data'));
+        // Try loading new data key first
+        let data = JSON.parse(localStorage.getItem('redd-todo-data'));
+        
+        // Fallback to old key for migration (if we are in the same storage context)
+        if (!data) {
+            data = JSON.parse(localStorage.getItem('redd-task-data'));
+            if (data) {
+                // Migrate to new key
+                localStorage.setItem('redd-todo-data', JSON.stringify(data));
+                // Optional: localStorage.removeItem('redd-task-data');
+            }
+        }
+
         if (data) {
             tabs = data.tabs || {};
             currentTabId = data.currentTabId || null;

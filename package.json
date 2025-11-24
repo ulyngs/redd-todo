@@ -1,7 +1,7 @@
 {
-  "name": "redd-task",
+  "name": "redd-todo",
   "version": "1.0.0",
-  "description": "ReDD Task - A simple todo app for Mac, Windows, and Linux",
+  "description": "ReDD Todo - A simple todo app for Mac, Windows, and Linux",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
