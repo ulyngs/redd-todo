@@ -502,20 +502,26 @@ body {
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-    width: 6px;
+    width: 0px;  /* Hide vertical scrollbar */
+    height: 4px; /* Make horizontal scrollbar thin */
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* Tabs specific scrollbar */
+.tabs::-webkit-scrollbar {
+    height: 0px; /* Hide horizontal scrollbar for tabs entirely */
 }
 
 /* Done Container */
