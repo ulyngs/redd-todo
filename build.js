@@ -2,7 +2,28 @@ require('dotenv').config();
 const builder = require('electron-builder');
 const Platform = builder.Platform;
 
+// Check command line arguments
+const buildMac = process.argv.includes('--mac');
+const buildWin = process.argv.includes('--win');
+const buildLinux = process.argv.includes('--linux');
+
+// If no flags, default to current platform
+const targets = [];
+if (buildMac) targets.push(Platform.MAC);
+if (buildWin) targets.push(Platform.WINDOWS);
+if (buildLinux) targets.push(Platform.LINUX);
+
+if (targets.length === 0) {
+   console.log("No platform flags detected (--mac, --win, --linux). Building for current platform only.");
+   // electron-builder defaults to current platform if 'targets' is not specified
+   // so we don't need to push anything to targets here if we want that default behavior.
+}
+
 builder.build({
+  // ONLY pass targets if we actually selected some. 
+  // If targets is empty/undefined, electron-builder defaults to current OS.
+  targets: targets.length > 0 ? builder.createTargets(targets) : undefined,
+  
   config: {
     appId: 'com.redd.todo',
     productName: 'ReDD Todo',
@@ -20,13 +41,19 @@ builder.build({
       gatekeeperAssess: false,
       entitlements: 'build/entitlements.mac.plist',
       entitlementsInherit: 'build/entitlements.mac.plist',
-      // electron-builder 26+ uses @electron/notarize automatically if APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID are set
-      // setting notarize: false disables it, we want it enabled so we omit the field or set it to true if we need to force it (but true is invalid in new schema if an object was expected in old schema)
-      // The error message says configuration.mac.notarize should be a boolean.
-      // It seems we should just remove the explicit notarize config block since we are providing env vars
     },
     win: {
-      target: 'nsis',
+      // Build both the installer (nsis) and a zip (portable files)
+      target: [
+        {
+          target: 'nsis',
+          arch: ['x64'] // FORCE x64 (Intel/AMD)
+        },
+        {
+          target: 'zip',
+          arch: ['x64'] // FORCE x64
+        }
+      ],
       icon: 'assets/icon.ico'
     },
     linux: {
