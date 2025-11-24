@@ -802,13 +802,25 @@ function setupEventListeners() {
         }
     });
 
-    // Close modal on Escape key
+    // Close modal or exit fullscreen on Escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !tabNameModal.classList.contains('hidden')) {
-            hideTabNameModal();
-        }
-        if (e.key === 'Escape' && !settingsModal.classList.contains('hidden')) {
-            settingsModal.classList.add('hidden');
+        if (e.key === 'Escape') {
+            if (!tabNameModal.classList.contains('hidden')) {
+                hideTabNameModal();
+                return;
+            }
+            if (!settingsModal.classList.contains('hidden')) {
+                settingsModal.classList.add('hidden');
+                return;
+            }
+            
+            // Exit fullscreen focus mode if active
+            const focusContainer = document.querySelector('.focus-container');
+            if (focusContainer && focusContainer.classList.contains('fullscreen')) {
+                focusContainer.classList.remove('fullscreen');
+                // Restore standard width (similar to logic in fullscreen button handler)
+                ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+            }
         }
     });
 
