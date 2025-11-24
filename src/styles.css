@@ -109,6 +109,15 @@ body {
     -webkit-app-region: no-drag;
 }
 
+.tab.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.tab.drag-over {
+    background: rgba(0, 0, 0, 0.05);
+}
+
 .tab.active {
     background: transparent;
     color: hsl(222.2, 84%, 4.9%);

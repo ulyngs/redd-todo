@@ -8,8 +8,10 @@ let isFocusMode = false;
 let focusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
-let draggedTaskId = null;
-let focusedTaskId = null; // To track which task is currently in focus mode
+    // Track dragged items
+    let draggedTaskId = null;
+    let draggedTabId = null;
+    let focusedTaskId = null; // To track which task is currently in focus mode
 
 // Basecamp State
 let basecampConfig = {
@@ -257,6 +259,186 @@ function focusTask(taskId) {
     }
 }
 
+// Tab drag and drop functions
+function handleTabDragStart(e) {
+    draggedTabId = e.target.dataset.tabId;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    // Set drag image or data if needed, though usually automatic
+}
+
+function handleTabDragEnd(e) {
+    e.target.classList.remove('dragging');
+    draggedTabId = null;
+    
+    document.querySelectorAll('.tab.drag-over').forEach(el => {
+        el.classList.remove('drag-over');
+    });
+}
+
+function handleTabDragOver(e) {
+    e.preventDefault();
+    if (!draggedTabId) return;
+    
+    const target = e.target.closest('.tab');
+    if (target && target.dataset.tabId !== draggedTabId) {
+        e.dataTransfer.dropEffect = 'move';
+        
+        document.querySelectorAll('.tab.drag-over').forEach(el => {
+            el.classList.remove('drag-over');
+        });
+        target.classList.add('drag-over');
+    }
+}
+
+function handleTabDrop(e) {
+    e.preventDefault();
+    const target = e.target.closest('.tab');
+    
+    if (draggedTabId && target && target.dataset.tabId !== draggedTabId) {
+        reorderTabs(draggedTabId, target.dataset.tabId);
+    }
+    
+    document.querySelectorAll('.tab.drag-over').forEach(el => {
+        el.classList.remove('drag-over');
+    });
+}
+
+function reorderTabs(draggedId, targetId) {
+    const tabIds = Object.keys(tabs);
+    const draggedIndex = tabIds.indexOf(draggedId);
+    const targetIndex = tabIds.indexOf(targetId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) return;
+    
+    // Create new ordered object
+    const newTabs = {};
+    const tabArray = Object.entries(tabs);
+    const [draggedEntry] = tabArray.splice(draggedIndex, 1);
+    
+    // If moving right (higher index), we need to adjust target index because removal shifted indices
+    // But splice logic is cleaner if we just use the target index logic similar to tasks
+    // Let's reconstruct the array
+    
+    // We need to know if we are dropping BEFORE or AFTER the target
+    // Typically simpler to just insert at target index
+    
+    let insertIndex = targetIndex;
+    if (draggedIndex < targetIndex) {
+        // If dragging from left to right, we want to insert AFTER the target? 
+        // Or standard "insert before" logic. 
+        // Actually, in list reordering:
+        // [A, B, C, D] -> Drag A to C. Target is C.
+        // Remove A: [B, C, D]. Target C is at index 1. Insert at 1: [B, A, C, D] -> effectively swapped?
+        // Usually we want to insert AT the position, shifting others right.
+        // If I drag A (0) to C (2), I expect [B, C, A, D] or [B, A, C, D]?
+        // Let's stick to "insert before target". 
+        // But if I drag A to C, and drop, it goes before C.
+        // If I drag C to A, and drop, it goes before A.
+        
+        // Correction: `splice` insert puts it AT index, pushing existing element at that index to the right.
+        // So if I have [A, B, C], drag A to C. Remove A -> [B, C]. Target C is index 1. Splice(1, 0, A) -> [B, A, C].
+        // This feels like "swapping" or "placing before".
+        
+        // To enable placing "after" the last item, we usually need drop targets. 
+        // But for tabs, "place before" is usually fine enough as long as you can reach the end.
+        // Since we can't easily drop "after" the last element without a specific target or logic, 
+        // let's refine:
+        // If draggedIndex < targetIndex (moving right), we probably want to insert AFTER the target visual, 
+        // which effectively means index should be targetIndex (since target shifted left).
+        // Wait, if [A, B, C]. Remove A -> [B, C]. Target C is index 1. 
+        // If I want [B, C, A], I need to insert at index 2.
+        // So if dragged < target, insertIndex = targetIndex.
+        // If dragged > target (moving left), [A, B, C]. Drag C to A. Remove C -> [A, B]. Target A is index 0. 
+        // Insert at 0 -> [C, A, B]. Correct.
+        
+        // However, standard splice behavior:
+        // const arr = ['A', 'B', 'C']; 
+        // Remove 'A' (idx 0): ['B', 'C']. Target 'C' is now idx 1.
+        // If I want it before C: splice(1, 0, 'A') -> ['B', 'A', 'C'].
+        // If I want it after C: splice(2, 0, 'A') -> ['B', 'C', 'A'].
+        
+        // Let's stick to a simple "insert at target index" approach which effectively puts it "before" the target.
+        // BUT, if moving right, the target has shifted left by 1.
+        // original indices: A:0, B:1, C:2.
+        // Drag A to C.
+        // Remove A. Array is [B, C]. C is at 1.
+        // If we use original target index (2), we insert at 2 (end). -> [B, C, A]. 
+        // This feels natural for "drag A onto C".
+        
+        // Let's try simply:
+        // 1. Convert tabs to array of entries
+        // 2. Remove dragged entry
+        // 3. Insert at target index (adjusting if needed)
+        
+        // Actually, let's use the same logic as tasks:
+        // if (draggedIndex < targetIndex) insertIndex = targetIndex;
+        // else insertIndex = targetIndex; 
+        
+        // Wait, in task logic:
+        // if (draggedIndex < targetIndex) insertIndex = targetIndex - 1;
+        // That was because we hadn't removed it yet? No, we did splice.
+        // Let's look at task logic again:
+        // const [draggedTask] = currentTab.tasks.splice(draggedIndex, 1);
+        // let insertIndex = targetIndex;
+        // if (draggedIndex < targetIndex) insertIndex = targetIndex - 1;
+        // currentTab.tasks.splice(insertIndex, 0, draggedTask);
+        
+        // Let's copy that logic, it worked for tasks.
+         if (draggedIndex < targetIndex) {
+            insertIndex = targetIndex; // Note: In tasks I did targetIndex - 1, let's verify why.
+            // Tasks: [A, B, C]. Drag A(0) to C(2). 
+            // Splice A: [B, C]. C is at 1.
+            // targetIndex was 2. 
+            // If I use 2-1 = 1. Insert at 1: [B, A, C].
+            // If I used 2. Insert at 2: [B, C, A].
+            // Usually dropping ON C means "put before C" or "swap with C".
+            // If I want to put after C, I need to drop past C.
+            // Let's stick to "insert before target" logic.
+            
+            insertIndex = targetIndex - 1;
+        }
+    }
+
+    // Wait, simpler logic for array reordering:
+    // 1. Get array of keys.
+    // 2. Remove dragged key.
+    // 3. Find index of target key in remaining array.
+    // 4. Insert dragged key before target key.
+    
+    // Let's do that, it's more robust than index math pre-removal.
+    const keys = Object.keys(tabs);
+    const remainingKeys = keys.filter(k => k !== draggedId);
+    const newTargetIndex = remainingKeys.indexOf(targetId);
+    
+    // If we are dragging right and dropping on a target, we usually expect it to go AFTER if we passed the center, 
+    // but simple "insert before" is standard.
+    // Exception: If we are dragging from left to right, and drop on the last item, we might want it to be last?
+    // "Insert before" means we can never make it the last item by dropping on the last item.
+    // We would need a drop target after the last item.
+    // OR, we change logic: if dragging right, place AFTER target. If dragging left, place BEFORE target.
+    
+    let finalIndex = newTargetIndex;
+    if (draggedIndex < targetIndex) {
+        // Dragging right: Insert AFTER target
+        finalIndex = newTargetIndex + 1;
+    } else {
+        // Dragging left: Insert BEFORE target
+        finalIndex = newTargetIndex;
+    }
+    
+    remainingKeys.splice(finalIndex, 0, draggedId);
+    
+    // Reconstruct tabs object
+    remainingKeys.forEach(key => {
+        newTabs[key] = tabs[key];
+    });
+    
+    tabs = newTabs;
+    saveData();
+    renderTabs();
+}
+
 // Rendering functions
 function renderTabs() {
     tabsContainer.innerHTML = '';
@@ -265,6 +447,13 @@ function renderTabs() {
         const tabElement = document.createElement('div');
         tabElement.className = `tab ${tab.id === currentTabId ? 'active' : ''}`;
         tabElement.dataset.tabId = tab.id;
+        tabElement.draggable = true; // Enable dragging
+
+        // Tab drag events
+        tabElement.addEventListener('dragstart', handleTabDragStart);
+        tabElement.addEventListener('dragover', handleTabDragOver);
+        tabElement.addEventListener('drop', handleTabDrop);
+        tabElement.addEventListener('dragend', handleTabDragEnd);
 
         // Tab content
         const tabContent = document.createElement('span');
