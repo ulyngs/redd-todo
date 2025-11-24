@@ -785,6 +785,14 @@ function setupEventListeners() {
         });
     }
 
+    // Handle all external links
+    document.addEventListener('click', (event) => {
+        if (event.target.tagName === 'A' && event.target.href.startsWith('http')) {
+            event.preventDefault();
+            shell.openExternal(event.target.href);
+        }
+    });
+
     // Close modal on Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !tabNameModal.classList.contains('hidden')) {
