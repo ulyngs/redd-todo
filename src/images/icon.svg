@@ -1,0 +1,20 @@
+<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Outer circle -->
+  <circle
+    cx="120" cy="120" r="100"
+    stroke="#0D319C" stroke-width="10"
+    fill="none" />
+
+  <!-- Enlarged needle rotated 25 degrees -->
+  <polygon
+    points="120,35 170,120 120,205 70,120"
+    fill="#9E1B20"
+    transform="rotate(25 120 120)" />
+
+  <!-- Center dot -->
+  <circle
+    cx="120" cy="120" r="10"
+    fill="#FFFFFF" />
+
+</svg>
