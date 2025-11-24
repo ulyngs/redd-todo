@@ -404,6 +404,7 @@ body {
 /* Add Task Container */
 .add-task-container {
     display: flex;
+    align-items: center; /* Ensure vertical centering */
     padding: 8px 16px;
     gap: 8px;
     flex-shrink: 0;
