@@ -31,8 +31,14 @@ function createMainWindow() {
 // IPC handlers
 ipcMain.on('enter-focus-mode', (event, taskName) => {
   if (mainWindow) {
+    // Capture current position
+    const [currentX, currentY] = mainWindow.getPosition();
+    
     // Start with a reasonable default size, will be adjusted by set-focus-window-size
     mainWindow.setSize(320, 60);
+    // Restore position (setSize might center or move it on some platforms/configs)
+    mainWindow.setPosition(currentX, currentY);
+    
     mainWindow.setResizable(true);
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
     mainWindow.setMinimizable(false);
@@ -46,7 +52,7 @@ ipcMain.on('set-focus-window-size', (event, width) => {
   if (mainWindow) {
     mainWindow.setFullScreen(false); // Ensure not fullscreen when resizing
     mainWindow.setSize(width, 60);
-    mainWindow.center(); // Center the window
+    // Removed mainWindow.center() to preserve position
   }
 });
 ipcMain.on('enter-fullscreen-focus', () => {
