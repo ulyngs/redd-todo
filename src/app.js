@@ -929,39 +929,13 @@ function setupEventListeners() {
         });
     }
 
-    // Custom drag implementation
+    // Custom drag implementation removed in favor of -webkit-app-region: drag
+    /* 
     const focusContainer = document.querySelector('.focus-container');
     if (focusContainer) {
-        let isDragging = false;
-        let startX, startY;
-
-        focusContainer.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.exit-focus-btn') || e.target.closest('.complete-focus-btn')) return; // Don't drag if clicking buttons
-            
-            isDragging = true;
-            startX = e.screenX;
-            startY = e.screenY;
-            
-            // Prevent text selection while dragging
-            e.preventDefault();
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-
-            const deltaX = e.screenX - startX;
-            const deltaY = e.screenY - startY;
-
-            ipcRenderer.send('window-move', { x: deltaX, y: deltaY });
-
-            startX = e.screenX;
-            startY = e.screenY;
-        });
-
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-    }
+        // Drag logic removed
+    } 
+    */
 }
 
 // Focus mode functions

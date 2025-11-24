@@ -40,7 +40,8 @@ ipcMain.on('enter-focus-mode', (event, taskName) => {
     // Start with a reasonable default size, will be adjusted by set-focus-window-size
     mainWindow.setSize(320, 60);
     mainWindow.setResizable(false);
-    mainWindow.setAlwaysOnTop(true);
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    mainWindow.setMinimizable(false);
     // Hide macOS traffic light buttons in focus mode
     if (process.platform === 'darwin') {
       mainWindow.setWindowButtonVisibility(false);
@@ -54,18 +55,21 @@ ipcMain.on('set-focus-window-size', (event, width) => {
   }
 });
 
+/*
 ipcMain.on('window-move', (event, { x, y }) => {
   if (mainWindow) {
     const [currentX, currentY] = mainWindow.getPosition();
     mainWindow.setPosition(currentX + x, currentY + y);
   }
 });
+*/
 
 ipcMain.on('exit-focus-mode', () => {
   if (mainWindow) {
     mainWindow.setSize(400, 600);
     mainWindow.setResizable(true);
     mainWindow.setAlwaysOnTop(false);
+    mainWindow.setMinimizable(true);
     // Show macOS traffic light buttons when exiting focus mode
     if (process.platform === 'darwin') {
       mainWindow.setWindowButtonVisibility(true);

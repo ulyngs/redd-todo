@@ -729,11 +729,12 @@ body {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(0, 0, 0, 0.05);
     position: relative;
-    cursor: grab;
+    cursor: default;
+    -webkit-app-region: drag;
 }
 
 .focus-container:active {
-    cursor: grabbing;
+    cursor: default;
 }
 
 .focus-container:hover .exit-focus-btn,
