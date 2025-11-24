@@ -915,6 +915,17 @@ function setupEventListeners() {
     exitFocusBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        // Check if we are in fullscreen mode
+        const focusContainer = document.querySelector('.focus-container');
+        if (focusContainer && focusContainer.classList.contains('fullscreen')) {
+            // First exit fullscreen locally
+            focusContainer.classList.remove('fullscreen');
+            // Restore standard width so IPC doesn't get confused
+            ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+            // Then continue to standard exit
+        }
+
         exitFocusMode();
     });
 
@@ -922,6 +933,15 @@ function setupEventListeners() {
         e.preventDefault();
         e.stopPropagation();
         
+        // Check if we are in fullscreen mode and exit it correctly
+        const focusContainer = document.querySelector('.focus-container');
+        if (focusContainer && focusContainer.classList.contains('fullscreen')) {
+            // First exit fullscreen locally
+            focusContainer.classList.remove('fullscreen');
+            // Restore standard width so IPC doesn't get confused
+            ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+        }
+
         if (focusedTaskId && currentTabId) {
              // Calculate elapsed time
             const elapsed = Date.now() - focusStartTime;
@@ -1021,6 +1041,12 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
     normalMode.classList.add('hidden');
     focusMode.classList.remove('hidden');
 
+    // Reset fullscreen state if present (ensure we start fresh)
+    const container = document.querySelector('.focus-container');
+    if (container) {
+        container.classList.remove('fullscreen');
+    }
+
     focusTaskName.textContent = taskName;
     focusTaskName.title = taskName;
 
@@ -1029,7 +1055,6 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
 
     // Calculate appropriate window width based on content
     setTimeout(() => {
-        const container = document.querySelector('.focus-container');
         if (container) {
             const containerWidth = Math.min(Math.max(container.offsetWidth, 280), 500);
             console.log('Calculated container width:', containerWidth);
