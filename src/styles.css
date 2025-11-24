@@ -54,36 +54,48 @@ body {
     color: #333;
 }
 
-.settings-btn {
+/* Window Controls */
+.window-controls {
     position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: transparent;
-    border: none;
-    color: #666;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
+    top: 0;
+    right: 0;
+    height: 100%;
     display: flex;
     align-items: center;
-    justify-content: center;
     -webkit-app-region: no-drag;
-    transition: all 0.2s ease;
 }
 
-.settings-btn:hover {
+.win-btn {
+    width: 46px;
+    height: 100%; /* Fill the title bar height */
+    min-height: 40px; /* Fallback */
+    border: none;
+    background: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #666;
+    cursor: default;
+    transition: background 0.1s;
+}
+
+.win-btn:hover {
     background: rgba(0, 0, 0, 0.05);
     color: #333;
 }
 
-/* Tabs Container */
+.win-btn.close-btn:hover {
+    background: #e81123;
+    color: white;
+}
+
 .tabs-container {
     display: flex;
     align-items: center;
     padding: 8px 16px 0 16px;
     background: transparent;
     border-bottom: 1px solid hsl(214, 32%, 91%);
+    position: relative; /* For absolute positioning of settings button if needed */
 }
 
 .tabs {
@@ -92,10 +104,45 @@ body {
     gap: 2px;
     overflow-x: auto;
     align-items: center;
+    margin-right: 16px; /* Space for settings button */
+}
+
+.settings-btn {
+    /* Reset previous positioning */
+    position: static;
+    transform: none;
+    top: auto;
+    right: auto;
+    
+    /* New positioning */
+    background: transparent;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-app-region: no-drag;
+    transition: all 0.2s ease;
+    margin-left: auto; /* Push to the right */
+    flex-shrink: 0;
+}
+
+.settings-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+/* Remove previous conditional classes */
+.settings-btn.centered-under-add,
+.settings-btn.centered-under-sync {
+    right: auto;
 }
 
 .tab {
-    padding: 8px 16px;
+    padding: 8px 10px;
     background: transparent;
     border-radius: 6px 6px 0 0;
     cursor: pointer;
@@ -707,8 +754,12 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
+    background: transparent; /* Let container handle background */
+    /* backdrop-filter: blur(10px); */ /* Moved to container */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0; /* Remove any padding */
 }
 
 .hidden {
@@ -716,50 +767,147 @@ body {
 }
 
 .focus-container {
-    width: fit-content;
-    max-width: 500px;
-    min-width: 280px;
-    height: 60px;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    min-width: 0;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    border-radius: 12px;
+    border-radius: 0; /* Remove border radius as it fills the window */
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 24px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: none; /* Remove shadow as it fills the window */
+    border: none; /* Remove border */
     position: relative;
     cursor: default;
     -webkit-app-region: drag;
+    transition: all 0.3s ease;
+}
+
+/* Add a specific class for windowed mode if needed to restore rounded corners/shadow 
+   but user asked for focus-container to take up ALL space of focus mode window whatever size it is.
+   Since the window itself is frameless and small in focus mode, we want the container to fill it. */
+
+/* However, we might want to keep the max-width constraint for the content inside? 
+   No, the request is "focus-container to take up ALL the space". */
+
+
+.focus-container.fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 40px;
+}
+
+.focus-container.fullscreen .focus-task-name {
+    font-size: 48px;
+    text-align: center;
+    margin-right: 0;
+    white-space: normal;
+}
+
+.focus-container.fullscreen .focus-timer {
+    font-size: 96px;
+    text-align: center;
+    width: auto;
+    margin: 0;
+    opacity: 1 !important; /* Always show timer in fullscreen */
+}
+
+/* In fullscreen mode, dock button group near the bottom-right */
+.focus-container.fullscreen .focus-buttons-container {
+    top: auto;
+    bottom: 40px;
+    right: 40px;
+    transform: none;
+    padding: 10px 12px;
+    gap: 10px;
+    border-radius: 24px;
+}
+
+.focus-container.fullscreen .complete-focus-btn,
+.focus-container.fullscreen .fullscreen-focus-btn,
+.focus-container.fullscreen .exit-focus-btn {
+    width: 64px;
+    height: 64px;
+}
+
+.focus-container.fullscreen .complete-focus-btn:hover,
+.focus-container.fullscreen .fullscreen-focus-btn:hover,
+.focus-container.fullscreen .exit-focus-btn:hover {
+    transform: scale(1.05);
 }
 
 .focus-container:active {
     cursor: default;
 }
 
-.focus-container:hover .exit-focus-btn,
-.focus-container:hover .complete-focus-btn {
-    opacity: 1;
-    pointer-events: auto;
-}
-
 .focus-container:hover .focus-timer {
     opacity: 0;
 }
 
-.exit-focus-btn:hover {
-    opacity: 1;
-    background: rgba(0, 0, 0, 0.1);
-    color: #333;
-    transform: translateY(-50%) scale(1.05);
+.focus-buttons-container {
+    position: absolute;
+    top: 50%;
+    right: 24px;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    -webkit-app-region: no-drag;
 }
 
-.complete-focus-btn:hover {
+.focus-container:hover .focus-buttons-container {
     opacity: 1;
-    background: rgba(34, 197, 94, 0.1);
+    pointer-events: auto;
+}
+
+.complete-focus-btn,
+.fullscreen-focus-btn,
+.exit-focus-btn {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, transform 0.15s ease;
+    padding: 0;
+    color: #666;
+    -webkit-app-region: no-drag;
+}
+
+.complete-focus-btn {
     color: #16a34a;
-    transform: translateY(-50%) scale(1.05);
+}
+
+.fullscreen-focus-btn {
+    color: #667eea;
+}
+
+.complete-focus-btn:hover,
+.fullscreen-focus-btn:hover,
+.exit-focus-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    transform: scale(1.05);
 }
 
 .focus-task-name {
@@ -771,7 +919,7 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-right: 16px;
+    margin-right: 8px;
 }
 
 .focus-timer {
@@ -781,7 +929,8 @@ body {
     text-align: right;
     -webkit-app-region: no-drag;
     flex-shrink: 0;
-    width: 120px;
+    width: auto; /* Allow timer to take only needed space */
+    min-width: 90px; /* Minimum width to prevent jumping */
     margin-left: auto;
     transition: opacity 0.2s ease;
 }
@@ -789,51 +938,6 @@ body {
 .focus-timer.overtime {
     color: #ef4444;
 }
-
-.exit-focus-btn {
-    position: absolute;
-    top: 50%;
-    right: 24px;
-    transform: translateY(-50%);
-    width: 48px;
-    height: 48px;
-    border: none;
-    border-radius: 10px;
-    background: rgba(0, 0, 0, 0.05);
-    color: #666;
-    font-size: 30px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-    opacity: 0;
-    -webkit-app-region: no-drag;
-}
-
-.complete-focus-btn {
-    position: absolute;
-    top: 50%;
-    right: 80px; /* Positioned to the left of exit button */
-    transform: translateY(-50%);
-    width: 48px;
-    height: 48px;
-    border: none;
-    border-radius: 10px;
-    background: rgba(34, 197, 94, 0.05);
-    color: #16a34a;
-    font-size: 30px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-    opacity: 0;
-    -webkit-app-region: no-drag;
-}
-
 /* Basecamp Settings */
 .settings-section {
     margin-bottom: 24px;
@@ -930,6 +1034,178 @@ body {
 }
 
 /* Basecamp Selection in Modal */
+.basecamp-selection {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+}
+
+.bc-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.bc-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    background: white;
+}
+
+.bc-select:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+/* Sync Button */
+.sync-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.sync-btn:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 4px;
+}
+
+.sync-btn.spinning svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+}
+
+.bc-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.bc-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    background: white;
+}
+
+.bc-select:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+/* Sync Button */
+.sync-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.sync-btn:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 4px;
+}
+
+.sync-btn.spinning svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+}
+
+.bc-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.bc-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    background: white;
+}
+
+.bc-select:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+/* Sync Button */
+.sync-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.sync-btn:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 4px;
+}
+
+.sync-btn.spinning svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .basecamp-selection {
     margin-top: 16px;
     padding-top: 16px;

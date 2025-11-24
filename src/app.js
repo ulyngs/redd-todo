@@ -70,6 +70,7 @@ const focusTaskName = document.getElementById('focus-task-name');
 const focusTimer = document.getElementById('focus-timer');
 const exitFocusBtn = document.getElementById('exit-focus-btn');
 const completeFocusBtn = document.getElementById('complete-focus-btn');
+const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
 
 // Initialize app
 function initApp() {
@@ -88,6 +89,14 @@ function initApp() {
     
     // Check Basecamp connection status
     updateBasecampUI();
+
+    // Show window controls on non-Mac platforms
+    if (process.platform !== 'darwin') {
+        const winControls = document.getElementById('window-controls');
+        if (winControls) {
+            winControls.classList.remove('hidden');
+        }
+    }
 }
 
 // Tab management
@@ -925,6 +934,27 @@ function setupEventListeners() {
         exitFocusMode();
     });
 
+    if (fullscreenFocusBtn) {
+        fullscreenFocusBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const focusContainer = document.querySelector('.focus-container');
+            if (focusContainer.classList.contains('fullscreen')) {
+                // Exit fullscreen
+                focusContainer.classList.remove('fullscreen');
+                // Restore window size logic would be complex without knowing original state, 
+                // but we can rely on the standard focus mode sizing logic which runs on enter or resize
+                // Actually, we should probably just tell main process to exit kiosk/fullscreen
+                ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500)); // Restore standard width
+            } else {
+                // Enter fullscreen
+                focusContainer.classList.add('fullscreen');
+                ipcRenderer.send('enter-fullscreen-focus');
+            }
+        });
+    }
+
     // Delete all completed tasks
     if (deleteAllBtn) {
         deleteAllBtn.addEventListener('click', () => {
@@ -944,6 +974,29 @@ function setupEventListeners() {
         // Drag logic removed
     } 
     */
+
+    // Window controls (Min/Max/Close)
+    const minBtn = document.getElementById('min-btn');
+    const maxBtn = document.getElementById('max-btn');
+    const closeBtn = document.getElementById('close-btn');
+
+    if (minBtn) {
+        minBtn.addEventListener('click', () => {
+            ipcRenderer.send('window-minimize');
+        });
+    }
+
+    if (maxBtn) {
+        maxBtn.addEventListener('click', () => {
+            ipcRenderer.send('window-maximize');
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            ipcRenderer.send('window-close');
+        });
+    }
 }
 
 // Focus mode functions
