@@ -17,6 +17,7 @@ let focusTimerInterval = null;
 let basecampConfig = {
     accountId: null,
     accessToken: null,
+    email: null,
     isConnected: false
 };
 
@@ -55,6 +56,7 @@ const bcAuthContainer = document.getElementById('bc-auth-container');
 const bcConnectionStatus = document.getElementById('bc-connection-status');
 const bcLoginForm = document.getElementById('bc-login-form');
 const bcAccountIdInput = document.getElementById('bc-account-id');
+const bcEmailInput = document.getElementById('bc-email');
 const bcAccessTokenInput = document.getElementById('bc-access-token');
 const connectBcBtn = document.getElementById('connect-bc-btn');
 const disconnectBcBtn = document.getElementById('disconnect-bc-btn');
@@ -746,10 +748,12 @@ function setupEventListeners() {
     connectBcBtn.addEventListener('click', async () => {
         const accountId = bcAccountIdInput.value.trim();
         const token = bcAccessTokenInput.value.trim();
+        const email = bcEmailInput.value.trim();
         
         if (accountId && token) {
             basecampConfig.accountId = accountId;
             basecampConfig.accessToken = token;
+            basecampConfig.email = email;
             basecampConfig.isConnected = true;
             saveData();
             updateBasecampUI();
@@ -760,6 +764,7 @@ function setupEventListeners() {
     disconnectBcBtn.addEventListener('click', () => {
         basecampConfig.accountId = null;
         basecampConfig.accessToken = null;
+        basecampConfig.email = null;
         basecampConfig.isConnected = false;
         saveData();
         updateBasecampUI();
@@ -1484,7 +1489,7 @@ function loadData() {
             tabs = data.tabs || {};
             currentTabId = data.currentTabId || null;
             taskCounter = data.taskCounter || 0;
-            basecampConfig = data.basecampConfig || { accountId: null, accessToken: null, isConnected: false };
+            basecampConfig = data.basecampConfig || { accountId: null, accessToken: null, email: null, isConnected: false };
         }
     } catch (e) {
         console.error('Failed to load data:', e);
@@ -1499,12 +1504,31 @@ function updateBasecampUI() {
         disconnectBcBtn.classList.remove('hidden');
         bcAccountIdInput.value = basecampConfig.accountId;
         bcAccessTokenInput.value = basecampConfig.accessToken;
+        bcEmailInput.value = basecampConfig.email || '';
     } else {
         bcConnectionStatus.classList.add('hidden');
         bcLoginForm.classList.remove('hidden');
         disconnectBcBtn.classList.add('hidden');
         bcAccountIdInput.value = '';
         bcAccessTokenInput.value = '';
+        bcEmailInput.value = '';
+    }
+}
+
+async function checkProjectAccess(projectId, email) {
+    try {
+        const response = await fetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}/people.json`, {
+            headers: {
+                'Authorization': `Bearer ${basecampConfig.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (!response.ok) return false;
+        const people = await response.json();
+        return people.some(p => p.email_address && p.email_address.toLowerCase() === email.toLowerCase());
+    } catch (e) {
+        console.error(`Error checking access for project ${projectId}:`, e);
+        return false;
     }
 }
 
@@ -1519,7 +1543,24 @@ async function fetchBasecampProjects() {
             }
         });
         if (!response.ok) throw new Error('Failed to fetch projects');
-        return await response.json();
+        let projects = await response.json();
+
+        // Filter by email if provided
+        if (basecampConfig.email && basecampConfig.email.trim()) {
+            const email = basecampConfig.email.trim();
+            
+            // Check access for all projects in parallel
+            // Note: This might hit rate limits if there are many projects
+            const accessResults = await Promise.all(
+                projects.map(async (p) => {
+                    const hasAccess = await checkProjectAccess(p.id, email);
+                    return hasAccess ? p : null;
+                })
+            );
+            projects = accessResults.filter(p => p !== null);
+        }
+
+        return projects;
     } catch (e) {
         console.error('Basecamp Error:', e);
         return [];
