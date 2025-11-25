@@ -608,6 +608,33 @@ body {
     align-items: center;
     height: 24px;
     flex-shrink: 0;
+    user-select: none;
+}
+
+.done-toggle {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    gap: 6px;
+    padding: 4px 0;
+}
+
+.chevron-icon {
+    transition: transform 0.2s ease;
+    color: #999;
+}
+
+.done-container.collapsed .chevron-icon {
+    transform: rotate(-90deg);
+}
+
+.done-container.collapsed {
+    height: auto;
+    padding-bottom: 8px;
+}
+
+.done-container.collapsed .done-tasks {
+    display: none;
 }
 
 .delete-all-btn {

@@ -5,6 +5,7 @@ let currentTabId = null;
 let tabs = {};
 let taskCounter = 0;
 let isFocusMode = false;
+let isDoneCollapsed = false; // New state for done section
 let focusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
@@ -597,6 +598,11 @@ function renderTasks() {
         doneTasksContainer.appendChild(doneBottomDragTarget);
 
         doneContainer.style.display = 'block';
+        if (isDoneCollapsed) {
+            doneContainer.classList.add('collapsed');
+        } else {
+            doneContainer.classList.remove('collapsed');
+        }
 
         // Show "Delete all" button if there's more than one completed task
         if (completedTasks.length > 1) {
@@ -872,6 +878,23 @@ function setupEventListeners() {
             if (e.target === settingsModal) {
                 settingsModal.classList.add('hidden');
             }
+        });
+    }
+
+    // Done section toggle
+    const doneHeading = document.getElementById('done-heading');
+    if (doneHeading) {
+        doneHeading.addEventListener('click', (e) => {
+            // Don't toggle if clicking the delete button
+            if (e.target.closest('.delete-all-btn')) return;
+            
+            isDoneCollapsed = !isDoneCollapsed;
+            if (isDoneCollapsed) {
+                doneContainer.classList.add('collapsed');
+            } else {
+                doneContainer.classList.remove('collapsed');
+            }
+            saveData();
         });
     }
 
@@ -1465,7 +1488,8 @@ function saveData() {
         tabs: tabs,
         currentTabId: currentTabId,
         taskCounter: taskCounter,
-        basecampConfig: basecampConfig
+        basecampConfig: basecampConfig,
+        isDoneCollapsed: isDoneCollapsed
     };
     localStorage.setItem('redd-todo-data', JSON.stringify(data));
 }
@@ -1490,6 +1514,7 @@ function loadData() {
             currentTabId = data.currentTabId || null;
             taskCounter = data.taskCounter || 0;
             basecampConfig = data.basecampConfig || { accountId: null, accessToken: null, email: null, isConnected: false };
+            isDoneCollapsed = data.isDoneCollapsed || false;
         }
     } catch (e) {
         console.error('Failed to load data:', e);

@@ -63,8 +63,13 @@
 
             <!-- Done Tasks Container -->
             <div class="done-container" id="done-container">
-                <div class="done-heading">
-                    <span>Done</span>
+                <div class="done-heading" id="done-heading">
+                    <div class="done-toggle">
+                        <svg class="chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                        <span>Done</span>
+                    </div>
                     <button id="delete-all-btn" class="delete-all-btn hidden" title="Delete all completed tasks">Delete all</button>
                 </div>
                 <div class="done-tasks">
