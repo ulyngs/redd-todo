@@ -203,9 +203,19 @@ function addTask(text) {
 function deleteTask(taskId) {
     if (!currentTabId) return;
 
-    tabs[currentTabId].tasks = tabs[currentTabId].tasks.filter(task => task.id !== taskId);
-    renderTasks();
-    saveData();
+    const currentTab = tabs[currentTabId];
+    const task = currentTab.tasks.find(t => t.id === taskId);
+    
+    if (task) {
+        // If Basecamp connected, delete remote
+        if (currentTab.basecampListId && basecampConfig.isConnected && task.basecampId) {
+            deleteBasecampTodo(currentTabId, task.basecampId);
+        }
+
+        currentTab.tasks = currentTab.tasks.filter(t => t.id !== taskId);
+        renderTasks();
+        saveData();
+    }
 }
 
 function toggleTask(taskId) {
@@ -1571,13 +1581,21 @@ async function syncBasecampList(tabId) {
         // 2. Update status of linked todos
         
         let changes = false;
+        const remoteIds = new Set();
+
         remoteTodos.forEach(remote => {
+            remoteIds.add(remote.id);
             const localTask = tab.tasks.find(t => t.basecampId === remote.id);
             
             if (localTask) {
                 // Update local status if remote changed
                 if (localTask.completed !== remote.completed) {
                     localTask.completed = remote.completed;
+                    changes = true;
+                }
+                // Update text if remote changed
+                if (localTask.text !== remote.content) {
+                    localTask.text = remote.content;
                     changes = true;
                 }
             } else {
@@ -1594,6 +1612,14 @@ async function syncBasecampList(tabId) {
                 changes = true;
             }
         });
+
+        // 3. Remove local tasks that are linked to Basecamp but no longer exist remotely
+        const initialCount = tab.tasks.length;
+        tab.tasks = tab.tasks.filter(t => !t.basecampId || remoteIds.has(t.basecampId));
+        
+        if (tab.tasks.length !== initialCount) {
+            changes = true;
+        }
 
         if (changes) {
             renderTasks();
@@ -1622,6 +1648,24 @@ async function updateBasecampCompletion(tabId, task) {
         });
     } catch (e) {
         console.error('Update BC Error:', e);
+    }
+}
+
+async function deleteBasecampTodo(tabId, basecampId) {
+    const tab = tabs[tabId];
+    if (!tab || !tab.basecampProjectId || !basecampConfig.isConnected) return;
+
+    try {
+        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${basecampId}.json`;
+        
+        await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${basecampConfig.accessToken}`
+            }
+        });
+    } catch (e) {
+        console.error('Delete BC Error:', e);
     }
 }
 
