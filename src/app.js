@@ -1550,11 +1550,21 @@ async function syncBasecampList(tabId) {
     if (!tab || !tab.basecampListId || !basecampConfig.isConnected) return;
 
     try {
-        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json?completed=true`;
-        const response = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
-        });
-        const remoteTodos = await response.json();
+        // Fetch both active (default) and completed todos
+        const baseUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json`;
+        
+        const [activeResp, completedResp] = await Promise.all([
+            fetch(baseUrl, {
+                headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
+            }),
+            fetch(`${baseUrl}?completed=true`, {
+                headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
+            })
+        ]);
+
+        const activeTodos = await activeResp.json();
+        const completedTodos = await completedResp.json();
+        const remoteTodos = [...activeTodos, ...completedTodos];
 
         // Merge logic: 
         // 1. Add new remote todos to local
