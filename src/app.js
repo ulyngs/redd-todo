@@ -1371,18 +1371,7 @@ function editTaskText(taskId, textElement) {
             
             // If connected to Basecamp and task has a remote ID, sync the change
             if (currentTab.basecampListId && basecampConfig.isConnected && task.basecampId) {
-                // We reuse createBasecampTodo logic but we need an update endpoint ideally.
-                // Or we reuse the sync logic.
-                // Actually, looking at syncBasecampList, it pushes local changes if we had a way to mark them dirty.
-                // But currently sync is mostly one way or relies on comparison.
-                
-                // Let's implement a simple update if possible or just rely on sync button.
-                // For now, we'll just save locally. The user can hit sync.
-                // BETTER: Let's try to update it remotely if we can.
-                // But we don't have an updateBasecampTodo function yet?
-                // We have updateBasecampCompletion.
-                
-                // Let's just save locally for now as requested.
+                updateBasecampTodoText(currentTabId, task);
             }
             
             saveData();
@@ -1771,6 +1760,26 @@ async function updateBasecampCompletion(tabId, task) {
         });
     } catch (e) {
         console.error('Update BC Error:', e);
+    }
+}
+
+async function updateBasecampTodoText(tabId, task) {
+    const tab = tabs[tabId];
+    if (!tab || !task.basecampId) return;
+
+    try {
+        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${task.basecampId}.json`;
+        
+        await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${basecampConfig.accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: task.text })
+        });
+    } catch (e) {
+        console.error('Update BC Text Error:', e);
     }
 }
 
