@@ -1021,6 +1021,16 @@ function setupEventListeners() {
         deleteAllBtn.addEventListener('click', () => {
             if (!currentTabId || !tabs[currentTabId]) return;
             
+            const currentTab = tabs[currentTabId];
+
+            // If connected to Basecamp, delete all completed tasks remotely
+            if (currentTab.basecampListId && basecampConfig.isConnected) {
+                const completedTasks = currentTab.tasks.filter(task => task.completed && task.basecampId);
+                completedTasks.forEach(task => {
+                    deleteBasecampTodo(currentTabId, task.basecampId);
+                });
+            }
+            
             // Keep only incomplete tasks
             tabs[currentTabId].tasks = tabs[currentTabId].tasks.filter(task => !task.completed);
             saveData();
