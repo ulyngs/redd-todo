@@ -785,6 +785,25 @@ function setupEventListeners() {
         }
     });
 
+    // Auto-fill tab name when Basecamp list is selected
+    bcListSelect.addEventListener('change', () => {
+        const selectedOption = bcListSelect.options[bcListSelect.selectedIndex];
+        if (selectedOption && bcListSelect.value) {
+            const projectOption = bcProjectSelect.options[bcProjectSelect.selectedIndex];
+            let prefix = '';
+            
+            if (projectOption) {
+                const projectName = projectOption.text;
+                const firstWord = projectName.trim().split(/\s+/)[0]; // Handle multiple spaces
+                if (firstWord) {
+                    prefix = `${firstWord}: `;
+                }
+            }
+            
+            tabNameInput.value = prefix + selectedOption.text;
+        }
+    });
+
     // Close modal on Enter key
     if (tabNameInput) {
         tabNameInput.addEventListener('keypress', (e) => {
