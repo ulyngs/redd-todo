@@ -1550,7 +1550,7 @@ async function syncBasecampList(tabId) {
     if (!tab || !tab.basecampListId || !basecampConfig.isConnected) return;
 
     try {
-        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json`;
+        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json?completed=true`;
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
         });
