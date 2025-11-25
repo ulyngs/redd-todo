@@ -615,6 +615,14 @@ body {
     user-select: none;
 }
 
+.done-time-spent {
+    font-size: 11px;
+    color: #999;
+    font-weight: normal;
+    text-transform: none;
+    margin: 0 auto;
+}
+
 .done-toggle {
     display: flex;
     align-items: center;

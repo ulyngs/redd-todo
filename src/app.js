@@ -37,6 +37,7 @@ const syncBtn = document.getElementById('sync-btn');
 const doneContainer = document.getElementById('done-container');
 const doneTasksContainer = document.querySelector('.done-tasks');
 const deleteAllBtn = document.getElementById('delete-all-btn');
+const doneTimeSpent = document.getElementById('done-time-spent');
 
 // Modal elements
 const tabNameModal = document.getElementById('tab-name-modal');
@@ -609,6 +610,28 @@ function renderTasks() {
             deleteAllBtn.classList.remove('hidden');
         } else {
             deleteAllBtn.classList.add('hidden');
+        }
+
+        // Calculate and display total time spent
+        const totalTimeMs = completedTasks.reduce((total, task) => {
+            return total + (task.actualDuration || 0);
+        }, 0);
+
+        if (totalTimeMs > 0) {
+            const totalMinutes = Math.round(totalTimeMs / (1000 * 60));
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            
+            let timeString = 'Time spent: ';
+            if (hours > 0) {
+                timeString += `${hours}hr `;
+            }
+            timeString += `${minutes}m`;
+            
+            doneTimeSpent.textContent = timeString;
+            doneTimeSpent.style.display = 'block';
+        } else {
+            doneTimeSpent.style.display = 'none';
         }
     } else {
         doneContainer.style.display = 'none';
