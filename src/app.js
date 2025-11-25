@@ -884,6 +884,7 @@ function setupEventListeners() {
             const focusContainer = document.querySelector('.focus-container');
             if (focusContainer && focusContainer.classList.contains('fullscreen')) {
                 focusContainer.classList.remove('fullscreen');
+                updateFullscreenButtonState(false);
                 // Restore standard width (similar to logic in fullscreen button handler)
                 ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
             }
@@ -1065,6 +1066,7 @@ function setupEventListeners() {
             if (focusContainer.classList.contains('fullscreen')) {
                 // Exit fullscreen
                 focusContainer.classList.remove('fullscreen');
+                updateFullscreenButtonState(false);
                 // Restore window size logic would be complex without knowing original state, 
                 // but we can rely on the standard focus mode sizing logic which runs on enter or resize
                 // Actually, we should probably just tell main process to exit kiosk/fullscreen
@@ -1072,6 +1074,7 @@ function setupEventListeners() {
             } else {
                 // Enter fullscreen
                 focusContainer.classList.add('fullscreen');
+                updateFullscreenButtonState(true);
                 ipcRenderer.send('enter-fullscreen-focus');
             }
         });
@@ -1132,6 +1135,22 @@ function setupEventListeners() {
 }
 
 // Focus mode functions
+function updateFullscreenButtonState(isFullscreen) {
+    const btn = document.getElementById('fullscreen-focus-btn');
+    if (!btn) return;
+    
+    const path = btn.querySelector('path');
+    if (isFullscreen) {
+        // Collapse icon (arrows pointing inwards)
+        path.setAttribute('d', 'M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7');
+        btn.title = 'Exit fullscreen';
+    } else {
+        // Expand icon (arrows pointing outwards)
+        path.setAttribute('d', 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7');
+        btn.title = 'Enter fullscreen';
+    }
+}
+
 function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
     console.log('enterFocusMode called with taskName:', taskName, 'duration:', duration, 'initialTimeSpent:', initialTimeSpent);
     isFocusMode = true;
@@ -1145,6 +1164,7 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
     const container = document.querySelector('.focus-container');
     if (container) {
         container.classList.remove('fullscreen');
+        updateFullscreenButtonState(false);
     }
 
     focusTaskName.textContent = taskName;

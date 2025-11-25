@@ -35,7 +35,17 @@ builder.build({
     mac: {
       identity: "ULRIK LYNGS (7YEYWQKK25)",
       category: 'public.app-category.productivity',
-      target: ['dmg', 'zip'],
+      // CHANGE: Replace the simple target array with an object specifying 'universal' architecture
+      target: [
+        {
+          target: 'dmg',
+          arch: ['universal']
+        },
+        {
+          target: 'zip',
+          arch: ['universal']
+        }
+      ],
       icon: 'assets/icon.icns',
       hardenedRuntime: true,
       gatekeeperAssess: false,

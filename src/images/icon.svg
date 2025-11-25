@@ -4,7 +4,7 @@
   <circle
     cx="120" cy="120" r="100"
     stroke="#0D319C" stroke-width="10"
-    fill="none" />
+    fill="#FFFFFF" />
 
   <!-- Enlarged needle rotated 25 degrees -->
   <polygon
