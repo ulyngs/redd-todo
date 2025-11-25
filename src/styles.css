@@ -379,8 +379,12 @@ body {
 .task-meta.actual-time {
     color: #999; /* Reset to default grey */
     font-weight: normal;
-    cursor: default; /* Actual time is read-only */
+    cursor: pointer; /* Allow editing */
     text-decoration: none;
+}
+
+.task-meta.actual-time:hover {
+    text-decoration: underline;
 }
 
 .task-edit-input {

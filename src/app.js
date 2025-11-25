@@ -653,6 +653,9 @@ function createTaskElement(task) {
             timeDisplay = `${Math.round(task.actualDuration / (1000 * 60))}m`;
         }
         metaHtml = `<span class="task-meta actual-time">${timeDisplay}</span>`;
+    } else if (task.completed) {
+         // Completed but no duration set? Allow adding it.
+         metaHtml = `<span class="task-meta add-time" title="Add actual duration">+</span>`;
     } else if (!task.completed && task.expectedDuration) {
         metaHtml = `<span class="task-meta" title="Click to edit duration">${task.expectedDuration}m</span>`;
     } else if (!task.completed) {
@@ -678,7 +681,7 @@ function createTaskElement(task) {
     });
     
     const taskTextSpan = taskElement.querySelector('.task-text');
-    if (taskTextSpan && !task.completed) {
+    if (taskTextSpan) {
         taskTextSpan.addEventListener('click', (e) => {
             e.stopPropagation(); // Prevent triggering other click handlers on the task item
             editTaskText(task.id, taskTextSpan);
@@ -686,7 +689,7 @@ function createTaskElement(task) {
     }
 
     const taskMetaSpan = taskElement.querySelector('.task-meta');
-    if (taskMetaSpan && !task.completed) {
+    if (taskMetaSpan) {
         taskMetaSpan.addEventListener('click', (e) => {
             e.stopPropagation();
             editTaskDuration(task.id, taskMetaSpan);
@@ -927,6 +930,13 @@ function setupEventListeners() {
             deleteTask(taskId);
         } else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
             toggleTask(taskId);
+        } else if (e.target.classList.contains('task-text')) {
+            // Edit task text for completed tasks
+            editTaskText(taskId, e.target);
+        } else if (e.target.classList.contains('task-meta') || e.target.closest('.task-meta')) {
+             // Edit task duration for completed tasks
+             const metaEl = e.target.classList.contains('task-meta') ? e.target : e.target.closest('.task-meta');
+             editTaskDuration(taskId, metaEl);
         }
     });
 
@@ -1358,6 +1368,23 @@ function editTaskText(taskId, textElement) {
         const newText = input.value.trim();
         if (newText) {
             task.text = newText;
+            
+            // If connected to Basecamp and task has a remote ID, sync the change
+            if (currentTab.basecampListId && basecampConfig.isConnected && task.basecampId) {
+                // We reuse createBasecampTodo logic but we need an update endpoint ideally.
+                // Or we reuse the sync logic.
+                // Actually, looking at syncBasecampList, it pushes local changes if we had a way to mark them dirty.
+                // But currently sync is mostly one way or relies on comparison.
+                
+                // Let's implement a simple update if possible or just rely on sync button.
+                // For now, we'll just save locally. The user can hit sync.
+                // BETTER: Let's try to update it remotely if we can.
+                // But we don't have an updateBasecampTodo function yet?
+                // We have updateBasecampCompletion.
+                
+                // Let's just save locally for now as requested.
+            }
+            
             saveData();
         }
         renderTasks(); // Re-render to restore span and update UI
@@ -1381,11 +1408,19 @@ function editTaskDuration(taskId, metaElement) {
     // Create input element for duration
     const input = document.createElement('input');
     input.type = 'number';
-    input.value = task.expectedDuration || '';
+    // Determine what value to show: actualDuration (ms) converted to minutes, or expectedDuration
+    let initialValue = '';
+    if (task.completed && task.actualDuration) {
+        initialValue = Math.round(task.actualDuration / (1000 * 60));
+    } else {
+        initialValue = task.expectedDuration || '';
+    }
+    
+    input.value = initialValue;
     input.className = 'task-edit-input';
-    input.style.width = '40px';
+    input.style.width = '50px';
     input.style.textAlign = 'center';
-    input.min = '1';
+    input.min = '0'; // Allow 0 to clear or low values
     input.max = '999';
     input.placeholder = 'm';
     
@@ -1402,9 +1437,21 @@ function editTaskDuration(taskId, metaElement) {
     function saveEdit() {
         const newVal = input.value.trim();
         if (newVal) {
-            task.expectedDuration = parseInt(newVal);
+            const minutes = parseInt(newVal);
+            if (task.completed) {
+                // If completed, update actualDuration (store as ms)
+                task.actualDuration = minutes * 60 * 1000;
+            } else {
+                // If not completed, update expectedDuration
+                task.expectedDuration = minutes;
+            }
         } else {
-            task.expectedDuration = null; // Clear if empty
+            // If empty, clear value
+            if (task.completed) {
+                task.actualDuration = null;
+            } else {
+                task.expectedDuration = null;
+            }
         }
         saveData();
         renderTasks(); // Re-render to restore span and update UI
