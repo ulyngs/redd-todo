@@ -20,11 +20,13 @@ if (targets.length === 0) {
 }
 
 builder.build({
-  // ONLY pass targets if we actually selected some. 
+  // ONLY pass targets if we actually selected some.
   // If targets is empty/undefined, electron-builder defaults to current OS.
   targets: targets.length > 0 ? builder.createTargets(targets) : undefined,
-  
+
   config: {
+    // Disable snap builds globally to avoid multipass dependency
+    snap: null,
     appId: 'com.redd.todo',
     productName: 'ReDD Todo',
     copyright: 'Copyright © 2025 Reduce Digital Distraction Ltd',
@@ -70,7 +72,9 @@ builder.build({
       target: ['AppImage', 'deb'],
       category: 'Utility',
       icon: 'assets/icon.png'
-    }
+    },
+    // Only build x64 by default to avoid arm64 builds on M4 Mac
+    defaultArch: 'x64'
   }
 }).then(() => {
   console.log('Build complete!');
