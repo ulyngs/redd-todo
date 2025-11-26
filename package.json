@@ -8,6 +8,7 @@
     "dev": "electron . --dev",
     "build": "node build.js",
     "build:mac": "node build.js --mac",
+    "build:mas": "node build.js --mas",
     "build:win": "node build.js --win",
     "build:linux": "node build.js --linux",
     "postinstall": "electron-builder install-app-deps"

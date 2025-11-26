@@ -6,26 +6,37 @@ const Platform = builder.Platform;
 const buildMac = process.argv.includes('--mac');
 const buildWin = process.argv.includes('--win');
 const buildLinux = process.argv.includes('--linux');
+const buildMas = process.argv.includes('--mas');
 
 // If no flags, default to current platform
 const targets = [];
-if (buildMac) targets.push(Platform.MAC);
+if (buildMac || buildMas) targets.push(Platform.MAC);
 if (buildWin) targets.push(Platform.WINDOWS);
 if (buildLinux) targets.push(Platform.LINUX);
 
 if (targets.length === 0) {
-   console.log("No platform flags detected (--mac, --win, --linux). Building for current platform only.");
-   // electron-builder defaults to current platform if 'targets' is not specified
-   // so we don't need to push anything to targets here if we want that default behavior.
+   console.log("No platform flags detected (--mac, --win, --linux, --mas). Building for current platform only.");
+}
+
+// Determine Mac targets
+let macTargets = [
+  {
+    target: 'dmg',
+    arch: ['universal']
+  },
+  {
+    target: 'zip',
+    arch: ['universal']
+  }
+];
+
+if (buildMas) {
+  macTargets = ['mas'];
 }
 
 builder.build({
-  // ONLY pass targets if we actually selected some.
-  // If targets is empty/undefined, electron-builder defaults to current OS.
   targets: targets.length > 0 ? builder.createTargets(targets) : undefined,
-
   config: {
-    // Disable snap builds globally to avoid multipass dependency
     snap: null,
     appId: 'com.redd.todo',
     productName: 'ReDD Todo',
@@ -35,35 +46,39 @@ builder.build({
       buildResources: 'assets'
     },
     mac: {
-      identity: "ULRIK LYNGS (7YEYWQKK25)",
+      // Explicitly set identity to null so 'mas' target configuration takes precedence when building for MAS
+      // Otherwise, the global mac identity (Developer ID) overrides the mas-specific identity
+      identity: buildMas ? null : "ULRIK LYNGS (7YEYWQKK25)",
       category: 'public.app-category.productivity',
-      // CHANGE: Replace the simple target array with an object specifying 'universal' architecture
-      target: [
-        {
-          target: 'dmg',
-          arch: ['universal']
-        },
-        {
-          target: 'zip',
-          arch: ['universal']
-        }
-      ],
+      target: macTargets,
       icon: 'assets/icon.icns',
       hardenedRuntime: true,
       gatekeeperAssess: false,
       entitlements: 'build/entitlements.mac.plist',
       entitlementsInherit: 'build/entitlements.mac.plist',
+      extendInfo: {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    mas: {
+      hardenedRuntime: false,
+      type: "distribution",
+      category: 'public.app-category.productivity',
+      entitlements: 'build/entitlements.mas.plist',
+      entitlementsInherit: 'build/entitlements.mas.inherit.plist',
+      provisioningProfile: 'build/ReDD_Todo_New.provisionprofile',
+      icon: 'assets/icon.icns',
+      identity: "ULRIK LYNGS (7YEYWQKK25)"
     },
     win: {
-      // Build both the installer (nsis) and a zip (portable files)
       target: [
         {
           target: 'nsis',
-          arch: ['x64'] // FORCE x64 (Intel/AMD)
+          arch: ['x64']
         },
         {
           target: 'zip',
-          arch: ['x64'] // FORCE x64
+          arch: ['x64']
         }
       ],
       icon: 'assets/icon.ico'
@@ -73,11 +88,11 @@ builder.build({
       category: 'Utility',
       icon: 'assets/icon.png'
     },
-    // Only build x64 by default to avoid arm64 builds on M4 Mac
     defaultArch: 'x64'
   }
 }).then(() => {
   console.log('Build complete!');
 }).catch((error) => {
   console.error('Build failed:', error);
+  process.exit(1);
 });
