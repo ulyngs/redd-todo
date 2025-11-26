@@ -48,7 +48,7 @@ builder.build({
     mac: {
       // Explicitly set identity to null so 'mas' target configuration takes precedence when building for MAS
       // Otherwise, the global mac identity (Developer ID) overrides the mas-specific identity
-      identity: buildMas ? null : "ULRIK LYNGS (7YEYWQKK25)",
+      identity: buildMas ? null : process.env.APPLE_IDENTITY,
       category: 'public.app-category.productivity',
       target: macTargets,
       icon: 'assets/icon.icns',
@@ -68,7 +68,7 @@ builder.build({
       entitlementsInherit: 'build/entitlements.mas.inherit.plist',
       provisioningProfile: 'build/ReDD_Todo_New.provisionprofile',
       icon: 'assets/icon.icns',
-      identity: "ULRIK LYNGS (7YEYWQKK25)"
+      identity: process.env.APPLE_IDENTITY
     },
     win: {
       target: [
