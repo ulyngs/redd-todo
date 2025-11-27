@@ -6,6 +6,7 @@ let tabs = {};
 let taskCounter = 0;
 let isFocusMode = false;
 let isDoneCollapsed = false; // New state for done section
+let doneMaxHeight = 140; // New state for done section resize
 let focusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
@@ -80,6 +81,11 @@ const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
 function initApp() {
     // Load saved data or create default tab
     loadData();
+
+    // Apply saved max height
+    if (doneMaxHeight) {
+        doneContainer.style.maxHeight = `${doneMaxHeight}px`;
+    }
 
     if (Object.keys(tabs).length === 0) {
         createNewTab('Tasks');
@@ -1132,6 +1138,48 @@ function setupEventListeners() {
             ipcRenderer.send('window-close');
         });
     }
+
+    // Add Task Resizer
+    const resizer = document.getElementById('add-task-resizer');
+    if (resizer) {
+        let startY, startMaxHeight;
+        
+        resizer.addEventListener('mousedown', (e) => {
+            startY = e.clientY;
+            // Ensure we have a number
+            startMaxHeight = parseInt(window.getComputedStyle(doneContainer).maxHeight) || doneMaxHeight;
+            
+            document.documentElement.style.cursor = 'row-resize';
+            resizer.classList.add('dragging');
+            
+            const handleMouseMove = (e) => {
+                const deltaY = startY - e.clientY; // Drag up = positive delta
+                // If dragging up, max height increases. If dragging down, decreases.
+                // Dragging UP means e.clientY is SMALLER than startY. So startY - clientY > 0.
+                // This matches: dragging up increases done section size.
+                
+                let newHeight = startMaxHeight + deltaY;
+                
+                // Constraints
+                if (newHeight < 24) newHeight = 24; // Minimum height (heading size)
+                if (newHeight > window.innerHeight - 150) newHeight = window.innerHeight - 150; // Max constraint
+                
+                doneMaxHeight = newHeight;
+                doneContainer.style.maxHeight = `${newHeight}px`;
+            };
+            
+            const handleMouseUp = () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+                document.documentElement.style.cursor = '';
+                resizer.classList.remove('dragging');
+                saveData(); // Persist the new preference
+            };
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        });
+    }
 }
 
 // Focus mode functions
@@ -1568,7 +1616,8 @@ function saveData() {
         currentTabId: currentTabId,
         taskCounter: taskCounter,
         basecampConfig: basecampConfig,
-        isDoneCollapsed: isDoneCollapsed
+        isDoneCollapsed: isDoneCollapsed,
+        doneMaxHeight: doneMaxHeight
     };
     localStorage.setItem('redd-todo-data', JSON.stringify(data));
 }
@@ -1594,6 +1643,7 @@ function loadData() {
             taskCounter = data.taskCounter || 0;
             basecampConfig = data.basecampConfig || { accountId: null, accessToken: null, email: null, isConnected: false };
             isDoneCollapsed = data.isDoneCollapsed || false;
+            doneMaxHeight = data.doneMaxHeight || 140;
         }
     } catch (e) {
         console.error('Failed to load data:', e);

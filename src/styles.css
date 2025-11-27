@@ -592,7 +592,7 @@ body {
     padding-bottom: 16px;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
     flex-shrink: 0;
-    height: 140px;
+    max-height: 120px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -1150,174 +1150,30 @@ body {
     to { transform: rotate(360deg); }
 }
 
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid #eee;
-}
-
-.bc-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 8px;
-}
-
-.bc-select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 13px;
-    margin-bottom: 8px;
-    background: white;
-}
-
-.bc-select:focus {
-    border-color: #667eea;
-    outline: none;
-}
-
-/* Sync Button */
-.sync-btn {
-    width: 24px;
-    height: 24px;
-    border: none;
-    background: transparent;
-    color: #999;
-    cursor: pointer;
+/* Resizer Handle */
+.add-task-resizer {
+    position: absolute;
+    top: -6px;
+    left: 0;
+    right: 0;
+    height: 12px;
+    cursor: row-resize;
+    z-index: 20;
     display: flex;
-    align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
-    margin-left: 8px;
-}
-
-.sync-btn:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
-    border-radius: 4px;
-}
-
-.sync-btn.spinning svg {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid #eee;
-}
-
-.bc-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 8px;
-}
-
-.bc-select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 13px;
-    margin-bottom: 8px;
-    background: white;
-}
-
-.bc-select:focus {
-    border-color: #667eea;
-    outline: none;
-}
-
-/* Sync Button */
-.sync-btn {
-    width: 24px;
-    height: 24px;
-    border: none;
-    background: transparent;
-    color: #999;
-    cursor: pointer;
-    display: flex;
     align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    margin-left: 8px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
 
-.sync-btn:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
-    border-radius: 4px;
+.add-task-resizer:hover, .add-task-resizer.dragging {
+    opacity: 1;
 }
 
-.sync-btn.spinning svg {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-.basecamp-selection {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid #eee;
-}
-
-.bc-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 8px;
-}
-
-.bc-select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 13px;
-    margin-bottom: 8px;
-    background: white;
-}
-
-.bc-select:focus {
-    border-color: #667eea;
-    outline: none;
-}
-
-/* Sync Button */
-.sync-btn {
-    width: 24px;
-    height: 24px;
-    border: none;
-    background: transparent;
-    color: #999;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    margin-left: 8px;
-}
-
-.sync-btn:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
-    border-radius: 4px;
-}
-
-.sync-btn.spinning svg {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+.add-task-resizer::after {
+    content: '';
+    width: 32px;
+    height: 4px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 2px;
 }
