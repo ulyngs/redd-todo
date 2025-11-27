@@ -31,7 +31,12 @@ let macTargets = [
 ];
 
 if (buildMas) {
-  macTargets = ['mas'];
+  macTargets = [
+    {
+      target: 'mas',
+      arch: ['universal']
+    }
+  ];
 }
 
 builder.build({
@@ -79,9 +84,18 @@ builder.build({
         {
           target: 'zip',
           arch: ['x64']
+        },
+        {
+          target: 'appx',
+          arch: ['x64']
         }
       ],
       icon: 'assets/icon.ico'
+    },
+    appx: {
+      identityName: process.env.WINDOWS_IDENTITY_NAME,
+      publisher: process.env.WINDOWS_PUBLISHER,
+      publisherDisplayName: process.env.WINDOWS_PUBLISHER_DISPLAY_NAME
     },
     linux: {
       target: ['AppImage', 'deb'],
