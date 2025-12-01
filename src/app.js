@@ -19,6 +19,9 @@ let focusTimerInterval = null;
 let basecampConfig = {
     accountId: null,
     accessToken: null,
+    refreshToken: null,
+    clientId: null,
+    clientSecret: null,
     email: null,
     isConnected: false
 };
@@ -61,6 +64,9 @@ const bcLoginForm = document.getElementById('bc-login-form');
 const bcAccountIdInput = document.getElementById('bc-account-id');
 const bcEmailInput = document.getElementById('bc-email');
 const bcAccessTokenInput = document.getElementById('bc-access-token');
+const bcRefreshTokenInput = document.getElementById('bc-refresh-token');
+const bcClientIdInput = document.getElementById('bc-client-id');
+const bcClientSecretInput = document.getElementById('bc-client-secret');
 const connectBcBtn = document.getElementById('connect-bc-btn');
 const disconnectBcBtn = document.getElementById('disconnect-bc-btn');
 const bcHelpLink = document.getElementById('bc-help-link');
@@ -836,11 +842,17 @@ function setupEventListeners() {
     connectBcBtn.addEventListener('click', async () => {
         const accountId = bcAccountIdInput.value.trim();
         const token = bcAccessTokenInput.value.trim();
+        const refreshToken = bcRefreshTokenInput.value.trim();
+        const clientId = bcClientIdInput.value.trim();
+        const clientSecret = bcClientSecretInput.value.trim();
         const email = bcEmailInput.value.trim();
         
         if (accountId && token) {
             basecampConfig.accountId = accountId;
             basecampConfig.accessToken = token;
+            basecampConfig.refreshToken = refreshToken || null;
+            basecampConfig.clientId = clientId || null;
+            basecampConfig.clientSecret = clientSecret || null;
             basecampConfig.email = email;
             basecampConfig.isConnected = true;
             saveData();
@@ -852,6 +864,9 @@ function setupEventListeners() {
     disconnectBcBtn.addEventListener('click', () => {
         basecampConfig.accountId = null;
         basecampConfig.accessToken = null;
+        basecampConfig.refreshToken = null;
+        basecampConfig.clientId = null;
+        basecampConfig.clientSecret = null;
         basecampConfig.email = null;
         basecampConfig.isConnected = false;
         saveData();
@@ -1706,7 +1721,15 @@ function loadData() {
             tabs = data.tabs || {};
             currentTabId = data.currentTabId || null;
             taskCounter = data.taskCounter || 0;
-            basecampConfig = data.basecampConfig || { accountId: null, accessToken: null, email: null, isConnected: false };
+            basecampConfig = data.basecampConfig || { 
+                accountId: null, 
+                accessToken: null, 
+                refreshToken: null,
+                clientId: null,
+                clientSecret: null,
+                email: null, 
+                isConnected: false 
+            };
             isDoneCollapsed = data.isDoneCollapsed || false;
             doneMaxHeight = data.doneMaxHeight || 140;
         }
@@ -1723,6 +1746,9 @@ function updateBasecampUI() {
         disconnectBcBtn.classList.remove('hidden');
         bcAccountIdInput.value = basecampConfig.accountId;
         bcAccessTokenInput.value = basecampConfig.accessToken;
+        bcRefreshTokenInput.value = basecampConfig.refreshToken || '';
+        bcClientIdInput.value = basecampConfig.clientId || '';
+        bcClientSecretInput.value = basecampConfig.clientSecret || '';
         bcEmailInput.value = basecampConfig.email || '';
     } else {
         bcConnectionStatus.classList.add('hidden');
@@ -1730,15 +1756,79 @@ function updateBasecampUI() {
         disconnectBcBtn.classList.add('hidden');
         bcAccountIdInput.value = '';
         bcAccessTokenInput.value = '';
+        bcRefreshTokenInput.value = '';
+        bcClientIdInput.value = '';
+        bcClientSecretInput.value = '';
         bcEmailInput.value = '';
     }
 }
 
+async function refreshBasecampToken() {
+    if (!basecampConfig.refreshToken || !basecampConfig.clientId || !basecampConfig.clientSecret) {
+        console.warn('Cannot refresh token: Missing refresh token or client credentials.');
+        return false;
+    }
+
+    try {
+        const response = await fetch(`https://launchpad.37signals.com/authorization/token?type=refresh&refresh_token=${encodeURIComponent(basecampConfig.refreshToken)}&client_id=${encodeURIComponent(basecampConfig.clientId)}&client_secret=${encodeURIComponent(basecampConfig.clientSecret)}`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            console.error(`Token refresh failed: ${response.status} ${response.statusText}`);
+            return false;
+        }
+
+        const data = await response.json();
+        if (data.access_token) {
+            basecampConfig.accessToken = data.access_token;
+            // Update refresh token if provided (rare but possible)
+            if (data.refresh_token) {
+                basecampConfig.refreshToken = data.refresh_token;
+            }
+            saveData();
+            updateBasecampUI();
+            console.log('Basecamp token refreshed successfully.');
+            return true;
+        }
+    } catch (e) {
+        console.error('Error refreshing Basecamp token:', e);
+    }
+    return false;
+}
+
+async function basecampFetch(url, options = {}) {
+    // Ensure headers exist
+    if (!options.headers) options.headers = {};
+    
+    // Add Authorization header
+    options.headers['Authorization'] = `Bearer ${basecampConfig.accessToken}`;
+
+    // First attempt
+    let response = await fetch(url, options);
+
+    // If 401, try to refresh
+    if (response.status === 401) {
+        console.log('Received 401 from Basecamp. Attempting to refresh token...');
+        const refreshed = await refreshBasecampToken();
+        
+        if (refreshed) {
+            // Update header with new token
+            options.headers['Authorization'] = `Bearer ${basecampConfig.accessToken}`;
+            // Retry request
+            response = await fetch(url, options);
+        } else {
+            console.error('Failed to refresh token or no refresh credentials available.');
+        }
+    }
+
+    return response;
+}
+
 async function checkProjectAccess(projectId, email) {
     try {
-        const response = await fetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}/people.json`, {
+        const response = await basecampFetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}/people.json`, {
             headers: {
-                'Authorization': `Bearer ${basecampConfig.accessToken}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -1755,9 +1845,8 @@ async function fetchBasecampProjects() {
     if (!basecampConfig.isConnected) return [];
     try {
         // Basecamp 3 API: GET /projects.json
-        const response = await fetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects.json`, {
+        const response = await basecampFetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects.json`, {
             headers: {
-                'Authorization': `Bearer ${basecampConfig.accessToken}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -1789,18 +1878,14 @@ async function fetchBasecampProjects() {
 async function fetchBasecampTodoLists(projectId) {
     try {
         // 1. Get the "todoset" (dock) for the project
-        const projectResp = await fetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}.json`, {
-            headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
-        });
+        const projectResp = await basecampFetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}.json`);
         const projectData = await projectResp.json();
         
         const todoset = projectData.dock.find(d => d.name === 'todoset');
         if (!todoset) return;
 
         // 2. Get the todolists in that set
-        const listsResp = await fetch(todoset.url, {
-            headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
-        });
+        const listsResp = await basecampFetch(todoset.url);
         const listsData = await listsResp.json();
         
         // Populate select
@@ -1809,9 +1894,7 @@ async function fetchBasecampTodoLists(projectId) {
         // Actually: GET /buckets/1/todosets/1/todolists.json
         const realListsUrl = todoset.url.replace('.json', '/todolists.json');
         
-        const finalListsResp = await fetch(realListsUrl, {
-             headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
-        });
+        const finalListsResp = await basecampFetch(realListsUrl);
         const finalLists = await finalListsResp.json();
 
         finalLists.forEach(list => {
@@ -1834,12 +1917,8 @@ async function syncBasecampList(tabId) {
         const baseUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json`;
         
         const [activeResp, completedResp] = await Promise.all([
-            fetch(baseUrl, {
-                headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
-            }),
-            fetch(`${baseUrl}?completed=true`, {
-                headers: { 'Authorization': `Bearer ${basecampConfig.accessToken}` }
-            })
+            basecampFetch(baseUrl),
+            basecampFetch(`${baseUrl}?completed=true`)
         ]);
 
         const activeTodos = await activeResp.json();
@@ -1910,11 +1989,8 @@ async function updateBasecampCompletion(tabId, task) {
         
         const method = task.completed ? 'POST' : 'DELETE';
         
-        await fetch(url, {
-            method: method,
-            headers: {
-                'Authorization': `Bearer ${basecampConfig.accessToken}`
-            }
+        await basecampFetch(url, {
+            method: method
         });
     } catch (e) {
         console.error('Update BC Error:', e);
@@ -1928,10 +2004,9 @@ async function updateBasecampTodoText(tabId, task) {
     try {
         const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${task.basecampId}.json`;
         
-        await fetch(url, {
+        await basecampFetch(url, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${basecampConfig.accessToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ content: task.text })
@@ -1948,11 +2023,8 @@ async function deleteBasecampTodo(tabId, basecampId) {
     try {
         const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${basecampId}.json`;
         
-        await fetch(url, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${basecampConfig.accessToken}`
-            }
+        await basecampFetch(url, {
+            method: 'DELETE'
         });
     } catch (e) {
         console.error('Delete BC Error:', e);
@@ -1965,10 +2037,9 @@ async function createBasecampTodo(tabId, task) {
 
     try {
         const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json`;
-        const response = await fetch(url, {
+        const response = await basecampFetch(url, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${basecampConfig.accessToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ content: task.text })
