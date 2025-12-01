@@ -1,5 +1,7 @@
 require('dotenv').config();
 const builder = require('electron-builder');
+const fs = require('fs');
+const path = require('path');
 const Platform = builder.Platform;
 
 // Check command line arguments
@@ -98,14 +100,45 @@ builder.build({
       publisherDisplayName: process.env.WINDOWS_PUBLISHER_DISPLAY_NAME
     },
     linux: {
-      target: ['AppImage', 'deb'],
+      target: [
+        {
+          target: 'AppImage',
+          arch: ['x64', 'arm64']
+        },
+        {
+          target: 'deb',
+          arch: ['x64', 'arm64']
+        }
+      ],
       category: 'Utility',
-      icon: 'assets/icon.png'
+      icon: 'assets/icon.png',
+      artifactName: 'redd-todo-${version}-${arch}.${ext}'
     },
     defaultArch: 'x64'
   }
 }).then(() => {
   console.log('Build complete!');
+  
+  // Rename linux files to enforce consistent 'x64' naming
+  if (buildLinux) {
+    const distDir = path.join(__dirname, 'dist');
+    try {
+      const files = fs.readdirSync(distDir);
+      files.forEach(file => {
+        if (file.includes('amd64')) {
+          const newName = file.replace('amd64', 'x64');
+          fs.renameSync(path.join(distDir, file), path.join(distDir, newName));
+          console.log(`Renamed ${file} to ${newName}`);
+        } else if (file.includes('x86_64')) {
+          const newName = file.replace('x86_64', 'x64');
+          fs.renameSync(path.join(distDir, file), path.join(distDir, newName));
+          console.log(`Renamed ${file} to ${newName}`);
+        }
+      });
+    } catch (e) {
+      console.error('Error renaming linux files:', e);
+    }
+  }
 }).catch((error) => {
   console.error('Build failed:', error);
   process.exit(1);
