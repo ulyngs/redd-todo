@@ -786,6 +786,17 @@ body {
     border-color: hsl(222.2, 84%, 9%);
 }
 
+.delete-confirm-btn {
+    background: #ef4444;
+    color: white;
+    border: 1px solid #ef4444;
+}
+
+.delete-confirm-btn:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
 /* Focus Mode Styles */
 #focus-mode {
     position: fixed;

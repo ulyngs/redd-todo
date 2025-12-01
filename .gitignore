@@ -32,3 +32,7 @@ yarn-error.log*
 *.swp
 *.swo
 .cursor/
+
+# don't keep generated icons under version control
+assets/appx/
+assets/store/

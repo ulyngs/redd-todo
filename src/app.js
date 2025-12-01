@@ -65,8 +65,16 @@ const connectBcBtn = document.getElementById('connect-bc-btn');
 const disconnectBcBtn = document.getElementById('disconnect-bc-btn');
 const bcHelpLink = document.getElementById('bc-help-link');
 
+// Delete Confirm Modal Elements
+const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+const deleteConfirmMessage = document.getElementById('delete-confirm-message');
+const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+
 // Track which tab is being renamed
 let renamingTabId = null;
+// Track which tab is pending deletion
+let pendingDeleteTabId = null;
 
 // Focus mode elements
 const normalMode = document.getElementById('normal-mode');
@@ -153,6 +161,23 @@ function closeTab(tabId) {
         alert('You must have at least one tab!');
         return;
     }
+
+    const tab = tabs[tabId];
+    if (tab.tasks && tab.tasks.length > 0) {
+        const completedCount = tab.tasks.filter(t => t.completed).length;
+        const uncompletedCount = tab.tasks.length - completedCount;
+        
+        const confirmMessage = `Are you sure you wanted to delete the todo-list <strong>'${tab.name}'</strong>, with ${uncompletedCount} uncompleted and ${completedCount} completed tasks?`;
+        
+        showDeleteConfirmModal(tabId, confirmMessage);
+        return;
+    }
+
+    performTabDeletion(tabId);
+}
+
+function performTabDeletion(tabId) {
+    if (!tabs[tabId]) return;
 
     const tabIndex = Object.keys(tabs).indexOf(tabId);
     delete tabs[tabId];
@@ -783,6 +808,31 @@ function setupEventListeners() {
         settingsModal.classList.add('hidden');
     });
 
+    // Delete Confirm Modal buttons
+    if (cancelDeleteBtn) {
+        cancelDeleteBtn.addEventListener('click', () => {
+            hideDeleteConfirmModal();
+        });
+    }
+
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', () => {
+            if (pendingDeleteTabId) {
+                performTabDeletion(pendingDeleteTabId);
+            }
+            hideDeleteConfirmModal();
+        });
+    }
+
+    // Close delete confirm modal when clicking outside
+    if (deleteConfirmModal) {
+        deleteConfirmModal.addEventListener('click', (e) => {
+            if (e.target === deleteConfirmModal) {
+                hideDeleteConfirmModal();
+            }
+        });
+    }
+
     connectBcBtn.addEventListener('click', async () => {
         const accountId = bcAccountIdInput.value.trim();
         const token = bcAccessTokenInput.value.trim();
@@ -883,6 +933,10 @@ function setupEventListeners() {
             }
             if (!settingsModal.classList.contains('hidden')) {
                 settingsModal.classList.add('hidden');
+                return;
+            }
+            if (!deleteConfirmModal.classList.contains('hidden')) {
+                hideDeleteConfirmModal();
                 return;
             }
             
@@ -1598,6 +1652,17 @@ function hideTabNameModal() {
     tabNameModal.classList.add('hidden');
     tabNameInput.value = '';
     renamingTabId = null;
+}
+
+function showDeleteConfirmModal(tabId, message) {
+    pendingDeleteTabId = tabId;
+    deleteConfirmMessage.innerHTML = message;
+    deleteConfirmModal.classList.remove('hidden');
+}
+
+function hideDeleteConfirmModal() {
+    deleteConfirmModal.classList.add('hidden');
+    pendingDeleteTabId = null;
 }
 
 // IPC listeners
