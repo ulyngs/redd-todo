@@ -89,6 +89,7 @@ const focusTaskName = document.getElementById('focus-task-name');
 const focusTimer = document.getElementById('focus-timer');
 const exitFocusBtn = document.getElementById('exit-focus-btn');
 const completeFocusBtn = document.getElementById('complete-focus-btn');
+const resetFocusBtn = document.getElementById('reset-focus-btn');
 const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
 
 // Initialize app
@@ -1131,6 +1132,17 @@ function setupEventListeners() {
         
         exitFocusMode();
     });
+
+    if (resetFocusBtn) {
+        resetFocusBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Reset timer to start from 0
+            focusStartTime = Date.now();
+            updateFocusTimer();
+        });
+    }
 
     if (fullscreenFocusBtn) {
         fullscreenFocusBtn.addEventListener('click', (e) => {

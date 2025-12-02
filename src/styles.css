@@ -903,6 +903,7 @@ body {
 
 .focus-container.fullscreen .complete-focus-btn,
 .focus-container.fullscreen .fullscreen-focus-btn,
+.focus-container.fullscreen .reset-focus-btn,
 .focus-container.fullscreen .exit-focus-btn {
     width: 64px;
     height: 64px;
@@ -910,6 +911,7 @@ body {
 
 .focus-container.fullscreen .complete-focus-btn:hover,
 .focus-container.fullscreen .fullscreen-focus-btn:hover,
+.focus-container.fullscreen .reset-focus-btn:hover,
 .focus-container.fullscreen .exit-focus-btn:hover {
     transform: scale(1.05);
 }
@@ -947,6 +949,7 @@ body {
 
 .complete-focus-btn,
 .fullscreen-focus-btn,
+.reset-focus-btn,
 .exit-focus-btn {
     position: relative;
     width: 48px;
@@ -972,8 +975,13 @@ body {
     color: #667eea;
 }
 
+.reset-focus-btn {
+    color: #f59e0b;
+}
+
 .complete-focus-btn:hover,
 .fullscreen-focus-btn:hover,
+.reset-focus-btn:hover,
 .exit-focus-btn:hover {
     background: rgba(0, 0, 0, 0.05);
     transform: scale(1.05);
