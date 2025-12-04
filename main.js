@@ -9,7 +9,7 @@ const url = require('url');
 // SET REDIRECT URI TO: http://localhost:3000/callback
 const BC_CLIENT_ID = 'd83392d7842f055157c3fef1f5464b2e15a013dc';
 const BC_REDIRECT_URI = 'http://localhost:3000/callback';
-const NETLIFY_EXCHANGE_URL = 'https://YOUR-NETLIFY-SITE-NAME.netlify.app/.netlify/functions/exchange';
+const NETLIFY_EXCHANGE_URL = 'https://redd-todo.netlify.app/.netlify/functions/exchange';
 
 let mainWindow;
 
