@@ -70,6 +70,11 @@ const bcClientSecretInput = document.getElementById('bc-client-secret');
 const connectBcBtn = document.getElementById('connect-bc-btn');
 const disconnectBcBtn = document.getElementById('disconnect-bc-btn');
 const bcHelpLink = document.getElementById('bc-help-link');
+// New elements
+const oauthConnectBtn = document.getElementById('oauth-connect-btn');
+const toggleManualAuthBtn = document.getElementById('toggle-manual-auth');
+const manualAuthFields = document.getElementById('manual-auth-fields');
+const bcAccountInfo = document.getElementById('bc-account-info');
 
 // Delete Confirm Modal Elements
 const deleteConfirmModal = document.getElementById('delete-confirm-modal');
@@ -878,6 +883,23 @@ function setupEventListeners() {
         bcHelpLink.addEventListener('click', (e) => {
             e.preventDefault();
             shell.openExternal('https://launchpad.37signals.com/integrations');
+        });
+    }
+
+    // New OAuth Button
+    if (oauthConnectBtn) {
+        oauthConnectBtn.addEventListener('click', () => {
+            oauthConnectBtn.textContent = 'Connecting...';
+            oauthConnectBtn.disabled = true;
+            ipcRenderer.send('start-basecamp-auth');
+        });
+    }
+
+    // Toggle Manual Fields
+    if (toggleManualAuthBtn) {
+        toggleManualAuthBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            manualAuthFields.classList.toggle('hidden');
         });
     }
     
@@ -1701,6 +1723,37 @@ ipcRenderer.on('exit-focus-mode', () => {
     exitFocusMode();
 });
 
+// Basecamp Authentication Logic
+ipcRenderer.on('basecamp-auth-success', async (event, data) => {
+    console.log('Auth success, tokens received');
+    
+    basecampConfig.accessToken = data.access_token;
+    basecampConfig.refreshToken = data.refresh_token;
+    basecampConfig.clientId = data.client_id;
+    basecampConfig.clientSecret = data.client_secret;
+    
+    // Now we need to get the account ID (Identity)
+    await fetchBasecampIdentity();
+    
+    basecampConfig.isConnected = true;
+    saveData();
+    updateBasecampUI();
+    
+    // Reset button
+    if (oauthConnectBtn) {
+        oauthConnectBtn.innerHTML = '<img src="images/basecamp_logo_icon_147315.png" width="16" height="16" style="filter: brightness(0) invert(1); margin-right: 8px;"> Connect with Basecamp';
+        oauthConnectBtn.disabled = false;
+    }
+});
+
+ipcRenderer.on('basecamp-auth-error', (event, errorMessage) => {
+    alert('Authentication failed: ' + errorMessage);
+    if (oauthConnectBtn) {
+        oauthConnectBtn.textContent = 'Connect with Basecamp';
+        oauthConnectBtn.disabled = false;
+    }
+});
+
 // Data persistence
 function saveData() {
     const data = {
@@ -1750,14 +1803,51 @@ function loadData() {
     }
 }
 
+// New function to fetch identity/accounts
+async function fetchBasecampIdentity() {
+    try {
+        const response = await fetch('https://launchpad.37signals.com/authorization.json', {
+            headers: {
+                'Authorization': `Bearer ${basecampConfig.accessToken}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch identity');
+        
+        const data = await response.json();
+        const accounts = data.accounts;
+        
+        if (accounts && accounts.length > 0) {
+            // For now, default to the first account. 
+            // Ideally we'd let the user choose if > 1, but this is a good start.
+            const account = accounts[0];
+            basecampConfig.accountId = account.id;
+            basecampConfig.email = data.identity.email_address;
+            console.log(`Connected to account: ${account.name} (${account.id})`);
+        } else {
+            throw new Error('No Basecamp accounts found for this user.');
+        }
+    } catch (e) {
+        console.error('Identity Error:', e);
+        alert('Could not fetch Basecamp account details. Please try again.');
+    }
+}
+
 // Basecamp API Logic
 function updateBasecampUI() {
     if (basecampConfig.isConnected) {
         bcConnectionStatus.classList.remove('hidden');
         bcLoginForm.classList.add('hidden');
         disconnectBcBtn.classList.remove('hidden');
-        bcAccountIdInput.value = basecampConfig.accountId;
-        bcAccessTokenInput.value = basecampConfig.accessToken;
+        
+        // Show account info if available
+        if (bcAccountInfo && basecampConfig.accountId) {
+            bcAccountInfo.textContent = `Account ID: ${basecampConfig.accountId} ${basecampConfig.email ? `(${basecampConfig.email})` : ''}`;
+        }
+        
+        // Fill hidden inputs (legacy support)
+        bcAccountIdInput.value = basecampConfig.accountId || '';
+        bcAccessTokenInput.value = basecampConfig.accessToken || '';
         bcRefreshTokenInput.value = basecampConfig.refreshToken || '';
         bcClientIdInput.value = basecampConfig.clientId || '';
         bcClientSecretInput.value = basecampConfig.clientSecret || '';

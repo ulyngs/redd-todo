@@ -126,19 +126,36 @@
                         <div class="connection-status hidden" id="bc-connection-status">
                             <span class="status-dot"></span>
                             <span>Connected to Basecamp</span>
+                            <div id="bc-account-info" style="font-size: 0.9em; color: #666; margin-top: 5px;"></div>
                         </div>
                         
                         <div id="bc-login-form">
-                            <input type="text" id="bc-account-id" placeholder="Account ID" class="settings-input">
-                            <input type="email" id="bc-email" placeholder="Email Address (Optional)" class="settings-input">
-                            <input type="password" id="bc-access-token" placeholder="Access Token (OAuth)" class="settings-input">
-                            <input type="password" id="bc-refresh-token" placeholder="Refresh Token (Optional - for auto-renewal)" class="settings-input">
-                            <input type="text" id="bc-client-id" placeholder="Client ID (Optional - for auto-renewal)" class="settings-input">
-                            <input type="password" id="bc-client-secret" placeholder="Client Secret (Optional - for auto-renewal)" class="settings-input">
-                            <button id="connect-bc-btn" class="modal-btn connect-btn">Connect to Basecamp</button>
-                            <p class="help-text">
-                                You can get a token from the <a href="#" id="bc-help-link">Basecamp Developer Launchpad</a>.
-                            </p>
+                            <!-- New OAuth Button -->
+                            <button id="oauth-connect-btn" class="modal-btn connect-btn" style="width: 100%; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                                <img src="images/basecamp_logo_icon_147315.png" width="16" height="16" style="filter: brightness(0) invert(1);"> 
+                                Connect with Basecamp
+                            </button>
+
+                            <div class="divider" style="text-align: center; margin: 15px 0; color: #999; font-size: 0.8em;">OR</div>
+
+                            <!-- Manual entry toggle -->
+                            <a href="#" id="toggle-manual-auth" style="font-size: 0.9em; color: #666; text-decoration: underline; display: block; text-align: center; margin-bottom: 10px;">
+                                Enter credentials manually (Advanced)
+                            </a>
+
+                            <!-- Old fields hidden by default -->
+                            <div id="manual-auth-fields" class="hidden">
+                                <input type="text" id="bc-account-id" placeholder="Account ID" class="settings-input">
+                                <input type="email" id="bc-email" placeholder="Email Address (Optional)" class="settings-input">
+                                <input type="password" id="bc-access-token" placeholder="Access Token (OAuth)" class="settings-input">
+                                <input type="password" id="bc-refresh-token" placeholder="Refresh Token (Optional - for auto-renewal)" class="settings-input">
+                                <input type="text" id="bc-client-id" placeholder="Client ID (Optional - for auto-renewal)" class="settings-input">
+                                <input type="password" id="bc-client-secret" placeholder="Client Secret (Optional - for auto-renewal)" class="settings-input">
+                                <button id="connect-bc-btn" class="modal-btn connect-btn">Save Manual Credentials</button>
+                                <p class="help-text">
+                                    You can get a token from the <a href="#" id="bc-help-link">Basecamp Developer Launchpad</a>.
+                                </p>
+                            </div>
                         </div>
                         
                         <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden">Disconnect</button>
