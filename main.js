@@ -5,8 +5,6 @@ const https = require('https');
 const url = require('url');
 
 // Basecamp OAuth Configuration
-// TODO: REGISTER YOUR APP AT https://launchpad.37signals.com/integrations
-// SET REDIRECT URI TO: http://localhost:3000/callback
 const BC_CLIENT_ID = 'd83392d7842f055157c3fef1f5464b2e15a013dc';
 const BC_REDIRECT_URI = 'http://localhost:3000/callback';
 const NETLIFY_EXCHANGE_URL = 'https://redd-todo.netlify.app/.netlify/functions/exchange';
