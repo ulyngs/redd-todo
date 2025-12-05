@@ -89,6 +89,108 @@ body {
     color: white;
 }
 
+
+/* Groups Container */
+.groups-container {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px 0 16px;
+    background: transparent;
+    /* border-bottom: 1px solid rgba(0, 0, 0, 0.05); */
+}
+
+.groups {
+    display: flex;
+    flex: 1;
+    gap: 4px;
+    overflow-x: auto;
+    align-items: center;
+}
+
+.group-tab {
+    padding: 4px 10px;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    color: rgba(0, 0, 0, 0.5);
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.group-tab:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.group-tab.active {
+    background: white;
+    color: #333;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.group-tab.drag-over {
+    background: rgba(102, 126, 234, 0.2);
+    border: 1px dashed #667eea;
+}
+
+.group-delete-btn {
+    margin-left: 6px;
+    padding: 0 4px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: rgba(0, 0, 0, 0.3);
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, color 0.2s ease;
+    -webkit-app-region: no-drag;
+    line-height: 1;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.group-tab:hover .group-delete-btn {
+    opacity: 1;
+}
+
+.group-delete-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.add-group-btn {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #999;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 4px;
+    -webkit-app-region: no-drag;
+}
+
+.add-group-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #666;
+}
+
 .tabs-container {
     display: flex;
     align-items: center;

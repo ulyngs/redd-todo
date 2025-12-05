@@ -1,6 +1,8 @@
 const { ipcRenderer, shell } = require('electron');
 
 // Application state
+let currentGroupId = null;
+let groups = {};
 let currentTabId = null;
 let tabs = {};
 let taskCounter = 0;
@@ -27,6 +29,7 @@ let basecampConfig = {
 };
 
 // DOM elements
+const groupsContainer = document.querySelector('.groups');
 const tabsContainer = document.querySelector('.tabs');
 const tasksContainer = document.querySelector('.tasks-container');
 const newTaskInput = document.getElementById('new-task-input');
@@ -84,8 +87,12 @@ const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 
 // Track which tab is being renamed
 let renamingTabId = null;
+// Track which group is being renamed
+let renamingGroupId = null;
 // Track which tab is pending deletion
 let pendingDeleteTabId = null;
+// Track which group is pending deletion
+let pendingDeleteGroupId = null;
 
 // Focus mode elements
 const normalMode = document.getElementById('normal-mode');
@@ -107,6 +114,24 @@ function initApp() {
         doneContainer.style.maxHeight = `${doneMaxHeight}px`;
     }
 
+    // Migration: Create default group if none exists
+    if (Object.keys(groups).length === 0) {
+        createGroup('General');
+    } else if (!currentGroupId || !groups[currentGroupId]) {
+        // If we have groups but invalid current ID, pick first
+        currentGroupId = Object.keys(groups)[0];
+    }
+
+    // Migration: Assign orphan tabs to current group
+    let hasOrphans = false;
+    Object.values(tabs).forEach(tab => {
+        if (!tab.groupId) {
+            tab.groupId = currentGroupId;
+            hasOrphans = true;
+        }
+    });
+    if (hasOrphans) saveData();
+
     if (Object.keys(tabs).length === 0) {
         createNewTab('Tasks');
     }
@@ -114,8 +139,25 @@ function initApp() {
     // Set up event listeners
     setupEventListeners();
 
-    // Load the first tab
-    switchToTab(Object.keys(tabs)[0]);
+    // Render groups
+    renderGroups();
+
+    // Load the first tab of current group
+    const currentGroupTabs = Object.values(tabs).filter(t => t.groupId === currentGroupId);
+    if (currentGroupTabs.length > 0) {
+        // If current tab is in current group, stay on it, otherwise switch to first in group
+        if (!tabs[currentTabId] || tabs[currentTabId].groupId !== currentGroupId) {
+            switchToTab(currentGroupTabs[0].id);
+        } else {
+             // Just render tabs
+             renderTabs();
+             renderTasks();
+        }
+    } else if (Object.keys(tabs).length > 0) {
+         // Should not happen if we migrate correctly, but safety fallback
+         renderTabs();
+         renderTasks();
+    }
     
     // Check Basecamp connection status
     updateBasecampUI();
@@ -129,6 +171,41 @@ function initApp() {
     }
 }
 
+// Group Management
+function createGroup(name) {
+    const groupId = `group_${Date.now()}`;
+    const groupName = name.trim() || 'New Group';
+    
+    groups[groupId] = {
+        id: groupId,
+        name: groupName,
+        order: Object.keys(groups).length
+    };
+    
+    currentGroupId = groupId;
+    renderGroups();
+    saveData();
+    return groupId;
+}
+
+function switchToGroup(groupId) {
+    if (!groups[groupId]) return;
+    
+    currentGroupId = groupId;
+    renderGroups();
+    
+    // Switch to first tab in this group
+    const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
+    if (groupTabs.length > 0) {
+        switchToTab(groupTabs[0].id);
+    } else {
+        // No tabs in this group?
+        currentTabId = null;
+        renderTabs();
+        renderTasks();
+    }
+}
+
 // Tab management
 function createNewTab(name, bcProjectId = null, bcListId = null) {
     const tabId = `tab_${Date.now()}`;
@@ -139,7 +216,8 @@ function createNewTab(name, bcProjectId = null, bcListId = null) {
         name: tabName,
         tasks: [],
         basecampProjectId: bcProjectId,
-        basecampListId: bcListId
+        basecampListId: bcListId,
+        groupId: currentGroupId // Assign to current group
     };
 
     renderTabs();
@@ -155,6 +233,12 @@ function createNewTab(name, bcProjectId = null, bcListId = null) {
 
 function switchToTab(tabId) {
     if (!tabs[tabId]) return;
+
+    // Ensure we are in the right group (in case we switch programmatically)
+    if (tabs[tabId].groupId && tabs[tabId].groupId !== currentGroupId) {
+        currentGroupId = tabs[tabId].groupId;
+        renderGroups();
+    }
 
     currentTabId = tabId;
     renderTabs();
@@ -211,6 +295,77 @@ function renameTab(tabId, newName) {
         renderTabs();
         saveData();
     }
+}
+
+function renameGroup(groupId, newName) {
+    if (groups[groupId]) {
+        groups[groupId].name = newName.trim() || 'Untitled Group';
+        renderGroups();
+        saveData();
+    }
+}
+
+function deleteGroup(groupId) {
+    if (Object.keys(groups).length <= 1) {
+        alert('You must have at least one group!');
+        return;
+    }
+
+    const group = groups[groupId];
+    const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
+    
+    if (groupTabs.length > 0) {
+        let totalTasks = 0;
+        let completedTasks = 0;
+        
+        groupTabs.forEach(tab => {
+            if (tab.tasks) {
+                totalTasks += tab.tasks.length;
+                completedTasks += tab.tasks.filter(t => t.completed).length;
+            }
+        });
+        
+        const uncompletedTasks = totalTasks - completedTasks;
+        
+        const confirmMessage = `Are you sure you want to delete the group <strong>'${group.name}'</strong>?<br><br>This will delete <strong>${groupTabs.length} lists</strong> containing ${uncompletedTasks} uncompleted and ${completedTasks} completed tasks.`;
+        
+        showGroupDeleteConfirmModal(groupId, confirmMessage);
+        return;
+    }
+
+    performGroupDeletion(groupId);
+}
+
+function performGroupDeletion(groupId) {
+    if (!groups[groupId]) return;
+
+    // Delete all tabs in this group
+    const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
+    groupTabs.forEach(tab => {
+        delete tabs[tab.id];
+    });
+
+    // Delete the group
+    delete groups[groupId];
+
+    // Switch to another group if we deleted the current one
+    if (currentGroupId === groupId) {
+        const remainingGroups = Object.keys(groups);
+        currentGroupId = remainingGroups[0];
+    }
+    
+    // If we switched groups, we need to pick a valid tab in the new group
+    const currentGroupTabs = Object.values(tabs).filter(t => t.groupId === currentGroupId);
+    if (currentGroupTabs.length > 0) {
+        switchToTab(currentGroupTabs[0].id);
+    } else {
+        currentTabId = null;
+    }
+
+    renderGroups();
+    renderTabs();
+    renderTasks();
+    saveData();
 }
 
 // Task management
@@ -506,10 +661,195 @@ function reorderTabs(draggedId, targetId) {
 }
 
 // Rendering functions
+function renderGroups() {
+    groupsContainer.innerHTML = '';
+
+    Object.values(groups).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(group => {
+        const groupElement = document.createElement('div');
+        groupElement.className = `group-tab ${group.id === currentGroupId ? 'active' : ''}`;
+        groupElement.dataset.groupId = group.id;
+        // groupElement.draggable = true; // Enable if we want to reorder groups later
+
+        // Group content
+        const groupContent = document.createElement('span');
+        groupContent.textContent = group.name;
+        groupElement.appendChild(groupContent);
+
+        // Click to switch group or rename
+        groupElement.addEventListener('click', () => {
+            if (group.id !== currentGroupId) {
+                switchToGroup(group.id);
+            } else {
+                showGroupRenameModal(group.id);
+            }
+        });
+
+        // Add delete button if more than one group
+        if (Object.keys(groups).length > 1) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'group-delete-btn';
+            deleteBtn.textContent = '×';
+            deleteBtn.title = 'Delete group';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteGroup(group.id);
+            });
+            groupElement.appendChild(deleteBtn);
+        }
+
+        // Drag and drop (Drop target for tabs)
+        groupElement.addEventListener('dragover', handleGroupDragOver);
+        groupElement.addEventListener('drop', handleGroupDrop);
+        groupElement.addEventListener('dragleave', handleGroupDragLeave);
+
+        groupsContainer.appendChild(groupElement);
+    });
+
+    // Add "Add Group" button
+    const addGroupBtn = document.createElement('button');
+    addGroupBtn.className = 'add-group-btn';
+    addGroupBtn.textContent = '+';
+    addGroupBtn.title = 'Add new group';
+    addGroupBtn.addEventListener('click', () => {
+        // Simple prompt for now
+        // TODO: Use a nicer modal similar to tab creation
+        // For simplicity/MVP, we can reuse the modal or just prompt
+        // Let's reuse the modal logic but tweaked, or just a prompt for now to keep it simple as requested "simple way"
+        // A prompt is simplest:
+        /*
+        const name = prompt('Enter group name:');
+        if (name) createGroup(name);
+        */
+       // Better: Reuse tab modal but set a flag? Or just use standard prompt for MVP.
+       // Let's stick to prompt for speed, can upgrade later.
+       // Actually, user said "clicking a plus just like for the existing tabs".
+       // The existing tabs use a custom modal. It would be nice to use that.
+       // Let's make showTabNameModal handle groups too.
+       showGroupModal();
+    });
+    groupsContainer.appendChild(addGroupBtn);
+}
+
+function showGroupModal() {
+    // Reuse tab modal for groups
+    modalTitle.textContent = 'Enter group name';
+    createTabBtn.textContent = 'Create Group';
+    tabNameInput.value = '';
+    tabNameInput.placeholder = 'My Group'; 
+    tabNameModal.classList.remove('hidden');
+    basecampSelection.classList.add('hidden'); // No BC for groups yet
+    
+    // We need to know we are creating a group
+    // Let's attach a temporary handler or flag
+    tabNameModal.dataset.mode = 'group';
+    
+    tabNameInput.focus();
+}
+
+function showGroupRenameModal(groupId) {
+    renamingGroupId = groupId;
+    const group = groups[groupId];
+    if (group) {
+        modalTitle.textContent = 'Rename group';
+        createTabBtn.textContent = 'Rename';
+        tabNameInput.value = group.name;
+        tabNameModal.classList.remove('hidden');
+        basecampSelection.classList.add('hidden');
+        tabNameModal.dataset.mode = 'group-rename';
+        tabNameInput.focus();
+        tabNameInput.select();
+    }
+}
+
+// Update existing modal handler to check mode
+function handleModalCreate() {
+    const mode = tabNameModal.dataset.mode;
+    let name = tabNameInput.value.trim();
+    
+    if (mode === 'group') {
+        createGroup(name);
+        hideTabNameModal();
+        tabNameModal.dataset.mode = ''; // Reset
+        return;
+    } else if (mode === 'group-rename') {
+        renameGroup(renamingGroupId, name);
+        hideTabNameModal();
+        tabNameModal.dataset.mode = ''; // Reset
+        renamingGroupId = null;
+        return;
+    }
+
+    // Existing tab creation logic...
+    // (We need to update setupEventListeners to use this function instead of inline)
+}
+
+// Group Drag Handlers
+function handleGroupDragOver(e) {
+    e.preventDefault();
+    // Only allow dropping tabs
+    if (draggedTabId) {
+        e.dataTransfer.dropEffect = 'move';
+        const target = e.target.closest('.group-tab');
+        if (target) {
+            target.classList.add('drag-over');
+        }
+    }
+}
+
+function handleGroupDragLeave(e) {
+    const target = e.target.closest('.group-tab');
+    if (target) {
+        target.classList.remove('drag-over');
+    }
+}
+
+function handleGroupDrop(e) {
+    e.preventDefault();
+    const target = e.target.closest('.group-tab');
+    
+    if (target) {
+        target.classList.remove('drag-over');
+        const targetGroupId = target.dataset.groupId;
+        
+        if (draggedTabId && targetGroupId) {
+            moveTabToGroup(draggedTabId, targetGroupId);
+        }
+    }
+}
+
+function moveTabToGroup(tabId, targetGroupId) {
+    if (tabs[tabId]) {
+        // Update group ID
+        tabs[tabId].groupId = targetGroupId;
+        saveData();
+        
+        // Refresh view
+        renderTabs();
+        renderGroups(); // Optional, maybe to show count?
+        
+        // If we moved the active tab to another group, deciding what to do
+        // Usually we stay on current group. So the tab disappears from view.
+        if (tabId === currentTabId && currentGroupId !== targetGroupId) {
+            // Switch to another tab in current group or clear selection
+            const currentGroupTabs = Object.values(tabs).filter(t => t.groupId === currentGroupId && t.id !== tabId);
+            if (currentGroupTabs.length > 0) {
+                switchToTab(currentGroupTabs[0].id);
+            } else {
+                currentTabId = null;
+                renderTabs();
+                renderTasks();
+            }
+        }
+    }
+}
+
 function renderTabs() {
     tabsContainer.innerHTML = '';
 
-    Object.values(tabs).forEach(tab => {
+    // Filter tabs by current group
+    const currentGroupTabs = Object.values(tabs).filter(tab => tab.groupId === currentGroupId);
+
+    currentGroupTabs.forEach(tab => {
         const tabElement = document.createElement('div');
         tabElement.className = `tab ${tab.id === currentTabId ? 'active' : ''}`;
         tabElement.dataset.tabId = tab.id;
@@ -784,6 +1124,12 @@ function setupEventListeners() {
 
     if (createTabBtn) {
         createTabBtn.addEventListener('click', () => {
+            // Check if we are creating a group
+            if (tabNameModal.dataset.mode === 'group') {
+                handleModalCreate();
+                return;
+            }
+
             let tabName = tabNameInput.value.trim();
             
             // Get Basecamp selection
@@ -831,6 +1177,8 @@ function setupEventListeners() {
         confirmDeleteBtn.addEventListener('click', () => {
             if (pendingDeleteTabId) {
                 performTabDeletion(pendingDeleteTabId);
+            } else if (pendingDeleteGroupId) {
+                performGroupDeletion(pendingDeleteGroupId);
             }
             hideDeleteConfirmModal();
         });
@@ -1705,6 +2053,14 @@ function hideTabNameModal() {
 
 function showDeleteConfirmModal(tabId, message) {
     pendingDeleteTabId = tabId;
+    pendingDeleteGroupId = null;
+    deleteConfirmMessage.innerHTML = message;
+    deleteConfirmModal.classList.remove('hidden');
+}
+
+function showGroupDeleteConfirmModal(groupId, message) {
+    pendingDeleteGroupId = groupId;
+    pendingDeleteTabId = null;
     deleteConfirmMessage.innerHTML = message;
     deleteConfirmModal.classList.remove('hidden');
 }
@@ -1712,6 +2068,7 @@ function showDeleteConfirmModal(tabId, message) {
 function hideDeleteConfirmModal() {
     deleteConfirmModal.classList.add('hidden');
     pendingDeleteTabId = null;
+    pendingDeleteGroupId = null;
 }
 
 // IPC listeners
