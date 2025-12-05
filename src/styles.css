@@ -142,7 +142,8 @@ body {
 
 .group-delete-btn {
     margin-left: 6px;
-    padding: 0 4px;
+    margin-right: -6px;
+    padding: 0 -4px 0 4px;
     background: transparent;
     border: none;
     border-radius: 50%;
@@ -244,7 +245,7 @@ body {
 }
 
 .tab {
-    padding: 8px 10px;
+    padding: 6px 8px;
     background: transparent;
     border-radius: 6px 6px 0 0;
     cursor: pointer;
@@ -279,7 +280,8 @@ body {
 }
 
 .tab-close {
-    margin-left: 8px;
+    margin-left: 2px;
+    margin-right: -12px;
     padding: 2px 6px;
     background: rgba(255, 255, 255, 0.2);
     border: none;
