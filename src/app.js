@@ -837,7 +837,28 @@ function showGroupModal() {
     tabNameInput.value = '';
     tabNameInput.placeholder = 'My Group'; 
     tabNameModal.classList.remove('hidden');
-    basecampSelection.classList.add('hidden'); // No BC for groups yet
+    
+    // Handle Basecamp visibility
+    if (basecampConfig.isConnected) {
+        basecampSelection.classList.remove('hidden');
+        bcProjectSelect.innerHTML = '<option value="">Select a project...</option>';
+        bcListWrapper.classList.add('hidden'); // No list selection for groups initially
+        
+        fetchBasecampProjects().then(projects => {
+            if (projects.length === 0) {
+                bcProjectSelect.innerHTML = '<option value="">No projects found</option>';
+            } else {
+                projects.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    bcProjectSelect.appendChild(opt);
+                });
+            }
+        });
+    } else {
+        basecampSelection.classList.add('hidden');
+    }
     
     // We need to know we are creating a group
     // Let's attach a temporary handler or flag
@@ -862,12 +883,64 @@ function showGroupRenameModal(groupId) {
 }
 
 // Update existing modal handler to check mode
-function handleModalCreate() {
+async function handleModalCreate() {
     const mode = tabNameModal.dataset.mode;
     let name = tabNameInput.value.trim();
     
     if (mode === 'group') {
-        createGroup(name);
+        // Check if Basecamp project is selected
+        const bcProjectId = bcProjectSelect.value;
+        const isImporting = bcProjectId && basecampConfig.isConnected;
+
+        if (isImporting) {
+            createTabBtn.textContent = 'Importing...';
+            createTabBtn.disabled = true;
+        }
+
+        const groupId = createGroup(name);
+        
+        if (isImporting) {
+            try {
+                // Fetch all todo lists from the project
+                const lists = await getBasecampTodoLists(bcProjectId);
+                
+                // Create tabs for each list
+                // Use for...of to allow await if we needed sequential async operations, 
+                // but createNewTab is sync (except for the syncBasecampList call which is async background)
+                // We want to trigger sync for all of them.
+                
+                for (const list of lists) {
+                    createNewTab(list.name, bcProjectId, list.id);
+                }
+                
+                // After creating all tabs, we might want to re-render or switch to the first one?
+                // createNewTab already saves and renders.
+                // Maybe switch to the first imported tab?
+                // The last created tab will be active because createNewTab switches to it?
+                // Actually createNewTab calls switchToTab at the end if we want? 
+                // Wait, my createNewTab implementation DOES NOT call switchToTab automatically?
+                // Let's check createNewTab...
+                // It returns tabId. It does renderTabs() and saveData().
+                // It calls syncBasecampList(tabId) if connected.
+                // It DOES NOT call switchToTab.
+                // Wait, in the event listener for creating a NEW tab (not group), it calls switchToTab(newTabId).
+                
+                // So here, we should decide which tab to switch to. 
+                // Probably the first one.
+                const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
+                if (groupTabs.length > 0) {
+                    switchToTab(groupTabs[0].id);
+                }
+                
+            } catch (e) {
+                console.error('Import Error:', e);
+                alert('Failed to import all lists from Basecamp.');
+            } finally {
+                createTabBtn.textContent = 'Create Group';
+                createTabBtn.disabled = false;
+            }
+        }
+
         hideTabNameModal();
         tabNameModal.dataset.mode = ''; // Reset
         return;
@@ -1412,11 +1485,28 @@ function setupEventListeners() {
     // Basecamp Project Selection
     bcProjectSelect.addEventListener('change', () => {
         const projectId = bcProjectSelect.value;
+        const isGroupMode = tabNameModal.dataset.mode === 'group';
+        
         if (projectId) {
-            fetchBasecampTodoLists(projectId);
-            bcListWrapper.classList.remove('hidden');
+            if (isGroupMode) {
+                // Group creation: Pre-fill name and change button text
+                const projectOption = bcProjectSelect.options[bcProjectSelect.selectedIndex];
+                if (projectOption && (!tabNameInput.value || tabNameInput.value === '')) {
+                    tabNameInput.value = projectOption.text;
+                }
+                createTabBtn.textContent = 'Import to-do lists from project';
+                // Don't fetch lists into the dropdown for groups
+                bcListWrapper.classList.add('hidden');
+            } else {
+                // Tab creation: fetch lists into dropdown
+                fetchBasecampTodoLists(projectId);
+                bcListWrapper.classList.remove('hidden');
+            }
         } else {
             bcListWrapper.classList.add('hidden');
+            if (isGroupMode) {
+                createTabBtn.textContent = 'Create Group';
+            }
         }
     });
 
@@ -2486,37 +2576,42 @@ async function fetchBasecampProjects() {
     }
 }
 
-async function fetchBasecampTodoLists(projectId) {
+async function getBasecampTodoLists(projectId) {
     try {
         // 1. Get the "todoset" (dock) for the project
         const projectResp = await basecampFetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}.json`);
         const projectData = await projectResp.json();
         
         const todoset = projectData.dock.find(d => d.name === 'todoset');
-        if (!todoset) return;
+        if (!todoset) return [];
 
         // 2. Get the todolists in that set
-        const listsResp = await basecampFetch(todoset.url);
-        const listsData = await listsResp.json();
-        
-        // Populate select
-        bcListSelect.innerHTML = '<option value="">Select a list...</option>';
-        // In BC3, listsResp itself might be the list of todolists or the set details containing 'todolists_url'
-        // Actually: GET /buckets/1/todosets/1/todolists.json
+        // In BC3, we need to follow the url to get the set details which contains 'todolists_url'
+        // Actually: GET /buckets/1/todosets/1/todolists.json is the pattern
         const realListsUrl = todoset.url.replace('.json', '/todolists.json');
         
         const finalListsResp = await basecampFetch(realListsUrl);
         const finalLists = await finalListsResp.json();
 
-        finalLists.forEach(list => {
-            const opt = document.createElement('option');
-            opt.value = list.id;
-            opt.textContent = list.name;
-            bcListSelect.appendChild(opt);
-        });
+        return finalLists;
     } catch (e) {
         console.error('Basecamp Lists Error:', e);
+        return [];
     }
+}
+
+async function fetchBasecampTodoLists(projectId) {
+    const lists = await getBasecampTodoLists(projectId);
+    
+    // Populate select
+    bcListSelect.innerHTML = '<option value="">Select a list...</option>';
+    
+    lists.forEach(list => {
+        const opt = document.createElement('option');
+        opt.value = list.id;
+        opt.textContent = list.name;
+        bcListSelect.appendChild(opt);
+    });
 }
 
 async function syncBasecampList(tabId) {
