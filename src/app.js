@@ -778,8 +778,8 @@ function renderGroups() {
             }
         });
 
-        // Add delete button if more than one group
-        if (Object.keys(groups).length > 1) {
+        // Add delete button if more than one group AND it is the current group
+        if (Object.keys(groups).length > 1 && group.id === currentGroupId) {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'group-delete-btn';
             deleteBtn.textContent = '×';
@@ -975,8 +975,8 @@ function renderTabs() {
         
         tabElement.appendChild(tabContent);
 
-        // Close button (only if more than one tab)
-        if (Object.keys(tabs).length > 1) {
+        // Close button (only if more than one tab AND it is the current tab)
+        if (Object.keys(tabs).length > 1 && tab.id === currentTabId) {
             const closeBtn = document.createElement('button');
             closeBtn.className = 'tab-close';
             closeBtn.textContent = '×';
