@@ -85,6 +85,12 @@ const deleteConfirmMessage = document.getElementById('delete-confirm-message');
 const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
 const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 
+// Undo Elements
+const undoToast = document.getElementById('undo-toast');
+const undoMessage = document.getElementById('undo-message');
+const undoBtn = document.getElementById('undo-btn');
+const closeUndoBtn = document.getElementById('close-undo-btn');
+
 // Track which tab is being renamed
 let renamingTabId = null;
 // Track which group is being renamed
@@ -93,6 +99,10 @@ let renamingGroupId = null;
 let pendingDeleteTabId = null;
 // Track which group is pending deletion
 let pendingDeleteGroupId = null;
+
+// Undo State
+let lastDeletedItem = null; // { type: 'tab'|'group', data: object, index: number, ... }
+let undoTimeout = null;
 
 // Focus mode elements
 const normalMode = document.getElementById('normal-mode');
@@ -182,9 +192,8 @@ function createGroup(name) {
         order: Object.keys(groups).length
     };
     
-    currentGroupId = groupId;
-    renderGroups();
     saveData();
+    switchToGroup(groupId);
     return groupId;
 }
 
@@ -276,6 +285,16 @@ function performTabDeletion(tabId) {
     if (!tabs[tabId]) return;
 
     const tabIndex = Object.keys(tabs).indexOf(tabId);
+    
+    // Save for undo
+    lastDeletedItem = {
+        type: 'tab',
+        data: JSON.parse(JSON.stringify(tabs[tabId])), // Deep copy
+        index: tabIndex,
+        originalGroupId: tabs[tabId].groupId
+    };
+    showUndoToast(`List '${tabs[tabId].name}' deleted`);
+
     delete tabs[tabId];
 
     // Switch to adjacent tab or first tab
@@ -284,6 +303,63 @@ function performTabDeletion(tabId) {
         currentTabId = remainingTabs[Math.max(0, Math.min(tabIndex, remainingTabs.length - 1))];
     }
 
+    renderTabs();
+    renderTasks();
+    saveData();
+}
+
+// Undo Functions
+function showUndoToast(message) {
+    undoMessage.textContent = message;
+    undoToast.classList.remove('hidden');
+    
+    // Clear existing timeout
+    if (undoTimeout) clearTimeout(undoTimeout);
+    
+    // Auto hide after 5 seconds
+    undoTimeout = setTimeout(() => {
+        hideUndoToast();
+    }, 5000);
+}
+
+function hideUndoToast() {
+    undoToast.classList.add('hidden');
+    if (undoTimeout) clearTimeout(undoTimeout);
+}
+
+function performUndo() {
+    if (!lastDeletedItem) return;
+    
+    if (lastDeletedItem.type === 'tab') {
+        const tab = lastDeletedItem.data;
+        tabs[tab.id] = tab;
+        
+        // Switch to restored tab
+        switchToTab(tab.id);
+        
+    } else if (lastDeletedItem.type === 'group') {
+        const group = lastDeletedItem.data;
+        const groupTabs = lastDeletedItem.tabs;
+        
+        // Restore group
+        groups[group.id] = group;
+        
+        // Restore tabs
+        groupTabs.forEach(tab => {
+            tabs[tab.id] = tab;
+        });
+        
+        // Switch to restored group
+        currentGroupId = group.id;
+        renderGroups();
+        
+        if (groupTabs.length > 0) {
+            switchToTab(groupTabs[0].id);
+        }
+    }
+    
+    lastDeletedItem = null;
+    hideUndoToast();
     renderTabs();
     renderTasks();
     saveData();
@@ -341,6 +417,16 @@ function performGroupDeletion(groupId) {
 
     // Delete all tabs in this group
     const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
+    
+    // Save for undo
+    lastDeletedItem = {
+        type: 'group',
+        data: JSON.parse(JSON.stringify(groups[groupId])),
+        tabs: JSON.parse(JSON.stringify(groupTabs)), // Save tabs too
+        index: groups[groupId].order // Store order/index
+    };
+    showUndoToast(`Group '${groups[groupId].name}' deleted`);
+    
     groupTabs.forEach(tab => {
         delete tabs[tab.id];
     });
@@ -370,7 +456,15 @@ function performGroupDeletion(groupId) {
 
 // Task management
 function addTask(text) {
-    if (!text.trim() || !currentTabId) return;
+    if (!text.trim()) return;
+
+    // If no tab is selected (e.g. empty group), create one
+    if (!currentTabId) {
+        const newTabId = createNewTab('New list');
+        switchToTab(newTabId);
+        // Wait for render updates if necessary, but synchronous is fine usually.
+        // Just ensure currentTabId is set.
+    }
 
     const duration = taskDurationInput.value ? parseInt(taskDurationInput.value) : null;
 
@@ -1191,6 +1285,15 @@ function setupEventListeners() {
                 hideDeleteConfirmModal();
             }
         });
+    }
+
+    // Undo Events
+    if (undoBtn) {
+        undoBtn.addEventListener('click', performUndo);
+    }
+    
+    if (closeUndoBtn) {
+        closeUndoBtn.addEventListener('click', hideUndoToast);
     }
 
     connectBcBtn.addEventListener('click', async () => {
