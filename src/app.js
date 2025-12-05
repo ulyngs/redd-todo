@@ -9,6 +9,7 @@ let taskCounter = 0;
 let isFocusMode = false;
 let isDoneCollapsed = false; // New state for done section
 let doneMaxHeight = 140; // New state for done section resize
+let enableGroups = false; // Feature toggle for tab groups
 let focusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
@@ -756,6 +757,11 @@ function reorderTabs(draggedId, targetId) {
 
 // Rendering functions
 function renderGroups() {
+    if (!enableGroups) {
+        groupsContainer.style.display = 'none';
+        return;
+    }
+    groupsContainer.style.display = 'flex';
     groupsContainer.innerHTML = '';
 
     Object.values(groups).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(group => {
@@ -940,10 +946,16 @@ function moveTabToGroup(tabId, targetGroupId) {
 function renderTabs() {
     tabsContainer.innerHTML = '';
 
-    // Filter tabs by current group
-    const currentGroupTabs = Object.values(tabs).filter(tab => tab.groupId === currentGroupId);
+    // Filter tabs by current group only if groups are enabled
+    let tabsToRender = Object.values(tabs);
+    if (enableGroups) {
+        tabsToRender = tabsToRender.filter(tab => tab.groupId === currentGroupId);
+    }
+    
+    // Sort tabs? Currently they rely on object insertion order, which is usually consistent in JS for non-integer keys.
+    // Ideally we would have an 'order' field but for now insertion order is used.
 
-    currentGroupTabs.forEach(tab => {
+    tabsToRender.forEach(tab => {
         const tabElement = document.createElement('div');
         tabElement.className = `tab ${tab.id === currentTabId ? 'active' : ''}`;
         tabElement.dataset.tabId = tab.id;
@@ -1254,7 +1266,38 @@ function setupEventListeners() {
     // Settings buttons
     settingsBtn.addEventListener('click', () => {
         settingsModal.classList.remove('hidden');
+        // Set toggle state
+        const groupsToggle = document.getElementById('enable-groups-toggle');
+        if (groupsToggle) {
+            groupsToggle.checked = enableGroups;
+        }
     });
+
+    // Groups toggle listener
+    const groupsToggle = document.getElementById('enable-groups-toggle');
+    if (groupsToggle) {
+        groupsToggle.addEventListener('change', (e) => {
+            enableGroups = e.target.checked;
+            saveData();
+            renderGroups();
+            renderTabs();
+            
+            // If we just enabled groups, ensure we are in a valid state
+            if (enableGroups) {
+                if (!currentGroupId || !groups[currentGroupId]) {
+                    // Fallback to first group or create default
+                    if (Object.keys(groups).length > 0) {
+                         switchToGroup(Object.keys(groups)[0]);
+                    } else {
+                         createGroup('General');
+                    }
+                } else {
+                    // Re-select current group to filter tabs correctly
+                    switchToGroup(currentGroupId);
+                }
+            }
+        });
+    }
 
     closeSettingsBtn.addEventListener('click', () => {
         settingsModal.classList.add('hidden');
@@ -2222,7 +2265,10 @@ function saveData() {
         taskCounter: taskCounter,
         basecampConfig: basecampConfig,
         isDoneCollapsed: isDoneCollapsed,
-        doneMaxHeight: doneMaxHeight
+        doneMaxHeight: doneMaxHeight,
+        groups: groups,
+        currentGroupId: currentGroupId,
+        enableGroups: enableGroups
     };
     localStorage.setItem('redd-todo-data', JSON.stringify(data));
 }
@@ -2257,6 +2303,9 @@ function loadData() {
             };
             isDoneCollapsed = data.isDoneCollapsed || false;
             doneMaxHeight = data.doneMaxHeight || 140;
+            groups = data.groups || {};
+            currentGroupId = data.currentGroupId || null;
+            enableGroups = data.enableGroups !== undefined ? data.enableGroups : (Object.keys(groups).length > 0); // Default to true if groups exist, else false
         }
     } catch (e) {
         console.error('Failed to load data:', e);
