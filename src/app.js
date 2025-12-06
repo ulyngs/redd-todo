@@ -1304,7 +1304,7 @@ function setupEventListeners() {
     if (createTabBtn) {
         createTabBtn.addEventListener('click', () => {
             // Check if we are creating a group
-            if (tabNameModal.dataset.mode === 'group') {
+            if (tabNameModal.dataset.mode === 'group' || tabNameModal.dataset.mode === 'group-rename') {
                 handleModalCreate();
                 return;
             }
