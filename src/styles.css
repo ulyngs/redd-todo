@@ -1371,7 +1371,7 @@ body {
     padding: 8px 16px;
     font-size: 13px;
     display: flex;
-    justify-content: center;
+    justify-content: flex-end; /* Align to right */
     align-items: center;
     -webkit-app-region: no-drag;
     flex-shrink: 0;
@@ -1386,17 +1386,18 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    width: 100%;
+    width: auto; /* Allow content to shrink to fit */
     max-width: 600px;
-    justify-content: space-between;
+    justify-content: flex-end;
 }
 
 .update-text {
     font-weight: 500;
-    flex: 1;
+    flex: 0 1 auto; /* Don't force grow */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-align: right;
 }
 
 .update-action-btn {
