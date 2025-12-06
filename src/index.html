@@ -135,9 +135,8 @@
                 <h3>Settings</h3>
                 
                 <div class="settings-section">
-                    <h4>General</h4>
-                    <label class="setting-toggle" style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none;">
-                        <input type="checkbox" id="enable-groups-toggle">
+                    <label class="setting-toggle" style="display: flex; align-items: center; font-size: 13px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="enable-groups-toggle" class="task-checkbox">
                         <span>Enable Tab Groups</span>
                     </label>
                     <p class="settings-desc" style="margin-top: 4px;">Organize your to-do lists into groups (shown in a top bar).</p>
@@ -157,16 +156,17 @@
                         <div id="bc-login-form">
                             <!-- New OAuth Button -->
                             <button id="oauth-connect-btn" class="modal-btn connect-btn" style="width: 100%; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                                <img src="images/basecamp_logo_icon_147315.png" width="16" height="16" style="filter: brightness(0) invert(1);"> 
+                                <img src="images/basecamp_logo_icon_147315.png" width="16" height="16"> 
                                 Connect with Basecamp
                             </button>
 
+                            <!--
                             <div class="divider" style="text-align: center; margin: 15px 0; color: #999; font-size: 0.8em;">OR</div>
 
-                            <!-- Manual entry toggle -->
                             <a href="#" id="toggle-manual-auth" style="font-size: 0.9em; color: #666; text-decoration: underline; display: block; text-align: center; margin-bottom: 10px;">
                                 Enter credentials manually (Advanced)
                             </a>
+                            -->
 
                             <!-- Old fields hidden by default -->
                             <div id="manual-auth-fields" class="hidden">
@@ -185,6 +185,15 @@
                         
                         <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden">Disconnect</button>
                     </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>Updates</h4>
+                    <div style="margin-bottom: 8px; font-size: 13px; color: #666; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 20px;">
+                        <span id="current-app-version">Your version: ...</span>
+                        <span id="settings-update-status" class="hidden" style="color: #333; font-weight: 500;"></span>
+                    </div>
+                    <button id="manual-update-check-btn" class="modal-btn focus-like-btn" style="width: auto;">Check for updates</button>
                 </div>
 
                 <div class="modal-buttons">

@@ -181,12 +181,24 @@ function initApp() {
         }
     }
 
-    // Check for updates
-    checkForUpdates();
+    // Check for updates (auto-check)
+    checkForUpdates(false);
 }
 
 // Update Check Logic
-async function checkForUpdates() {
+async function checkForUpdates(isManual = false) {
+    const manualUpdateBtn = document.getElementById('manual-update-check-btn');
+    const updateStatus = document.getElementById('settings-update-status');
+
+    if (isManual && manualUpdateBtn && updateStatus) {
+        manualUpdateBtn.textContent = 'Checking...';
+        manualUpdateBtn.disabled = true;
+        updateStatus.classList.add('hidden');
+        updateStatus.textContent = '';
+        updateStatus.style.color = '#333';
+        delete manualUpdateBtn.dataset.action;
+    }
+
     try {
         // Get current version from main process
         const currentVersion = await ipcRenderer.invoke('get-app-version');
@@ -198,6 +210,13 @@ async function checkForUpdates() {
         
         if (!response.ok) {
             console.warn('Failed to fetch update manifest:', response.status);
+            if (isManual && updateStatus && manualUpdateBtn) {
+                updateStatus.textContent = 'Couldn\'t check, please try again later.';
+                updateStatus.style.color = '#ef4444';
+                updateStatus.classList.remove('hidden');
+                manualUpdateBtn.textContent = 'Check for updates';
+                manualUpdateBtn.disabled = false;
+            }
             return;
         }
         
@@ -213,10 +232,38 @@ async function checkForUpdates() {
         console.log('Latest version for', platform, ':', latestVersion);
 
         if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
+            // Update available
+            if (isManual && updateStatus && manualUpdateBtn) {
+                updateStatus.textContent = `New version available: ${latestVersion}`;
+                updateStatus.classList.remove('hidden');
+                manualUpdateBtn.textContent = 'Update';
+                manualUpdateBtn.disabled = false;
+                manualUpdateBtn.dataset.action = 'update';
+            }
+
+            // Check if this version was dismissed (unless it's a manual check)
+            const dismissedVersion = localStorage.getItem('dismissedUpdateVersion');
+            if (!isManual && dismissedVersion === latestVersion) {
+                console.log('Update to', latestVersion, 'was dismissed by user.');
+                return;
+            }
+
             showUpdateNotification(latestVersion);
+        } else if (isManual && updateStatus && manualUpdateBtn) {
+            updateStatus.textContent = 'You are on the latest version';
+            updateStatus.classList.remove('hidden');
+            manualUpdateBtn.textContent = 'Check for updates';
+            manualUpdateBtn.disabled = false;
         }
     } catch (e) {
         console.error('Failed to check for updates:', e);
+        if (isManual && updateStatus && manualUpdateBtn) {
+            updateStatus.textContent = 'Couldn\'t check, please try again later.';
+            updateStatus.style.color = '#ef4444';
+            updateStatus.classList.remove('hidden');
+            manualUpdateBtn.textContent = 'Check for updates';
+            manualUpdateBtn.disabled = false;
+        }
     }
 }
 
@@ -252,6 +299,8 @@ function showUpdateNotification(version) {
     };
     
     closeBtn.onclick = () => {
+        // Save dismissal to localStorage
+        localStorage.setItem('dismissedUpdateVersion', version);
         notification.classList.add('hidden');
     };
 }
@@ -1412,12 +1461,19 @@ function setupEventListeners() {
     }
 
     // Settings buttons
-    settingsBtn.addEventListener('click', () => {
+    settingsBtn.addEventListener('click', async () => {
         settingsModal.classList.remove('hidden');
         // Set toggle state
         const groupsToggle = document.getElementById('enable-groups-toggle');
         if (groupsToggle) {
             groupsToggle.checked = enableGroups;
+        }
+        
+        // Show current version
+        const versionEl = document.getElementById('current-app-version');
+        if (versionEl) {
+            const ver = await ipcRenderer.invoke('get-app-version');
+            versionEl.textContent = `Your version: ${ver}`;
         }
     });
 
@@ -1443,6 +1499,18 @@ function setupEventListeners() {
                     // Re-select current group to filter tabs correctly
                     switchToGroup(currentGroupId);
                 }
+            }
+        });
+    }
+
+    // Manual Update Check
+    const manualUpdateBtn = document.getElementById('manual-update-check-btn');
+    if (manualUpdateBtn) {
+        manualUpdateBtn.addEventListener('click', () => {
+            if (manualUpdateBtn.dataset.action === 'update') {
+                shell.openExternal('https://reddfocus.org/todo');
+            } else {
+                checkForUpdates(true);
             }
         });
     }
