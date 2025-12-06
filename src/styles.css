@@ -140,6 +140,11 @@ body {
     border: 1px dashed #667eea;
 }
 
+.group-tab.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
 .group-delete-btn {
     margin-left: 6px;
     margin-right: -6px;

@@ -16,6 +16,7 @@ let focusTimerInterval = null;
     // Track dragged items
     let draggedTaskId = null;
     let draggedTabId = null;
+    let draggedGroupId = null; // Track dragged group
     let focusedTaskId = null; // To track which task is currently in focus mode
 
 // Basecamp State
@@ -704,44 +705,102 @@ function handleTabDragStart(e) {
     draggedTabId = e.target.dataset.tabId;
     e.target.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
-    // Set drag image or data if needed, though usually automatic
 }
 
 function handleTabDragEnd(e) {
     e.target.classList.remove('dragging');
     draggedTabId = null;
     
-    document.querySelectorAll('.tab.drag-over').forEach(el => {
+    document.querySelectorAll('.tab').forEach(el => {
         el.classList.remove('drag-over');
     });
 }
 
 function handleTabDragOver(e) {
     e.preventDefault();
-    if (!draggedTabId) return;
     
-    const target = e.target.closest('.tab');
-    if (target && target.dataset.tabId !== draggedTabId) {
+    if (draggedTabId) {
+        const target = e.target.closest('.tab');
+        
+        if (target && target.dataset.tabId === draggedTabId) return;
+
         e.dataTransfer.dropEffect = 'move';
         
-        document.querySelectorAll('.tab.drag-over').forEach(el => {
-            el.classList.remove('drag-over');
-        });
-        target.classList.add('drag-over');
+        const container = tabsContainer;
+        const afterElement = getDragAfterElement(container, e.clientX, '.tab');
+        const draggable = document.querySelector('.tab.dragging');
+        
+        if (draggable) {
+            if (afterElement == null) {
+                const addBtn = container.querySelector('.add-tab-btn-subtle');
+                if (addBtn) {
+                    container.insertBefore(draggable, addBtn);
+                } else {
+                     container.appendChild(draggable);
+                }
+            } else {
+                container.insertBefore(draggable, afterElement);
+            }
+        }
     }
 }
 
 function handleTabDrop(e) {
     e.preventDefault();
-    const target = e.target.closest('.tab');
     
-    if (draggedTabId && target && target.dataset.tabId !== draggedTabId) {
-        reorderTabs(draggedTabId, target.dataset.tabId);
+    if (draggedTabId) {
+        saveTabOrderFromDOM();
     }
     
     document.querySelectorAll('.tab.drag-over').forEach(el => {
         el.classList.remove('drag-over');
     });
+}
+
+function saveTabOrderFromDOM() {
+    const tabElements = Array.from(tabsContainer.querySelectorAll('.tab'));
+    const newTabs = {};
+    
+    tabElements.forEach(el => {
+        const tabId = el.dataset.tabId;
+        if (tabs[tabId]) {
+            newTabs[tabId] = tabs[tabId];
+        }
+    });
+    
+    if (enableGroups) {
+        const otherTabs = Object.keys(tabs).filter(key => tabs[key].groupId !== currentGroupId);
+        otherTabs.forEach(key => {
+            newTabs[key] = tabs[key];
+        });
+    }
+    
+    tabs = newTabs;
+    saveData();
+}
+
+function saveTabOrderFromDOM() {
+    // Reconstruct the tabs object in the new order
+    const tabElements = Array.from(tabsContainer.querySelectorAll('.tab'));
+    const newTabs = {};
+    
+    tabElements.forEach(el => {
+        const tabId = el.dataset.tabId;
+        if (tabs[tabId]) {
+            newTabs[tabId] = tabs[tabId];
+        }
+    });
+    
+    if (enableGroups) {
+        // If groups are enabled, preserve tabs from other groups
+        const otherTabs = Object.keys(tabs).filter(key => tabs[key].groupId !== currentGroupId);
+        otherTabs.forEach(key => {
+            newTabs[key] = tabs[key];
+        });
+    }
+    
+    tabs = newTabs;
+    saveData();
 }
 
 function reorderTabs(draggedId, targetId) {
@@ -892,7 +951,11 @@ function renderGroups() {
         const groupElement = document.createElement('div');
         groupElement.className = `group-tab ${group.id === currentGroupId ? 'active' : ''}`;
         groupElement.dataset.groupId = group.id;
-        // groupElement.draggable = true; // Enable if we want to reorder groups later
+        groupElement.draggable = true; // Enable group reordering
+
+        // Group drag events
+        groupElement.addEventListener('dragstart', handleGroupDragStart);
+        groupElement.addEventListener('dragend', handleGroupDragEnd);
 
         // Group content
         const groupContent = document.createElement('span');
@@ -1081,14 +1144,51 @@ async function handleModalCreate() {
 }
 
 // Group Drag Handlers
+function handleGroupDragStart(e) {
+    draggedGroupId = e.target.dataset.groupId;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleGroupDragEnd(e) {
+    e.target.classList.remove('dragging');
+    draggedGroupId = null;
+    
+    document.querySelectorAll('.group-tab').forEach(el => {
+        el.classList.remove('drag-over');
+    });
+}
+
 function handleGroupDragOver(e) {
     e.preventDefault();
-    // Only allow dropping tabs
+    const target = e.target.closest('.group-tab');
+    if (!target) return;
+
+    // Case 1: Dragging a tab onto a group (to move tab into group)
     if (draggedTabId) {
         e.dataTransfer.dropEffect = 'move';
-        const target = e.target.closest('.group-tab');
-        if (target) {
-            target.classList.add('drag-over');
+        target.classList.add('drag-over');
+        return;
+    } 
+
+    // Case 2: Reordering groups (Live Reordering)
+    if (draggedGroupId) {
+        e.dataTransfer.dropEffect = 'move';
+        
+        // Don't reorder if over itself
+        if (target.dataset.groupId === draggedGroupId) return;
+
+        // Perform live reordering
+        const container = groupsContainer;
+        const afterElement = getDragAfterElement(container, e.clientX, '.group-tab');
+        const draggable = document.querySelector('.group-tab.dragging');
+        
+        if (draggable) {
+            if (afterElement == null) {
+                container.appendChild(draggable);
+            } else {
+                container.insertBefore(draggable, afterElement);
+            }
         }
     }
 }
@@ -1108,10 +1208,53 @@ function handleGroupDrop(e) {
         target.classList.remove('drag-over');
         const targetGroupId = target.dataset.groupId;
         
+        // Case 1: Moving Tab to Group
         if (draggedTabId && targetGroupId) {
             moveTabToGroup(draggedTabId, targetGroupId);
+        } 
+        
+        // Case 2: Group Reordering - Save the new order from DOM
+        if (draggedGroupId) {
+            saveGroupOrderFromDOM();
         }
     }
+}
+
+// Helper to save group order based on DOM position
+function saveGroupOrderFromDOM() {
+    const groupElements = Array.from(groupsContainer.querySelectorAll('.group-tab'));
+    
+    groupElements.forEach((el, index) => {
+        const groupId = el.dataset.groupId;
+        if (groups[groupId]) {
+            groups[groupId].order = index;
+        }
+    });
+    
+    saveData();
+    // We don't need to renderGroups() because the DOM is already correct,
+    // but we might want to ensure everything is clean.
+    // However, if we re-render, we might lose some transient state if any.
+    // Usually safe to just save.
+}
+
+// Helper to find insertion point
+function getDragAfterElement(container, x, selector) {
+    const draggableElements = [...container.querySelectorAll(`${selector}:not(.dragging)`)];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        // Measure distance to the center of the element
+        const offset = x - box.left - box.width / 2;
+        
+        // We are interested in offsets < 0 (cursor is to the left of the center)
+        // We want the element where the cursor is just to the left of its center (closest negative offset)
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
 function moveTabToGroup(tabId, targetGroupId) {
