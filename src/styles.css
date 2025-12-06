@@ -188,7 +188,7 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    margin-left: 4px;
+    margin-left: 2px;
     -webkit-app-region: no-drag;
 }
 
@@ -258,7 +258,7 @@ body {
     font-weight: 500;
     white-space: nowrap;
     transition: all 0.15s ease;
-    color: hsl(222.2, 84%, 4.9%);
+    color: rgba(0, 0, 0, 0.5);
     border-bottom: 2px solid transparent;
     position: relative;
     -webkit-app-region: no-drag;
@@ -281,7 +281,7 @@ body {
 
 .tab:hover:not(.active) {
     background: hsl(0, 0%, 96%);
-    color: hsl(222.2, 84%, 4.9%);
+    color: rgba(0, 0, 0, 0.8);
 }
 
 .tab-close {
@@ -322,7 +322,7 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    margin-left: 8px;
+    margin-left: 2px;
     -webkit-app-region: no-drag;
     flex-shrink: 0;
 }
