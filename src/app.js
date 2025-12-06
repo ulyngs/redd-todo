@@ -180,7 +180,82 @@ function initApp() {
             winControls.classList.remove('hidden');
         }
     }
+
+    // Check for updates
+    checkForUpdates();
 }
+
+// Update Check Logic
+async function checkForUpdates() {
+    try {
+        // Get current version from main process
+        const currentVersion = await ipcRenderer.invoke('get-app-version');
+        console.log('Current version:', currentVersion);
+        
+        // Fetch latest versions from GitHub Pages
+        // Use a cache-busting param to ensure fresh check
+        const response = await fetch(`https://ulyngs.github.io/redd-todo/latest-versions.json?t=${Date.now()}`);
+        
+        if (!response.ok) {
+            console.warn('Failed to fetch update manifest:', response.status);
+            return;
+        }
+        
+        const versions = await response.json();
+        let latestVersion = null;
+        const platform = process.platform;
+        
+        // Map platform to JSON keys
+        if (platform === 'darwin') latestVersion = versions.macos;
+        else if (platform === 'win32') latestVersion = versions.windows;
+        else if (platform === 'linux') latestVersion = versions.linux;
+        
+        console.log('Latest version for', platform, ':', latestVersion);
+
+        if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
+            showUpdateNotification(latestVersion);
+        }
+    } catch (e) {
+        console.error('Failed to check for updates:', e);
+    }
+}
+
+function isNewerVersion(current, latest) {
+    // Simple semver comparison
+    const v1 = current.split('.').map(Number);
+    const v2 = latest.split('.').map(Number);
+    
+    for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+        const n1 = v1[i] || 0;
+        const n2 = v2[i] || 0;
+        if (n1 < n2) return true;
+        if (n1 > n2) return false;
+    }
+    return false;
+}
+
+function showUpdateNotification(version) {
+    const notification = document.getElementById('update-notification');
+    const text = document.getElementById('update-text');
+    const actionBtn = document.getElementById('update-action-btn');
+    const closeBtn = document.getElementById('close-update-btn');
+    
+    if (!notification) return;
+    
+    text.textContent = `New version ${version} available!`;
+    notification.classList.remove('hidden');
+    
+    actionBtn.onclick = () => {
+        // Open download page
+        // You can change this URL to your specific download page or GitHub releases
+        shell.openExternal('https://reddfocus.org/todo'); 
+    };
+    
+    closeBtn.onclick = () => {
+        notification.classList.add('hidden');
+    };
+}
+
 
 // Group Management
 function createGroup(name) {

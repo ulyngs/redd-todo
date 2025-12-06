@@ -166,6 +166,10 @@ function createMainWindow() {
   });
 }
 // IPC handlers
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
+});
+
 ipcMain.on('enter-focus-mode', (event, taskName) => {
   if (mainWindow) {
     // Capture current position
