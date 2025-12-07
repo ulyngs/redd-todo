@@ -291,17 +291,53 @@ app.on('activate', () => {
 });
 
 // IPC listeners for focus mode
-ipcMain.on('enter-focus-mode', () => {
+ipcMain.on('enter-focus-mode', (event, taskName) => {
   if (mainWindow) {
+    // Capture current position
+    const [currentX, currentY] = mainWindow.getPosition();
+    
+    // Start with a reasonable default size, will be adjusted by set-focus-window-size
+    mainWindow.setSize(320, 60);
+    // Restore position (setSize might center or move it on some platforms/configs)
+    mainWindow.setPosition(currentX, currentY);
+    
+    mainWindow.setResizable(true);
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    mainWindow.setMinimizable(false);
+    // Hide macOS traffic light buttons in focus mode
+    if (process.platform === 'darwin') {
+      mainWindow.setWindowButtonVisibility(false);
+    }
+  }
+});
+
+ipcMain.on('set-focus-window-size', (event, width) => {
+  if (mainWindow) {
+    mainWindow.setFullScreen(false); // Ensure not fullscreen when resizing
+    mainWindow.setSize(width, 60);
+    // Removed mainWindow.center() to preserve position
+  }
+});
+
+ipcMain.on('enter-fullscreen-focus', () => {
+  if (mainWindow) {
+    mainWindow.setResizable(true); // Allow resize for fullscreen transition
     mainWindow.setFullScreen(true);
-    // mainWindow.setAlwaysOnTop(true, 'screen-saver'); // Optional: stronger focus
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
   }
 });
 
 ipcMain.on('exit-focus-mode', () => {
   if (mainWindow) {
     mainWindow.setFullScreen(false);
+    mainWindow.setSize(400, 600);
+    mainWindow.setResizable(true);
     mainWindow.setAlwaysOnTop(false);
+    mainWindow.setMinimizable(true);
+    // Show macOS traffic light buttons when exiting focus mode
+    if (process.platform === 'darwin') {
+      mainWindow.setWindowButtonVisibility(true);
+    }
   }
 });
 
