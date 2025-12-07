@@ -1394,6 +1394,53 @@ body {
     transition: all 0.3s ease;
 }
 
+/* Connect/Disconnect Buttons */
+.connect-btn {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.connect-btn:hover {
+    background: #45a049;
+}
+
+/* Apple Reminders specific button style */
+#reminders-connect-btn {
+    background: white;
+    color: #09090b; /* shadcn-like text color */
+    border: 1px solid #e4e4e7; /* shadcn-like border color */
+}
+
+#reminders-connect-btn:hover {
+    background: #f4f4f5; /* shadcn-like hover bg */
+    color: #18181b;
+}
+
+.disconnect-btn {
+    background: transparent;
+    color: #ff4444;
+    border: 1px solid #ff4444;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    margin-top: 10px;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.disconnect-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
+}
+
 .update-notification.hidden {
     display: none;
 }
@@ -1445,6 +1492,53 @@ body {
 
 .close-update-btn:hover {
     color: white;
+}
+
+/* Connect/Disconnect Buttons */
+.connect-btn {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.connect-btn:hover {
+    background: #45a049;
+}
+
+/* Apple Reminders specific button style */
+#reminders-connect-btn {
+    background: white;
+    color: #09090b; /* shadcn-like text color */
+    border: 1px solid #e4e4e7; /* shadcn-like border color */
+}
+
+#reminders-connect-btn:hover {
+    background: #f4f4f5; /* shadcn-like hover bg */
+    color: #18181b;
+}
+
+.disconnect-btn {
+    background: transparent;
+    color: #ff4444;
+    border: 1px solid #ff4444;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    margin-top: 10px;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.disconnect-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
 }
 
 .manual-update-btn {

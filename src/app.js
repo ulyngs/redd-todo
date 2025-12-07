@@ -30,6 +30,12 @@ let basecampConfig = {
     isConnected: false
 };
 
+// Reminders State
+let remindersConfig = {
+    isConnected: false
+};
+
+
 // DOM elements
 const groupsContainer = document.querySelector('.groups');
 const tabsContainer = document.querySelector('.tabs');
@@ -75,6 +81,11 @@ const bcClientSecretInput = document.getElementById('bc-client-secret');
 const connectBcBtn = document.getElementById('connect-bc-btn');
 const disconnectBcBtn = document.getElementById('disconnect-bc-btn');
 const bcHelpLink = document.getElementById('bc-help-link');
+const remindersConnectBtn = document.getElementById('reminders-connect-btn');
+const remindersStatus = document.getElementById('reminders-status');
+const remindersSelection = document.getElementById('reminders-selection');
+const remindersListSelect = document.getElementById('reminders-list-select');
+const disconnectRemindersBtn = document.getElementById('disconnect-reminders-btn');
 // New elements
 const oauthConnectBtn = document.getElementById('oauth-connect-btn');
 const toggleManualAuthBtn = document.getElementById('toggle-manual-auth');
@@ -173,6 +184,7 @@ function initApp() {
     
     // Check Basecamp connection status
     updateBasecampUI();
+    updateRemindersUI();
 
     // Show window controls on non-Mac platforms
     if (process.platform !== 'darwin') {
@@ -342,7 +354,7 @@ function switchToGroup(groupId) {
 }
 
 // Tab management
-function createNewTab(name, bcProjectId = null, bcListId = null) {
+function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId = null) {
     const tabId = `tab_${Date.now()}`;
     const tabName = name.trim() || 'New Tab';
 
@@ -352,6 +364,7 @@ function createNewTab(name, bcProjectId = null, bcListId = null) {
         tasks: [],
         basecampProjectId: bcProjectId,
         basecampListId: bcListId,
+        remindersListId: remindersListId, // Reminders List ID
         groupId: currentGroupId // Assign to current group
     };
 
@@ -361,6 +374,10 @@ function createNewTab(name, bcProjectId = null, bcListId = null) {
     // If connected to Basecamp, fetch tasks immediately
     if (bcProjectId && bcListId) {
         syncBasecampList(tabId);
+    }
+    // If connected to Reminders, fetch tasks immediately
+    if (remindersListId) {
+        syncRemindersList(tabId);
     }
     
     return tabId;
@@ -380,7 +397,7 @@ function switchToTab(tabId) {
     renderTasks();
     
     // Show/Hide sync button based on tab type
-    if (tabs[tabId].basecampListId) {
+    if (tabs[tabId].basecampListId || tabs[tabId].remindersListId) {
         syncBtn.classList.remove('hidden');
     } else {
         syncBtn.classList.add('hidden');
@@ -453,7 +470,7 @@ function hideUndoToast() {
     if (undoTimeout) clearTimeout(undoTimeout);
 }
 
-function performUndo() {
+async function performUndo() {
     if (!lastDeletedItem) return;
     
     if (lastDeletedItem.type === 'tab') {
@@ -481,6 +498,44 @@ function performUndo() {
         
         if (groupTabs.length > 0) {
             switchToTab(groupTabs[0].id);
+        }
+    } else if (lastDeletedItem.type === 'task') {
+        const task = lastDeletedItem.data;
+        const tab = tabs[lastDeletedItem.tabId];
+        
+        if (tab) {
+             // Restore locally
+             if (lastDeletedItem.index !== undefined && lastDeletedItem.index >= 0) {
+                 tab.tasks.splice(lastDeletedItem.index, 0, task);
+             } else {
+                 tab.tasks.push(task);
+             }
+
+             // Restore to Basecamp
+             if (lastDeletedItem.basecampListId && basecampConfig.isConnected && task.basecampId) {
+                 // Creating a NEW todo because we can't un-delete easily via API usually, 
+                 // unless we archived it? Basecamp API uses "recording" buckets. 
+                 // Actually Basecamp 3 API supports "unarchiving" but we sent a DELETE request.
+                 // A DELETE request in BC3 usually trashes it. Recovering from trash is hard via API.
+                 // So we recreate it.
+                 // But wait, if we recreate it, it gets a NEW ID.
+                 // So we need to update the local task with the new ID.
+                 createBasecampTodo(tab.id, task);
+             }
+             
+             // Restore to Reminders
+             if (lastDeletedItem.remindersListId && remindersConfig.isConnected && task.remindersId) {
+                 // Reminders API also deletes. We must recreate.
+                 const newId = await createRemindersTask(lastDeletedItem.remindersListId, task.text);
+                 if (newId) {
+                     task.remindersId = newId;
+                 }
+             }
+             
+             // Switch to the tab if we aren't on it
+             if (currentTabId !== tab.id) {
+                 switchToTab(tab.id);
+             }
         }
     }
     
@@ -626,15 +681,33 @@ function deleteTask(taskId) {
     if (!currentTabId) return;
 
     const currentTab = tabs[currentTabId];
-    const task = currentTab.tasks.find(t => t.id === taskId);
+    const taskIndex = currentTab.tasks.findIndex(t => t.id === taskId);
     
-    if (task) {
+    if (taskIndex !== -1) {
+        const task = currentTab.tasks[taskIndex];
+        
+        // Save for undo
+        lastDeletedItem = {
+            type: 'task',
+            data: JSON.parse(JSON.stringify(task)),
+            index: taskIndex,
+            tabId: currentTabId,
+            basecampListId: currentTab.basecampListId,
+            remindersListId: currentTab.remindersListId
+        };
+        showUndoToast(`Task deleted`);
+
         // If Basecamp connected, delete remote
         if (currentTab.basecampListId && basecampConfig.isConnected && task.basecampId) {
             deleteBasecampTodo(currentTabId, task.basecampId);
         }
 
-        currentTab.tasks = currentTab.tasks.filter(t => t.id !== taskId);
+        // If Reminders connected, delete remote
+        if (currentTab.remindersListId && remindersConfig.isConnected && task.remindersId) {
+            deleteRemindersTask(task.remindersId);
+        }
+
+        currentTab.tasks.splice(taskIndex, 1);
         renderTasks();
         saveData();
     }
@@ -677,6 +750,11 @@ function toggleTask(taskId) {
     // If Basecamp connected, sync status
     if (currentTab.basecampListId && basecampConfig.isConnected && task.basecampId) {
         updateBasecampCompletion(currentTabId, task);
+    }
+    
+    // If Reminders connected, sync status
+    if (currentTab.remindersListId && remindersConfig.isConnected && task.remindersId) {
+        updateRemindersCompletion(task.remindersId, task.completed);
     }
 
     renderTasks();
@@ -1321,6 +1399,18 @@ function renderTabs() {
             img.style.marginBottom = '2px';
             tabContent.appendChild(img);
         }
+
+        // Add Reminders icon if connected
+        if (tab.remindersListId) {
+            const icon = document.createElement('span');
+            // Using an SVG or simple character for now. 
+            // A bullet list icon or Apple logo (might be too much).
+            // Let's use a list icon SVG.
+            icon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-bottom:2px;"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>`;
+            icon.style.marginRight = '6px';
+            icon.style.color = '#555'; // Subtle grey
+            tabContent.appendChild(icon);
+        }
         
         const textNode = document.createTextNode(tab.name);
         tabContent.appendChild(textNode);
@@ -1581,10 +1671,21 @@ function setupEventListeners() {
             // Get Basecamp selection
             const bcProjectId = bcProjectSelect.value;
             const bcListId = bcListSelect.value;
+            
+            // Get Reminders selection
+            const remindersListId = remindersListSelect.value;
 
             // If creating from Basecamp list and name is empty, use list name
             if (bcListId && (!tabName || tabName === '')) {
                  const selectedOption = bcListSelect.options[bcListSelect.selectedIndex];
+                 if (selectedOption) {
+                     tabName = selectedOption.text;
+                 }
+            }
+            
+            // If creating from Reminders list and name is empty, use list name
+            if (remindersListId && (!tabName || tabName === '')) {
+                 const selectedOption = remindersListSelect.options[remindersListSelect.selectedIndex];
                  if (selectedOption) {
                      tabName = selectedOption.text;
                  }
@@ -1595,7 +1696,7 @@ function setupEventListeners() {
                 renameTab(renamingTabId, tabName);
             } else {
                 // Creating new tab
-                const newTabId = createNewTab(tabName, bcProjectId || null, bcListId || null);
+                const newTabId = createNewTab(tabName, bcProjectId || null, bcListId || null, remindersListId || null);
                 switchToTab(newTabId);
             }
 
@@ -1716,9 +1817,50 @@ function setupEventListeners() {
             basecampConfig.isConnected = true;
             saveData();
             updateBasecampUI();
+            updateRemindersUI();
             settingsModal.classList.add('hidden');
         }
     });
+
+    // Reminders Connect Button
+    if (remindersConnectBtn) {
+        remindersConnectBtn.addEventListener('click', async () => {
+             try {
+                 remindersConnectBtn.textContent = 'Connecting...';
+                 remindersConnectBtn.disabled = true;
+                 
+                 // Try to fetch lists to trigger permission prompt
+                 const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+                 if (lists !== null) {
+                     remindersConfig.isConnected = true;
+                     saveData();
+                     updateRemindersUI();
+                 } else {
+                     alert('Could not connect to Reminders. Please check permissions.');
+                     remindersConnectBtn.disabled = false;
+                     remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+                 }
+             } catch (error) {
+                 console.error(error);
+                 alert('Failed to connect to Reminders: ' + error);
+                 remindersConnectBtn.disabled = false;
+                 remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+             }
+        });
+    }
+
+    // Reminders Disconnect Button
+    if (disconnectRemindersBtn) {
+        disconnectRemindersBtn.addEventListener('click', () => {
+            remindersConfig.isConnected = false;
+            saveData();
+            updateRemindersUI();
+            
+            // Reset connect button state
+            remindersConnectBtn.disabled = false;
+            remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+        });
+    }
 
     disconnectBcBtn.addEventListener('click', () => {
         basecampConfig.accountId = null;
@@ -1759,12 +1901,23 @@ function setupEventListeners() {
     // Sync Button
     if (syncBtn) {
         syncBtn.addEventListener('click', () => {
-            if (currentTabId && tabs[currentTabId].basecampListId) {
-                syncBtn.classList.add('spinning');
-                syncBasecampList(currentTabId).finally(() => {
-                    setTimeout(() => syncBtn.classList.remove('spinning'), 500);
-                });
+            if (!currentTabId) return;
+            
+            const tab = tabs[currentTabId];
+            syncBtn.classList.add('spinning');
+            
+            const promises = [];
+            
+            if (tab.basecampListId) {
+                promises.push(syncBasecampList(currentTabId));
             }
+            if (tab.remindersListId) {
+                promises.push(syncRemindersList(currentTabId));
+            }
+            
+            Promise.all(promises).finally(() => {
+                setTimeout(() => syncBtn.classList.remove('spinning'), 500);
+            });
         });
     }
     
@@ -1814,6 +1967,16 @@ function setupEventListeners() {
             tabNameInput.value = prefix + selectedOption.text;
         }
     });
+
+    // Auto-fill name when Reminders list is selected
+    if (remindersListSelect) {
+        remindersListSelect.addEventListener('change', () => {
+            const selectedOption = remindersListSelect.options[remindersListSelect.selectedIndex];
+            if (selectedOption && (!tabNameInput.value || tabNameInput.value === '')) {
+                tabNameInput.value = selectedOption.text;
+            }
+        });
+    }
 
     // Close modal on Enter key
     if (tabNameInput) {
@@ -2438,6 +2601,11 @@ function editTaskText(taskId, textElement) {
                 updateBasecampTodoText(currentTabId, task);
             }
             
+            // If connected to Reminders, sync text change
+            if (currentTab.remindersListId && remindersConfig.isConnected && task.remindersId) {
+                updateRemindersTitle(task.remindersId, task.text);
+            }
+            
             saveData();
         }
         renderTasks(); // Re-render to restore span and update UI
@@ -2526,6 +2694,7 @@ function showTabNameModal() {
     tabNameInput.value = '';
     tabNameInput.placeholder = 'My to-do list'; 
     tabNameModal.classList.remove('hidden');
+    tabNameModal.dataset.mode = 'tab'; // Ensure default mode
     
     // Handle Basecamp visibility
     if (basecampConfig.isConnected) {
@@ -2548,6 +2717,27 @@ function showTabNameModal() {
         });
     } else {
         basecampSelection.classList.add('hidden');
+    }
+
+    // Handle Reminders visibility
+    if (remindersConfig.isConnected) {
+        remindersSelection.classList.remove('hidden');
+        remindersListSelect.innerHTML = '<option value="">Select a list...</option>';
+        
+        fetchRemindersLists().then(lists => {
+            if (lists.length === 0) {
+                remindersListSelect.innerHTML = '<option value="">No lists found</option>';
+            } else {
+                lists.forEach(l => {
+                    const opt = document.createElement('option');
+                    opt.value = l.id;
+                    opt.textContent = l.name;
+                    remindersListSelect.appendChild(opt);
+                });
+            }
+        });
+    } else {
+        remindersSelection.classList.add('hidden');
     }
     
     tabNameInput.focus();
@@ -2668,15 +2858,21 @@ function loadData() {
             tabs = data.tabs || {};
             currentTabId = data.currentTabId || null;
             taskCounter = data.taskCounter || 0;
-            basecampConfig = data.basecampConfig || { 
-                accountId: null, 
-                accessToken: null, 
+            basecampConfig = data.basecampConfig || {
+                accountId: null,
+                accessToken: null,
                 refreshToken: null,
                 clientId: null,
                 clientSecret: null,
-                email: null, 
-                isConnected: false 
+                email: null,
+                isConnected: false
             };
+
+            // Load Reminders Config
+            remindersConfig = data.remindersConfig || {
+                isConnected: false
+            };
+
             isDoneCollapsed = data.isDoneCollapsed || false;
             doneMaxHeight = data.doneMaxHeight || 140;
             groups = data.groups || {};
@@ -3043,6 +3239,127 @@ async function createBasecampTodo(tabId, task) {
         saveData();
     } catch (e) {
         console.error('Create BC Error:', e);
+    }
+}
+
+// Reminders Logic
+
+function updateRemindersUI() {
+    if (remindersConfig.isConnected) {
+        remindersStatus.classList.remove('hidden');
+        remindersConnectBtn.classList.add('hidden');
+        if (disconnectRemindersBtn) disconnectRemindersBtn.classList.remove('hidden');
+    } else {
+        remindersStatus.classList.add('hidden');
+        remindersConnectBtn.classList.remove('hidden');
+        if (disconnectRemindersBtn) disconnectRemindersBtn.classList.add('hidden');
+    }
+}
+
+async function fetchRemindersLists() {
+    try {
+        const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+        return lists || [];
+    } catch (e) {
+        console.error('Failed to fetch Reminders lists:', e);
+        return [];
+    }
+}
+
+async function syncRemindersList(tabId) {
+    const tab = tabs[tabId];
+    if (!tab || !tab.remindersListId || !remindersConfig.isConnected) return;
+
+    try {
+        const remoteTasks = await ipcRenderer.invoke('fetch-reminders-tasks', tab.remindersListId);
+        if (!remoteTasks) return;
+
+        let changes = false;
+        
+        // 1. Update/Add tasks from Reminders
+        const remoteIds = new Set();
+        remoteTasks.forEach(rTask => {
+            remoteIds.add(rTask.id);
+            const existingTask = tab.tasks.find(t => t.remindersId === rTask.id);
+            
+            if (existingTask) {
+                // Update status if changed remotely
+                if (existingTask.completed !== rTask.completed) {
+                    existingTask.completed = rTask.completed;
+                    changes = true;
+                }
+                // Update text if changed remotely
+                if (existingTask.text !== rTask.name) {
+                     existingTask.text = rTask.name;
+                     changes = true;
+                }
+            } else {
+                // Add new task
+                // Only add if not completed, or if we want to sync completed too?
+                // Let's import all
+                tab.tasks.push({
+                    id: `task_${++taskCounter}`,
+                    text: rTask.name,
+                    completed: rTask.completed,
+                    createdAt: new Date().toISOString(),
+                    expectedDuration: null,
+                    actualDuration: null,
+                    basecampId: null,
+                    remindersId: rTask.id
+                });
+                changes = true;
+            }
+        });
+
+        // 2. Remove local tasks that are linked to Reminders but no longer exist remotely
+        const initialCount = tab.tasks.length;
+        tab.tasks = tab.tasks.filter(t => !t.remindersId || remoteIds.has(t.remindersId));
+        
+        if (tab.tasks.length !== initialCount) {
+            changes = true;
+        }
+        
+        if (changes) {
+            renderTasks();
+            saveData();
+        }
+        
+    } catch (e) {
+        console.error('Sync Reminders Error:', e);
+    }
+}
+
+async function updateRemindersCompletion(remindersId, completed) {
+    try {
+        await ipcRenderer.invoke('update-reminders-status', remindersId, completed);
+    } catch (e) {
+        console.error('Failed to update Reminder status:', e);
+    }
+}
+
+async function updateRemindersTitle(remindersId, title) {
+    try {
+        await ipcRenderer.invoke('update-reminders-title', remindersId, title);
+    } catch (e) {
+        console.error('Failed to update Reminder title:', e);
+    }
+}
+
+async function createRemindersTask(listId, title) {
+    try {
+        const result = await ipcRenderer.invoke('create-reminders-task', listId, title);
+        return result?.id;
+    } catch (e) {
+        console.error('Failed to create Reminder:', e);
+        return null;
+    }
+}
+
+async function deleteRemindersTask(remindersId) {
+    try {
+        await ipcRenderer.invoke('delete-reminders-task', remindersId);
+    } catch (e) {
+        console.error('Failed to delete Reminder:', e);
     }
 }
 

@@ -122,6 +122,14 @@
                     </div>
                 </div>
 
+                <!-- Reminders Selection (Hidden by default) -->
+                <div id="reminders-selection" class="basecamp-selection hidden">
+                    <div class="bc-label">Reminders List</div>
+                    <select id="reminders-list-select" class="bc-select">
+                        <option value="">Select a list...</option>
+                    </select>
+                </div>
+
                 <div class="modal-buttons">
                     <button id="cancel-tab-btn" class="modal-btn cancel-btn">Cancel</button>
                     <button id="create-tab-btn" class="modal-btn create-btn" id="modal-action-btn">Create</button>
@@ -143,8 +151,22 @@
                 </div>
 
                 <div class="settings-section">
+                    <h4>Apple Reminders Integration</h4>
+                    <p class="settings-desc">Import tasks from Apple Reminders.</p>
+                    <button id="reminders-connect-btn" class="modal-btn connect-btn" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg>
+                        Connect Reminders
+                    </button>
+                    <div id="reminders-status" class="connection-status hidden" style="margin-top: 10px;">
+                        <span class="status-dot"></span>
+                        <span>Connected to Reminders</span>
+                    </div>
+                    <button id="disconnect-reminders-btn" class="modal-btn disconnect-btn hidden">Disconnect</button>
+                </div>
+
+                <div class="settings-section">
                     <h4>Basecamp Integration</h4>
-                    <p class="settings-desc">Connect to Basecamp 3 to sync your to-do lists.</p>
+                    <p class="settings-desc">Sync your to-do lists in the Basecamp project management software.</p>
                     
                     <div id="bc-auth-container">
                         <div class="connection-status hidden" id="bc-connection-status">

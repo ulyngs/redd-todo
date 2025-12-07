@@ -3,6 +3,7 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const url = require('url');
+const { exec } = require('child_process');
 
 // Basecamp OAuth Configuration
 const BC_CLIENT_ID = 'd83392d7842f055157c3fef1f5464b2e15a013dc';
@@ -101,33 +102,10 @@ function createMenu() {
       role: 'help',
       submenu: [
         {
-          label: 'Report an Issue',
+          label: 'Learn More',
           click: async () => {
-            await shell.openExternal('https://github.com/ulyngs/redd-todo/issues')
-          }
-        },
-        {
-          label: 'Contact Us',
-          click: async () => {
-             await shell.openExternal('mailto:team@reddfocus.org')
-          }
-        },
-        {
-          label: 'Privacy Policy',
-          click: async () => {
-             await shell.openExternal('https://ulyngs.github.io/redd-todo/privacy_policy')
-          }
-        },
-        {
-          label: 'Our Research',
-          click: async () => {
-            await shell.openExternal('https://reddfocus.org/research')
-          }
-        },
-        {
-          label: 'Who We Are',
-          click: async () => {
-            await shell.openExternal('https://www.reddfocus.org/#team-anchor')
+            const { shell } = require('electron');
+            await shell.openExternal('https://electronjs.org');
           }
         }
       ]
@@ -170,74 +148,186 @@ ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
 
-ipcMain.on('enter-focus-mode', (event, taskName) => {
-  if (mainWindow) {
-    // Capture current position
-    const [currentX, currentY] = mainWindow.getPosition();
+// Helper for JXA execution
+function runJxa(script) {
+  return new Promise((resolve, reject) => {
+    const { spawn } = require('child_process');
+    const process = spawn('osascript', ['-l', 'JavaScript']);
     
-    // Start with a reasonable default size, will be adjusted by set-focus-window-size
-    mainWindow.setSize(320, 60);
-    // Restore position (setSize might center or move it on some platforms/configs)
-    mainWindow.setPosition(currentX, currentY);
+    let stdout = '';
+    let stderr = '';
     
-    mainWindow.setResizable(true);
-    mainWindow.setAlwaysOnTop(true, 'screen-saver');
-    mainWindow.setMinimizable(false);
-    // Hide macOS traffic light buttons in focus mode
-    if (process.platform === 'darwin') {
-      mainWindow.setWindowButtonVisibility(false);
-    }
+    process.stdout.on('data', (data) => stdout += data);
+    process.stderr.on('data', (data) => stderr += data);
+    
+    process.on('close', (code) => {
+      if (code !== 0) {
+        console.error('JXA Error:', stderr);
+        reject(stderr);
+        return;
+      }
+      try {
+        if (!stdout.trim()) {
+           resolve(null);
+        } else {
+           resolve(JSON.parse(stdout));
+        }
+      } catch (e) {
+        // If not JSON, return raw string
+        resolve(stdout.trim());
+      }
+    });
+    
+    process.stdin.write(script);
+    process.stdin.end();
+  });
+}
+
+// Native Swift Connector for Reminders
+function runRemindersConnector(args) {
+  return new Promise((resolve, reject) => {
+    const { execFile } = require('child_process');
+    const binaryPath = path.join(__dirname, 'src/reminders-connector');
+    
+    execFile(binaryPath, args, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Connector Error:', stderr || error.message);
+        reject(error);
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout));
+      } catch (e) {
+        console.error('JSON Parse Error:', stdout);
+        resolve([]);
+      }
+    });
+  });
+}
+
+ipcMain.handle('fetch-reminders-lists', async () => {
+  if (process.platform !== 'darwin') return [];
+  return runRemindersConnector(['lists']);
+});
+
+ipcMain.handle('fetch-reminders-tasks', async (event, listId) => {
+  if (process.platform !== 'darwin') return [];
+  return runRemindersConnector(['tasks', listId]);
+});
+
+ipcMain.handle('update-reminders-status', async (event, taskId, completed) => {
+  if (process.platform !== 'darwin') return;
+  return runRemindersConnector(['update-status', taskId, completed.toString()]);
+});
+
+ipcMain.handle('update-reminders-title', async (event, taskId, title) => {
+  if (process.platform !== 'darwin') return;
+  return runRemindersConnector(['update-title', taskId, title]);
+});
+
+ipcMain.handle('delete-reminders-task', async (event, taskId) => {
+  if (process.platform !== 'darwin') return;
+  return runRemindersConnector(['delete-task', taskId]);
+});
+
+ipcMain.handle('create-reminders-task', async (event, listId, title) => {
+  if (process.platform !== 'darwin') return;
+  return runRemindersConnector(['create-task', listId, title]);
+});
+
+// Update checker
+const { autoUpdater } = require('electron-updater');
+
+// Configure logging for autoUpdater
+autoUpdater.logger = require('electron-log');
+autoUpdater.logger.transports.file.level = 'info';
+
+ipcMain.on('check-for-updates', () => {
+  // In development, allow checking but it might not find anything unless configured
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Checking for updates in development mode...');
+    // Optional: Force dev update config if needed, or just log
+    // autoUpdater.forceDevUpdateConfig = true; 
+  }
+  
+  autoUpdater.checkForUpdatesAndNotify().catch(err => {
+      console.log('Update check error (expected in dev):', err.message);
+  });
+});
+
+autoUpdater.on('update-available', () => {
+  mainWindow.webContents.send('update-available');
+});
+
+autoUpdater.on('update-downloaded', () => {
+  mainWindow.webContents.send('update-downloaded');
+});
+
+ipcMain.on('install-update', () => {
+  autoUpdater.quitAndInstall();
+});
+
+
+app.on('ready', () => {
+  createMainWindow();
+  createMenu();
+  
+  if (process.env.NODE_ENV !== 'development') {
+    autoUpdater.checkForUpdatesAndNotify();
   }
 });
-ipcMain.on('set-focus-window-size', (event, width) => {
-  if (mainWindow) {
-    mainWindow.setFullScreen(false); // Ensure not fullscreen when resizing
-    mainWindow.setSize(width, 60);
-    // Removed mainWindow.center() to preserve position
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
   }
 });
-ipcMain.on('enter-fullscreen-focus', () => {
+
+app.on('activate', () => {
+  if (mainWindow === null) {
+    createMainWindow();
+  }
+});
+
+// IPC listeners for focus mode
+ipcMain.on('enter-focus-mode', () => {
   if (mainWindow) {
-    mainWindow.setResizable(true); // Allow resize for fullscreen transition
     mainWindow.setFullScreen(true);
-    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    // mainWindow.setAlwaysOnTop(true, 'screen-saver'); // Optional: stronger focus
   }
 });
-/*
-ipcMain.on('window-move', (event, { x, y }) => {
-  if (mainWindow) {
-    const [currentX, currentY] = mainWindow.getPosition();
-    mainWindow.setPosition(currentX + x, currentY + y);
-  }
-});
-*/
-ipcMain.on('window-minimize', () => {
-  if (mainWindow) mainWindow.minimize();
-});
-ipcMain.on('window-maximize', () => {
-  if (mainWindow) {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow.maximize();
-    }
-  }
-});
-ipcMain.on('window-close', () => {
-  if (mainWindow) mainWindow.close();
-});
+
 ipcMain.on('exit-focus-mode', () => {
   if (mainWindow) {
-    mainWindow.setSize(400, 600);
-    mainWindow.setResizable(true);
+    mainWindow.setFullScreen(false);
     mainWindow.setAlwaysOnTop(false);
-    mainWindow.setMinimizable(true);
-    // Show macOS traffic light buttons when exiting focus mode
-    if (process.platform === 'darwin') {
-      mainWindow.setWindowButtonVisibility(true);
-    }
   }
 });
+
+async function exchangeCodeForToken(code) {
+  const fetch = (await import('node-fetch')).default;
+  
+  // Call Netlify function to exchange code for token
+  const response = await fetch(NETLIFY_EXCHANGE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      code,
+      redirect_uri: BC_REDIRECT_URI,
+      client_id: BC_CLIENT_ID
+    })
+  });
+  
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Token exchange failed: ${text}`);
+  }
+  
+  return await response.json();
+}
+
 
 // Basecamp Authentication Logic
 ipcMain.on('start-basecamp-auth', (event) => {
@@ -291,65 +381,15 @@ ipcMain.on('start-basecamp-auth', (event) => {
     shell.openExternal(authUrl);
   });
   
-  server.on('error', (err) => {
-      console.error('Server error:', err);
-      if (mainWindow) {
-          mainWindow.webContents.send('basecamp-auth-error', 'Could not start local server on port 3000. Please ensure it is free.');
+  server.on('error', (e) => {
+      console.error('Server error', e);
+      if (e.code === 'EADDRINUSE') {
+          console.log('Port 3000 in use, retrying...');
+          setTimeout(() => {
+              server.close();
+              server.listen(3000);
+          }, 1000);
       }
   });
-});
 
-function exchangeCodeForToken(code) {
-    return new Promise((resolve, reject) => {
-        const postData = JSON.stringify({
-            code: code,
-            redirect_uri: BC_REDIRECT_URI
-        });
-        
-        // Parse URL to handle https vs http if you test locally
-        const netlifyUrl = url.parse(NETLIFY_EXCHANGE_URL);
-        
-        const options = {
-            hostname: netlifyUrl.hostname,
-            path: netlifyUrl.path,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': postData.length
-            }
-        };
-
-        const req = https.request(options, (res) => {
-            let data = '';
-            res.on('data', (chunk) => data += chunk);
-            res.on('end', () => {
-                if (res.statusCode >= 200 && res.statusCode < 300) {
-                    try {
-                        resolve(JSON.parse(data));
-                    } catch (e) {
-                        reject(new Error('Invalid JSON response from server'));
-                    }
-                } else {
-                    reject(new Error(`Status ${res.statusCode}: ${data}`));
-                }
-            });
-        });
-
-        req.on('error', (e) => reject(e));
-        req.write(postData);
-        req.end();
-    });
-}
-
-app.whenReady().then(() => {
-  createMainWindow();
-  createMenu();
-});
-app.on('window-all-closed', () => {
-  app.quit();
-});
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createMainWindow();
-  }
 });
