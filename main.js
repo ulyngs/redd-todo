@@ -3,6 +3,7 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const url = require('url');
+const fetch = require('node-fetch');
 const { exec } = require('child_process');
 
 // Basecamp OAuth Configuration
@@ -305,7 +306,6 @@ ipcMain.on('exit-focus-mode', () => {
 });
 
 async function exchangeCodeForToken(code) {
-  const fetch = (await import('node-fetch')).default;
   
   // Call Netlify function to exchange code for token
   const response = await fetch(NETLIFY_EXCHANGE_URL, {

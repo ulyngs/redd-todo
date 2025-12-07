@@ -1,6 +1,6 @@
 {
   "name": "redd-todo",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "ReDD Todo - keep your goals in sight and get back to what you wanted to do",
   "main": "main.js",
   "scripts": {
@@ -25,9 +25,9 @@
   },
   "license": "CC-BY-NC-ND-3.0",
   "dependencies": {
-    "electron-updater": "^6.6.2",
     "electron-log": "^5.4.3",
-    "node-fetch": "^3.3.2"
+    "electron-updater": "^6.6.2",
+    "node-fetch": "^2.7.0"
   },
   "devDependencies": {
     "dotenv": "^17.2.3",
