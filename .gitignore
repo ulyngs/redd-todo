@@ -4,7 +4,7 @@ node_modules/
 # Production
 dist/
 release/
-build/
+build/ReDD_Todo_New.provisionprofile
 
 # System Files
 .DS_Store
