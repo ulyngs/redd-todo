@@ -1044,9 +1044,9 @@ body {
     right: 24px;
     transform: translateY(-50%);
     display: flex;
-    gap: 6px;
-    padding: 6px;
-    border-radius: 16px;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
@@ -1066,10 +1066,10 @@ body {
 .reset-focus-btn,
 .exit-focus-btn {
     position: relative;
-    width: 48px;
-    height: 48px;
+    width: 32px;
+    height: 32px;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.95);
     cursor: pointer;
     display: flex;
@@ -1079,6 +1079,14 @@ body {
     padding: 0;
     color: #666;
     -webkit-app-region: no-drag;
+    outline: none;
+}
+
+.complete-focus-btn:focus,
+.fullscreen-focus-btn:focus,
+.reset-focus-btn:focus,
+.exit-focus-btn:focus {
+    outline: none;
 }
 
 .complete-focus-btn {
