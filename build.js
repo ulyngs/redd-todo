@@ -71,7 +71,8 @@ builder.build({
         }
       ],
       extendInfo: {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSRemindersUsageDescription": "ReDD Todo needs access to your reminders to sync tasks."
       }
     },
     mas: {
