@@ -1824,29 +1824,41 @@ function setupEventListeners() {
 
     // Reminders Connect Button
     if (remindersConnectBtn) {
-        remindersConnectBtn.addEventListener('click', async () => {
-             try {
-                 remindersConnectBtn.textContent = 'Connecting...';
-                 remindersConnectBtn.disabled = true;
-                 
-                 // Try to fetch lists to trigger permission prompt
-                 const lists = await ipcRenderer.invoke('fetch-reminders-lists');
-                 if (lists !== null) {
-                     remindersConfig.isConnected = true;
-                     saveData();
-                     updateRemindersUI();
-                 } else {
-                     alert('Could not connect to Reminders. Please check permissions.');
+        if (process.platform !== 'darwin') {
+             // Disable for non-Mac
+             remindersConnectBtn.disabled = true;
+             remindersConnectBtn.title = 'Apple Reminders integration is only available on macOS';
+             remindersConnectBtn.style.opacity = '0.5';
+             remindersConnectBtn.style.cursor = 'not-allowed';
+             
+             // Add explanatory text near the button if possible, or just rely on title/alert
+             // Let's modify the text to be clear
+             remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders (macOS only)';
+        } else {
+             remindersConnectBtn.addEventListener('click', async () => {
+                 try {
+                     remindersConnectBtn.textContent = 'Connecting...';
+                     remindersConnectBtn.disabled = true;
+                     
+                     // Try to fetch lists to trigger permission prompt
+                     const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+                     if (lists !== null) {
+                         remindersConfig.isConnected = true;
+                         saveData();
+                         updateRemindersUI();
+                     } else {
+                         alert('Could not connect to Reminders. Please check permissions.');
+                         remindersConnectBtn.disabled = false;
+                         remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+                     }
+                 } catch (error) {
+                     console.error(error);
+                     alert('Failed to connect to Reminders: ' + error);
                      remindersConnectBtn.disabled = false;
                      remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
                  }
-             } catch (error) {
-                 console.error(error);
-                 alert('Failed to connect to Reminders: ' + error);
-                 remindersConnectBtn.disabled = false;
-                 remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
-             }
-        });
+            });
+        }
     }
 
     // Reminders Disconnect Button
