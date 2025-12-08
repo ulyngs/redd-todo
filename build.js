@@ -63,6 +63,13 @@ builder.build({
       gatekeeperAssess: false,
       entitlements: 'build/entitlements.mac.plist',
       entitlementsInherit: 'build/entitlements.mac.plist',
+      x64ArchFiles: 'Contents/Resources/reminders-connector',
+      extraResources: [
+        {
+          from: "src/reminders-connector",
+          to: "reminders-connector"
+        }
+      ],
       extendInfo: {
         "ITSAppUsesNonExemptEncryption": false
       }

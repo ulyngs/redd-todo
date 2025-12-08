@@ -188,7 +188,13 @@ function runJxa(script) {
 function runRemindersConnector(args) {
   return new Promise((resolve, reject) => {
     const { execFile } = require('child_process');
-    const binaryPath = path.join(__dirname, 'src/reminders-connector');
+    
+    let binaryPath;
+    if (app.isPackaged) {
+      binaryPath = path.join(process.resourcesPath, 'reminders-connector');
+    } else {
+      binaryPath = path.join(__dirname, 'src/reminders-connector');
+    }
     
     execFile(binaryPath, args, (error, stdout, stderr) => {
       if (error) {
