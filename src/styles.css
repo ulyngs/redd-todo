@@ -1019,8 +1019,16 @@ body {
 .focus-container.fullscreen .fullscreen-focus-btn,
 .focus-container.fullscreen .reset-focus-btn,
 .focus-container.fullscreen .exit-focus-btn {
-    width: 64px;
-    height: 64px;
+    width: 48px;
+    height: 48px;
+}
+
+.focus-container.fullscreen .complete-focus-btn svg,
+.focus-container.fullscreen .fullscreen-focus-btn svg,
+.focus-container.fullscreen .reset-focus-btn svg,
+.focus-container.fullscreen .exit-focus-btn svg {
+    width: 27px;
+    height: 27px;
 }
 
 .focus-container.fullscreen .complete-focus-btn:hover,
