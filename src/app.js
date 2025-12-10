@@ -201,8 +201,8 @@ function initApp() {
         }
     }
 
-    // Check for updates (auto-check)
-    checkForUpdates(false);
+    // Check for updates (auto-check) - REMOVED for Mac App Store compliance
+    // checkForUpdates(false);
 }
 
 // Update Check Logic
@@ -210,31 +210,27 @@ async function checkForUpdates(isManual = false) {
     const manualUpdateBtn = document.getElementById('manual-update-check-btn');
     const updateStatus = document.getElementById('settings-update-status');
 
-    if (isManual && manualUpdateBtn && updateStatus) {
+    if (manualUpdateBtn) {
         manualUpdateBtn.textContent = 'Checking...';
         manualUpdateBtn.disabled = true;
-        updateStatus.classList.add('hidden');
-        updateStatus.textContent = '';
-        updateStatus.style.color = '#333';
-        delete manualUpdateBtn.dataset.action;
+    }
+    
+    if (updateStatus) {
+         updateStatus.classList.add('hidden');
+         updateStatus.textContent = '';
     }
 
     try {
-        // Get current version from main process
-        const currentVersion = await ipcRenderer.invoke('get-app-version');
-        console.log('Current version:', currentVersion);
-        
         // Fetch latest versions from GitHub Pages
-        // Use a cache-busting param to ensure fresh check
         const response = await fetch(`https://ulyngs.github.io/redd-todo/latest-versions.json?t=${Date.now()}`);
         
         if (!response.ok) {
             console.warn('Failed to fetch update manifest:', response.status);
-            if (isManual && updateStatus && manualUpdateBtn) {
-                updateStatus.textContent = 'Couldn\'t check, please try again later.';
+            if (updateStatus && manualUpdateBtn) {
+                updateStatus.textContent = 'Couldn\'t retrieve info.';
                 updateStatus.style.color = '#ef4444';
                 updateStatus.classList.remove('hidden');
-                manualUpdateBtn.textContent = 'Check for updates';
+                manualUpdateBtn.textContent = 'Check latest version number';
                 manualUpdateBtn.disabled = false;
             }
             return;
@@ -249,39 +245,19 @@ async function checkForUpdates(isManual = false) {
         else if (platform === 'win32') latestVersion = versions.windows;
         else if (platform === 'linux') latestVersion = versions.linux;
         
-        console.log('Latest version for', platform, ':', latestVersion);
-
-        if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
-            // Update available
-            if (isManual && updateStatus && manualUpdateBtn) {
-                updateStatus.textContent = `New version available: ${latestVersion}`;
-                updateStatus.classList.remove('hidden');
-                manualUpdateBtn.textContent = 'Update';
-                manualUpdateBtn.disabled = false;
-                manualUpdateBtn.dataset.action = 'update';
-            }
-
-            // Check if this version was dismissed (unless it's a manual check)
-            const dismissedVersion = localStorage.getItem('dismissedUpdateVersion');
-            if (!isManual && dismissedVersion === latestVersion) {
-                console.log('Update to', latestVersion, 'was dismissed by user.');
-                return;
-            }
-
-            showUpdateNotification(latestVersion);
-        } else if (isManual && updateStatus && manualUpdateBtn) {
-            updateStatus.textContent = 'You are on the latest version';
+        if (latestVersion && updateStatus && manualUpdateBtn) {
+            updateStatus.textContent = `Latest version is: ${latestVersion}`;
             updateStatus.classList.remove('hidden');
-            manualUpdateBtn.textContent = 'Check for updates';
+            manualUpdateBtn.textContent = 'Check latest version number';
             manualUpdateBtn.disabled = false;
         }
     } catch (e) {
         console.error('Failed to check for updates:', e);
-        if (isManual && updateStatus && manualUpdateBtn) {
-            updateStatus.textContent = 'Couldn\'t check, please try again later.';
+        if (updateStatus && manualUpdateBtn) {
+            updateStatus.textContent = 'Couldn\'t retrieve info.';
             updateStatus.style.color = '#ef4444';
             updateStatus.classList.remove('hidden');
-            manualUpdateBtn.textContent = 'Check for updates';
+            manualUpdateBtn.textContent = 'Check latest version number';
             manualUpdateBtn.disabled = false;
         }
     }
@@ -302,6 +278,8 @@ function isNewerVersion(current, latest) {
 }
 
 function showUpdateNotification(version) {
+    // Removed to comply with Mac App Store guidelines
+    /*
     const notification = document.getElementById('update-notification');
     const text = document.getElementById('update-text');
     const actionBtn = document.getElementById('update-action-btn');
@@ -323,6 +301,7 @@ function showUpdateNotification(version) {
         localStorage.setItem('dismissedUpdateVersion', version);
         notification.classList.add('hidden');
     };
+    */
 }
 
 
@@ -1883,11 +1862,8 @@ function setupEventListeners() {
     const manualUpdateBtn = document.getElementById('manual-update-check-btn');
     if (manualUpdateBtn) {
         manualUpdateBtn.addEventListener('click', () => {
-            if (manualUpdateBtn.dataset.action === 'update') {
-                shell.openExternal('https://reddfocus.org/todo');
-            } else {
-                checkForUpdates(true);
-            }
+            // Simply check for latest version info
+            checkForUpdates(true);
         });
     }
 
