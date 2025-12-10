@@ -756,7 +756,12 @@ function toggleTask(taskId) {
              // Insert at the beginning
              tab.tasks.unshift(task);
         }
-    } 
+        // Clear completedAt
+        task.completedAt = null;
+    } else if (!wasCompleted && task.completed) {
+        // If task is being marked as completed, set timestamp
+        task.completedAt = new Date().toISOString();
+    }
     
     // If Basecamp connected, sync status
     if (tab.basecampListId && basecampConfig.isConnected && task.basecampId) {
@@ -1569,9 +1574,15 @@ function renderTasks() {
         completedTasksToRender = currentTab.tasks.filter(task => task.completed);
     }
     
-    // Alias for compatibility with existing code
+    // Separate completed and incomplete tasks
     const incompleteTasks = tasksToRender;
-    const completedTasks = completedTasksToRender;
+    // Sort completed tasks by completion time (most recent first)
+    // If completedAt is missing (legacy tasks), fallback to creation time or preserve order
+    const completedTasks = completedTasksToRender.sort((a, b) => {
+        const timeA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const timeB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        return timeB - timeA;
+    });
 
     // Render incomplete tasks in main tasks container
     tasksContainer.innerHTML = '';
