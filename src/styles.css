@@ -596,14 +596,18 @@ body {
 }
 
 .delete-btn {
-    background: hsl(0, 0%, 96%);
-    border: 1px solid hsl(214, 32%, 91%);
-    color: hsl(222.2, 84%, 4.9%);
+    background: transparent;
+    border: none;
+    color: #999;
+    padding: 4px 6px;
+    min-width: auto;
+    font-size: 18px;
+    line-height: 1;
 }
 
 .delete-btn:hover {
-    background: hsl(0, 0%, 90%);
-    border-color: hsl(214, 32%, 85%);
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
 }
 
 .fav-btn {
