@@ -18,6 +18,13 @@ let focusTimerInterval = null;
     let draggedTabId = null;
     let draggedGroupId = null; // Track dragged group
     let focusedTaskId = null; // To track which task is currently in focus mode
+    let currentView = 'lists'; // 'lists' or 'favourites'
+
+// View Switcher Elements
+const viewListsBtn = document.getElementById('view-lists-btn');
+const viewFavBtn = document.getElementById('view-fav-btn');
+const groupsContainerMain = document.querySelector('.groups-container');
+const tabsContainerMain = document.querySelector('.tabs-container');
 
 // Basecamp State
 let basecampConfig = {
@@ -653,17 +660,28 @@ function addTask(text) {
         id: `task_${++taskCounter}`,
         text: text.trim(),
         completed: false,
+        isFavourite: currentView === 'favourites',
         createdAt: new Date().toISOString(),
         expectedDuration: duration,
         actualDuration: null,
         basecampId: null
     };
 
-    tabs[currentTabId].tasks.push(task);
+    let targetTabId = currentTabId;
+    if (currentView === 'favourites') {
+         const allTabIds = Object.keys(tabs);
+         if (allTabIds.length > 0) {
+             targetTabId = allTabIds[0];
+         }
+    }
+
+    if (!targetTabId) return; // Should not happen if tabs exist
+
+    tabs[targetTabId].tasks.push(task);
     
     // If this is a Basecamp list, create the todo in Basecamp
-    if (tabs[currentTabId].basecampListId && basecampConfig.isConnected) {
-        createBasecampTodo(currentTabId, task);
+    if (tabs[targetTabId].basecampListId && basecampConfig.isConnected) {
+        createBasecampTodo(targetTabId, task);
     }
     
     renderTasks();
@@ -678,36 +696,35 @@ function addTask(text) {
 }
 
 function deleteTask(taskId) {
-    if (!currentTabId) return;
-
-    const currentTab = tabs[currentTabId];
-    const taskIndex = currentTab.tasks.findIndex(t => t.id === taskId);
+    const context = getTaskContext(taskId);
+    if (!context) return;
+    
+    const { task, tabId, tab } = context;
+    const taskIndex = tab.tasks.findIndex(t => t.id === taskId);
     
     if (taskIndex !== -1) {
-        const task = currentTab.tasks[taskIndex];
-        
         // Save for undo
         lastDeletedItem = {
             type: 'task',
             data: JSON.parse(JSON.stringify(task)),
             index: taskIndex,
-            tabId: currentTabId,
-            basecampListId: currentTab.basecampListId,
-            remindersListId: currentTab.remindersListId
+            tabId: tabId,
+            basecampListId: tab.basecampListId,
+            remindersListId: tab.remindersListId
         };
         showUndoToast(`Task deleted`);
 
         // If Basecamp connected, delete remote
-        if (currentTab.basecampListId && basecampConfig.isConnected && task.basecampId) {
-            deleteBasecampTodo(currentTabId, task.basecampId);
+        if (tab.basecampListId && basecampConfig.isConnected && task.basecampId) {
+            deleteBasecampTodo(tabId, task.basecampId);
         }
 
         // If Reminders connected, delete remote
-        if (currentTab.remindersListId && remindersConfig.isConnected && task.remindersId) {
+        if (tab.remindersListId && remindersConfig.isConnected && task.remindersId) {
             deleteRemindersTask(task.remindersId);
         }
 
-        currentTab.tasks.splice(taskIndex, 1);
+        tab.tasks.splice(taskIndex, 1);
         renderTasks();
         saveData();
     }
@@ -716,23 +733,14 @@ function deleteTask(taskId) {
 function toggleTask(taskId) {
     console.log('=== TOGGLE TASK START ===');
     console.log('Task ID:', taskId);
-    console.log('Current tab ID:', currentTabId);
 
-    if (!currentTabId) {
-        console.log('❌ No current tab ID, returning');
-        return;
-    }
-
-    const currentTab = tabs[currentTabId];
-    
-    const taskIndex = currentTab.tasks.findIndex(t => t.id === taskId);
-
-    if (taskIndex === -1) {
+    const context = getTaskContext(taskId);
+    if (!context) {
         console.log('❌ Task not found, returning');
         return;
     }
-
-    const task = currentTab.tasks[taskIndex];
+    
+    const { task, tabId, tab } = context;
     const wasCompleted = task.completed;
     
     // Toggle the completion status
@@ -742,18 +750,21 @@ function toggleTask(taskId) {
     if (wasCompleted && !task.completed) {
         console.log('✅ Condition met: was completed and now incomplete, moving to beginning');
         // Remove from current position
-        currentTab.tasks.splice(taskIndex, 1);
-        // Insert at the beginning
-        currentTab.tasks.unshift(task);
+        const taskIndex = tab.tasks.indexOf(task);
+        if (taskIndex !== -1) {
+             tab.tasks.splice(taskIndex, 1);
+             // Insert at the beginning
+             tab.tasks.unshift(task);
+        }
     } 
     
     // If Basecamp connected, sync status
-    if (currentTab.basecampListId && basecampConfig.isConnected && task.basecampId) {
-        updateBasecampCompletion(currentTabId, task);
+    if (tab.basecampListId && basecampConfig.isConnected && task.basecampId) {
+        updateBasecampCompletion(tabId, task);
     }
     
     // If Reminders connected, sync status
-    if (currentTab.remindersListId && remindersConfig.isConnected && task.remindersId) {
+    if (tab.remindersListId && remindersConfig.isConnected && task.remindersId) {
         updateRemindersCompletion(task.remindersId, task.completed);
     }
 
@@ -763,19 +774,17 @@ function toggleTask(taskId) {
 
 function focusTask(taskId) {
     console.log('focusTask called with taskId:', taskId);
-    if (!currentTabId) {
-        console.log('❌ No currentTabId, returning');
+    
+    const context = getTaskContext(taskId);
+    if (!context) {
+        console.log('❌ Task not found');
         return;
     }
-
-    const task = tabs[currentTabId].tasks.find(t => t.id === taskId);
-    if (task) {
-        focusedTaskId = taskId;
-        console.log('Entering focus mode for task:', task.text);
-        enterFocusMode(task.text, task.expectedDuration, task.timeSpent || 0);
-    } else {
-        console.log('❌ Task not found');
-    }
+    
+    const { task } = context;
+    focusedTaskId = taskId;
+    console.log('Entering focus mode for task:', task.text);
+    enterFocusMode(task.text, task.expectedDuration, task.timeSpent || 0);
 }
 
 // Tab drag and drop functions
@@ -1462,23 +1471,107 @@ function renderTabs() {
     tabsContainer.appendChild(addTabBtn);
 }
 
+function switchView(viewName) {
+    if (currentView === viewName) return;
+    currentView = viewName;
+    
+    if (currentView === 'lists') {
+        viewListsBtn.classList.add('active');
+        viewFavBtn.classList.remove('active');
+        if (groupsContainerMain) groupsContainerMain.style.display = 'flex';
+        if (tabsContainerMain) tabsContainerMain.style.display = 'flex';
+    } else {
+        viewListsBtn.classList.remove('active');
+        viewFavBtn.classList.add('active');
+        if (groupsContainerMain) groupsContainerMain.style.display = 'none';
+        if (tabsContainerMain) tabsContainerMain.style.display = 'none';
+    }
+    renderTasks();
+}
+
+function getAllFavouriteTasks() {
+    let allTasks = [];
+    Object.keys(tabs).forEach(tabId => {
+        const tab = tabs[tabId];
+        tab.tasks.forEach(task => {
+            if (task.isFavourite) {
+                allTasks.push(task);
+            }
+        });
+    });
+    return allTasks;
+}
+
+function getTaskContext(taskId) {
+    // If lists view and currentTabId valid, check there first
+    if (currentView === 'lists' && currentTabId && tabs[currentTabId]) {
+        const task = tabs[currentTabId].tasks.find(t => t.id === taskId);
+        if (task) return { task, tabId: currentTabId, tab: tabs[currentTabId] };
+    }
+    
+    // Search all
+    for (const tabId in tabs) {
+        const task = tabs[tabId].tasks.find(t => t.id === taskId);
+        if (task) return { task, tabId, tab: tabs[tabId] };
+    }
+    return null;
+}
+
+function toggleTaskFavourite(taskId) {
+    let taskFound = false;
+    for (const tabId in tabs) {
+        const tab = tabs[tabId];
+        const task = tab.tasks.find(t => t.id === taskId);
+        if (task) {
+            task.isFavourite = !task.isFavourite;
+            taskFound = true;
+            break;
+        }
+    }
+    if (taskFound) {
+        saveData();
+        renderTasks();
+    }
+}
+
 function renderTasks() {
-    if (!currentTabId) {
-        tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No tab selected</div>';
-        doneContainer.style.display = 'none';
-        return;
-    }
+    let tasksToRender = [];
+    let completedTasksToRender = [];
 
-    const currentTab = tabs[currentTabId];
-    if (!currentTab.tasks.length) {
-        tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No tasks yet. Add one below!</div>';
-        doneContainer.style.display = 'none';
-        return;
-    }
+    if (currentView === 'favourites') {
+        const allFavs = getAllFavouriteTasks();
+        tasksToRender = allFavs.filter(task => !task.completed);
+        completedTasksToRender = allFavs.filter(task => task.completed);
+        
+        tasksContainer.innerHTML = '';
+        doneTasksContainer.innerHTML = '';
+        
+        if (tasksToRender.length === 0 && completedTasksToRender.length === 0) {
+             tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No favourited tasks yet. Click the heart on a task to favourite it! ❤️</div>';
+             doneContainer.style.display = 'none';
+             return;
+        }
+    } else {
+        if (!currentTabId) {
+            tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No tab selected</div>';
+            doneContainer.style.display = 'none';
+            return;
+        }
 
-    // Separate completed and incomplete tasks
-    const incompleteTasks = currentTab.tasks.filter(task => !task.completed);
-    const completedTasks = currentTab.tasks.filter(task => task.completed);
+        const currentTab = tabs[currentTabId];
+        if (!currentTab.tasks.length) {
+            tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No tasks yet. Add one below!</div>';
+            doneContainer.style.display = 'none';
+            return;
+        }
+        
+        tasksToRender = currentTab.tasks.filter(task => !task.completed);
+        completedTasksToRender = currentTab.tasks.filter(task => task.completed);
+    }
+    
+    // Alias for compatibility with existing code
+    const incompleteTasks = tasksToRender;
+    const completedTasks = completedTasksToRender;
 
     // Render incomplete tasks in main tasks container
     tasksContainer.innerHTML = '';
@@ -1525,7 +1618,8 @@ function renderTasks() {
         }
 
         // Show "Delete all" button if there's more than one completed task
-        if (completedTasks.length > 1) {
+        // Hide in favourites view to avoid ambiguity about which list is being cleared
+        if (completedTasks.length > 1 && currentView !== 'favourites') {
             deleteAllBtn.classList.remove('hidden');
         } else {
             deleteAllBtn.classList.add('hidden');
@@ -1563,6 +1657,15 @@ function createTaskElement(task) {
     taskElement.draggable = true;
     taskElement.dataset.taskId = task.id;
 
+    const favBtnClass = task.isFavourite ? 'fav-btn active' : 'fav-btn';
+    const favBtnHtml = `
+        <button class="${favBtnClass}" data-task-id="${task.id}" title="Toggle Favourite">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+        </button>
+    `;
+
     // Build action buttons based on task completion status
     let actionButtons = '';
     if (!task.completed) {
@@ -1575,11 +1678,13 @@ function createTaskElement(task) {
                     <circle cx="12" cy="12" r="2"/>
                 </svg>
             </button>
+            ${favBtnHtml}
             <button class="delete-btn" data-task-id="${task.id}">×</button>
         `;
     } else {
         // Completed tasks only get delete button
         actionButtons = `
+            ${favBtnHtml}
             <button class="delete-btn" data-task-id="${task.id}">×</button>
         `;
     }
@@ -1638,6 +1743,14 @@ function createTaskElement(task) {
         });
     }
 
+    const favBtn = taskElement.querySelector('.fav-btn');
+    if (favBtn) {
+        favBtn.addEventListener('click', (e) => {
+             e.stopPropagation();
+             toggleTaskFavourite(task.id);
+        });
+    }
+
     // Drag event listeners
     taskElement.addEventListener('dragstart', handleDragStart);
     taskElement.addEventListener('dragend', handleDragEnd);
@@ -1649,6 +1762,14 @@ function createTaskElement(task) {
 
 // Event listeners
 function setupEventListeners() {
+    // View Switcher Listeners
+    if (viewListsBtn) {
+        viewListsBtn.addEventListener('click', () => switchView('lists'));
+    }
+    if (viewFavBtn) {
+        viewFavBtn.addEventListener('click', () => switchView('favourites'));
+    }
+
     // Note: addTabBtn is now dynamically created inside renderTabs
 
     // Modal buttons
@@ -2581,11 +2702,10 @@ function moveTaskToBottom(taskId) {
 }
 
 function editTaskText(taskId, textElement) {
-    if (!currentTabId) return;
+    const context = getTaskContext(taskId);
+    if (!context) return;
     
-    const currentTab = tabs[currentTabId];
-    const task = currentTab.tasks.find(t => t.id === taskId);
-    if (!task) return;
+    const { task, tabId, tab } = context;
 
     // Create input element
     const input = document.createElement('input');
@@ -2609,12 +2729,12 @@ function editTaskText(taskId, textElement) {
             task.text = newText;
             
             // If connected to Basecamp and task has a remote ID, sync the change
-            if (currentTab.basecampListId && basecampConfig.isConnected && task.basecampId) {
-                updateBasecampTodoText(currentTabId, task);
+            if (tab.basecampListId && basecampConfig.isConnected && task.basecampId) {
+                updateBasecampTodoText(tabId, task);
             }
             
             // If connected to Reminders, sync text change
-            if (currentTab.remindersListId && remindersConfig.isConnected && task.remindersId) {
+            if (tab.remindersListId && remindersConfig.isConnected && task.remindersId) {
                 updateRemindersTitle(task.remindersId, task.text);
             }
             
@@ -2632,11 +2752,10 @@ function editTaskText(taskId, textElement) {
 }
 
 function editTaskDuration(taskId, metaElement) {
-    if (!currentTabId) return;
+    const context = getTaskContext(taskId);
+    if (!context) return;
     
-    const currentTab = tabs[currentTabId];
-    const task = currentTab.tasks.find(t => t.id === taskId);
-    if (!task) return;
+    const { task } = context;
 
     // Create input element for duration
     const input = document.createElement('input');

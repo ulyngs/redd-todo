@@ -22,6 +22,7 @@ body {
     backdrop-filter: blur(10px);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    padding-top: 4px; /* Added some top padding */
     padding-bottom: 42px; /* Space for fixed footer */
     overflow: hidden; /* Prevent app-wide scroll */
 }
@@ -39,9 +40,8 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 12px 12px 0 0;
+    padding: 8px 16px;
+    background: transparent;
     -webkit-app-region: drag;
     cursor: move;
     position: relative;
@@ -49,9 +49,53 @@ body {
 }
 
 .title {
-    font-weight: 600;
-    font-size: 14px;
+    display: none;
+}
+
+/* View Switcher */
+.view-switcher {
+    display: flex;
+    align-items: center;
+    background: transparent; /* Removed background */
+    border-radius: 6px;
+    padding: 2px;
+    margin: 0; /* Centered by flex parent */
+    -webkit-app-region: no-drag;
+}
+
+.view-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ccc; /* Lighter gray for inactive state */
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.view-btn:hover {
+    color: #666;
+    background: transparent; /* Removed hover background */
+}
+
+.view-btn.active {
+    background: transparent; /* Removed active background */
     color: #333;
+    box-shadow: none; /* Removed active shadow */
+}
+
+.view-btn.active svg {
+    /* No change needed, inherits active color */
+}
+
+/* Ensure heart is always filled in switch, adjusting opacity or color if needed */
+#view-fav-btn svg {
+    fill: currentColor;
 }
 
 /* Window Controls */
@@ -94,7 +138,7 @@ body {
 .groups-container {
     display: flex;
     align-items: center;
-    padding: 8px 16px 0 16px;
+    padding: 0px 16px 0 16px;
     background: transparent;
     /* border-bottom: 1px solid rgba(0, 0, 0, 0.05); */
 }
@@ -524,7 +568,7 @@ body {
     flex-shrink: 0;
 }
 
-.focus-btn, .delete-btn {
+.focus-btn, .delete-btn, .fav-btn {
     padding: 4px 8px;
     border: none;
     border-radius: 6px;
@@ -565,6 +609,31 @@ body {
     background: hsl(0, 0%, 90%);
     border-color: hsl(214, 32%, 85%);
 }
+
+.fav-btn {
+    background: transparent;
+    color: #d1d5db; /* Light gray */
+    padding: 4px;
+    min-width: 28px;
+}
+
+.fav-btn svg {
+    transition: all 0.2s ease;
+}
+
+.fav-btn:hover {
+    transform: scale(1.1);
+    color: #9ca3af; /* Slightly darker on hover */
+}
+
+.fav-btn.active {
+    color: #4b5563; /* Darker gray */
+}
+
+.fav-btn.active svg {
+    fill: currentColor;
+}
+
 
 /* Add Task Container */
 .add-task-container {
