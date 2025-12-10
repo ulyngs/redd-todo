@@ -89,10 +89,6 @@ body {
     box-shadow: none; /* Removed active shadow */
 }
 
-.view-btn.active svg {
-    /* No change needed, inherits active color */
-}
-
 /* Ensure heart is always filled in switch, adjusting opacity or color if needed */
 #view-fav-btn svg {
     fill: currentColor;
@@ -1223,13 +1219,66 @@ body {
     font-size: 14px;
     font-weight: 600;
     color: #333;
-    margin-bottom: 8px;
+    margin-bottom: 0; /* Removed default margin, controlled by parent layout */
 }
 
 .settings-desc {
     font-size: 13px;
     color: #666;
     margin-bottom: 16px;
+}
+
+.settings-desc a {
+    color: #667eea;
+    text-decoration: none;
+}
+
+.settings-desc a:hover {
+    text-decoration: underline;
+}
+
+/* Info Toggle Button */
+.info-toggle-btn {
+    background: transparent;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.info-toggle-btn:hover {
+    color: #666;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.info-toggle-btn:focus {
+    outline: 2px solid #999;
+    outline-offset: 2px;
+}
+
+.info-toggle-btn[aria-expanded="true"] {
+    color: #666;
+}
+
+/* Expandable Info Text */
+.info-expandable {
+    margin-top: 8px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.info-expandable.hidden {
+    display: none;
 }
 
 .settings-input {

@@ -147,16 +147,34 @@
                 <h3>Settings</h3>
                 
                 <div class="settings-section">
-                    <label class="setting-toggle" style="display: flex; align-items: center; font-size: 13px; cursor: pointer; user-select: none;">
-                        <input type="checkbox" id="enable-groups-toggle" class="task-checkbox">
-                        <span>Enable Tab Groups</span>
-                    </label>
-                    <p class="settings-desc" style="margin-top: 4px;">Organize your to-do lists into groups (shown in a top bar).</p>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <label class="setting-toggle" style="display: flex; align-items: center; font-size: 13px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="enable-groups-toggle" class="task-checkbox">
+                            <span>Enable Tab Groups</span>
+                        </label>
+                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="groups-info" title="More info">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <p id="groups-info" class="settings-desc info-expandable hidden">Organize your to-do lists into groups (shown in a top bar).</p>
                 </div>
 
                 <div class="settings-section">
-                    <h4>Apple Reminders Integration</h4>
-                    <p class="settings-desc">Import tasks from Apple Reminders.</p>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <h4>Apple Reminders Integration</h4>
+                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info" title="More info">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <p id="reminders-info" class="settings-desc info-expandable hidden">Import tasks from Apple Reminders.</p>
                     <button id="reminders-connect-btn" class="modal-btn connect-btn" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg>
                         Connect Reminders
@@ -169,13 +187,22 @@
                 </div>
 
                 <div class="settings-section">
-                    <h4>Basecamp Integration</h4>
-                    <p class="settings-desc">Sync your to-do lists in the Basecamp project management software.</p>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <h4>Basecamp Integration</h4>
+                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info" title="More info">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <p id="basecamp-info" class="settings-desc info-expandable hidden">Sync your to-do lists with <a href="https://basecamp.com" target="_blank">Basecamp</a> project management software.</p>
                     
                     <div id="bc-auth-container">
                         <div class="connection-status hidden" id="bc-connection-status">
                             <span class="status-dot"></span>
-                            <span>Connected to Basecamp</span>
+                            <span>Connected to <a href="https://basecamp.com" target="_blank" style="color: inherit; text-decoration: underline;">Basecamp</a></span>
                             <div id="bc-account-info" style="font-size: 0.9em; color: #666; margin-top: 5px;"></div>
                         </div>
                         

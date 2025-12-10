@@ -1871,6 +1871,19 @@ function setupEventListeners() {
         settingsModal.classList.add('hidden');
     });
 
+    // Info toggle buttons in Settings
+    document.querySelectorAll('.info-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('aria-controls');
+            const target = document.getElementById(targetId);
+            if (target) {
+                const isExpanded = btn.getAttribute('aria-expanded') === 'true';
+                btn.setAttribute('aria-expanded', !isExpanded);
+                target.classList.toggle('hidden');
+            }
+        });
+    });
+
     // Delete Confirm Modal buttons
     if (cancelDeleteBtn) {
         cancelDeleteBtn.addEventListener('click', () => {
