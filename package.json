@@ -1,6 +1,6 @@
 {
   "name": "redd-todo",
-  "version": "0.6.5",
+  "version": "0.7.0",
   "description": "ReDD Todo - keep your goals in sight and get back to what you wanted to do",
   "main": "main.js",
   "scripts": {
