@@ -1518,20 +1518,6 @@ body {
     color: white;
 }
 
-/* Update Notification */
-.update-notification {
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 8px 16px;
-    font-size: 13px;
-    display: flex;
-    justify-content: flex-end; /* Align to right */
-    align-items: center;
-    -webkit-app-region: no-drag;
-    flex-shrink: 0;
-    transition: all 0.3s ease;
-}
-
 /* Connect/Disconnect Buttons */
 .connect-btn {
     background: #4CAF50;
@@ -1577,77 +1563,6 @@ body {
 
 .disconnect-btn:hover {
     background: rgba(255, 68, 68, 0.1);
-}
-
-.update-notification.hidden {
-    display: none;
-}
-
-.update-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: auto; /* Allow content to shrink to fit */
-    max-width: 600px;
-    justify-content: flex-end;
-}
-
-.update-text {
-    font-weight: 500;
-    flex: 0 1 auto; /* Don't force grow */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: right;
-}
-
-.update-action-btn {
-    background: white;
-    color: #667eea;
-    border: none;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.1s;
-}
-
-.update-action-btn:hover {
-    transform: scale(1.05);
-    background: #f0f0f0;
-}
-
-.close-update-btn {
-    background: transparent;
-    border: none;
-    color: rgba(255,255,255,0.7);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 0 4px;
-    line-height: 1;
-}
-
-.close-update-btn:hover {
-    color: white;
-}
-
-/* Connect/Disconnect Buttons */
-.connect-btn {
-    background: #4CAF50;
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    width: 100%;
-}
-
-.connect-btn:hover {
-    background: #45a049;
 }
 
 /* Apple Reminders specific button style */

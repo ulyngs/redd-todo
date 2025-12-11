@@ -201,109 +201,7 @@ function initApp() {
         }
     }
 
-    // Check for updates (auto-check) - REMOVED for Mac App Store compliance
-    // checkForUpdates(false);
 }
-
-// Update Check Logic
-async function checkForUpdates(isManual = false) {
-    const manualUpdateBtn = document.getElementById('manual-update-check-btn');
-    const updateStatus = document.getElementById('settings-update-status');
-
-    if (manualUpdateBtn) {
-        manualUpdateBtn.textContent = 'Checking...';
-        manualUpdateBtn.disabled = true;
-    }
-    
-    if (updateStatus) {
-         updateStatus.classList.add('hidden');
-         updateStatus.textContent = '';
-    }
-
-    try {
-        // Fetch latest versions from GitHub Pages
-        const response = await fetch(`https://ulyngs.github.io/redd-todo/latest-versions.json?t=${Date.now()}`);
-        
-        if (!response.ok) {
-            console.warn('Failed to fetch update manifest:', response.status);
-            if (updateStatus && manualUpdateBtn) {
-                updateStatus.textContent = 'Couldn\'t retrieve info.';
-                updateStatus.style.color = '#ef4444';
-                updateStatus.classList.remove('hidden');
-                manualUpdateBtn.textContent = 'Check latest version number';
-                manualUpdateBtn.disabled = false;
-            }
-            return;
-        }
-        
-        const versions = await response.json();
-        let latestVersion = null;
-        const platform = process.platform;
-        
-        // Map platform to JSON keys
-        if (platform === 'darwin') latestVersion = versions.macos;
-        else if (platform === 'win32') latestVersion = versions.windows;
-        else if (platform === 'linux') latestVersion = versions.linux;
-        
-        if (latestVersion && updateStatus && manualUpdateBtn) {
-            updateStatus.textContent = `Latest version is: ${latestVersion}`;
-            updateStatus.classList.remove('hidden');
-            manualUpdateBtn.textContent = 'Check latest version number';
-            manualUpdateBtn.disabled = false;
-        }
-    } catch (e) {
-        console.error('Failed to check for updates:', e);
-        if (updateStatus && manualUpdateBtn) {
-            updateStatus.textContent = 'Couldn\'t retrieve info.';
-            updateStatus.style.color = '#ef4444';
-            updateStatus.classList.remove('hidden');
-            manualUpdateBtn.textContent = 'Check latest version number';
-            manualUpdateBtn.disabled = false;
-        }
-    }
-}
-
-function isNewerVersion(current, latest) {
-    // Simple semver comparison
-    const v1 = current.split('.').map(Number);
-    const v2 = latest.split('.').map(Number);
-    
-    for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
-        const n1 = v1[i] || 0;
-        const n2 = v2[i] || 0;
-        if (n1 < n2) return true;
-        if (n1 > n2) return false;
-    }
-    return false;
-}
-
-function showUpdateNotification(version) {
-    // Removed to comply with Mac App Store guidelines
-    /*
-    const notification = document.getElementById('update-notification');
-    const text = document.getElementById('update-text');
-    const actionBtn = document.getElementById('update-action-btn');
-    const closeBtn = document.getElementById('close-update-btn');
-    
-    if (!notification) return;
-    
-    text.textContent = `New version ${version} available!`;
-    notification.classList.remove('hidden');
-    
-    actionBtn.onclick = () => {
-        // Open download page
-        // You can change this URL to your specific download page or GitHub releases
-        shell.openExternal('https://reddfocus.org/todo'); 
-    };
-    
-    closeBtn.onclick = () => {
-        // Save dismissal to localStorage
-        localStorage.setItem('dismissedUpdateVersion', version);
-        notification.classList.add('hidden');
-    };
-    */
-}
-
 
 // Group Management
 function createGroup(name) {
@@ -1855,15 +1753,6 @@ function setupEventListeners() {
                     switchToGroup(currentGroupId);
                 }
             }
-        });
-    }
-
-    // Manual Update Check
-    const manualUpdateBtn = document.getElementById('manual-update-check-btn');
-    if (manualUpdateBtn) {
-        manualUpdateBtn.addEventListener('click', () => {
-            // Simply check for latest version info
-            checkForUpdates(true);
         });
     }
 
