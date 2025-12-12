@@ -2464,6 +2464,15 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
     if (container) {
         container.classList.remove('fullscreen');
         updateFullscreenButtonState(false);
+
+        // Draw attention to the focus window location (useful when it pops up).
+        container.classList.remove('attention-ring');
+        // Force reflow so restarting the class retriggers the animation
+        void container.offsetWidth;
+        container.classList.add('attention-ring');
+        setTimeout(() => {
+            container.classList.remove('attention-ring');
+        }, 1000);
     }
 
     focusTaskName.textContent = taskName;

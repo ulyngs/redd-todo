@@ -1036,6 +1036,37 @@ body {
     transition: all 0.3s ease;
 }
 
+/* Attention ring animation when focus mode opens */
+.focus-container.attention-ring::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 10px;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 3px solid rgba(102, 126, 234, 0); /* #667eea */
+    animation: attentionRing 900ms ease-out 1;
+}
+
+@keyframes attentionRing {
+    0% {
+        border-color: rgba(102, 126, 234, 0);
+        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+    }
+    15% {
+        border-color: rgba(102, 126, 234, 0.95);
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.35);
+    }
+    70% {
+        border-color: rgba(102, 126, 234, 0.65);
+        box-shadow: 0 0 0 6px rgba(102, 126, 234, 0.15);
+    }
+    100% {
+        border-color: rgba(102, 126, 234, 0);
+        box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+    }
+}
+
 /* Add a specific class for windowed mode if needed to restore rounded corners/shadow 
    but user asked for focus-container to take up ALL space of focus mode window whatever size it is.
    Since the window itself is frameless and small in focus mode, we want the container to fill it. */
