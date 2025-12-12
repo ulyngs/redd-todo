@@ -1527,14 +1527,7 @@ function renderTasks() {
             doneTasksContainer.appendChild(taskElement);
         });
 
-        // Add invisible drag target at bottom
-        const doneBottomDragTarget = document.createElement('div');
-        doneBottomDragTarget.className = 'bottom-drag-target';
-        doneBottomDragTarget.dataset.position = 'bottom';
-        doneBottomDragTarget.addEventListener('dragover', handleBottomDragOver);
-        doneBottomDragTarget.addEventListener('dragleave', handleBottomDragLeave);
-        doneBottomDragTarget.addEventListener('drop', handleBottomDrop);
-        doneTasksContainer.appendChild(doneBottomDragTarget);
+        // No drag target for Done section: completed tasks should not be reorderable.
 
         doneContainer.style.display = 'block';
         if (isDoneCollapsed) {
@@ -1581,7 +1574,8 @@ function createTaskElement(task) {
     const taskElement = document.createElement('div');
     taskElement.className = `task-item ${task.completed ? 'completed-task' : ''}`;
     // Reordering is only supported for incomplete tasks in the normal lists view.
-    taskElement.draggable = !task.completed && currentView === 'lists';
+    const canDragTask = !task.completed && currentView === 'lists';
+    taskElement.draggable = canDragTask;
     taskElement.dataset.taskId = task.id;
 
     const favBtnClass = task.isFavourite ? 'fav-btn active' : 'fav-btn';
@@ -1678,11 +1672,13 @@ function createTaskElement(task) {
         });
     }
 
-    // Drag event listeners
-    taskElement.addEventListener('dragstart', handleDragStart);
-    taskElement.addEventListener('dragend', handleDragEnd);
-    taskElement.addEventListener('dragover', handleDragOver);
-    taskElement.addEventListener('drop', handleDrop);
+    // Drag event listeners (only on reorderable tasks)
+    if (canDragTask) {
+        taskElement.addEventListener('dragstart', handleDragStart);
+        taskElement.addEventListener('dragend', handleDragEnd);
+        taskElement.addEventListener('dragover', handleDragOver);
+        taskElement.addEventListener('drop', handleDrop);
+    }
 
     return taskElement;
 }
