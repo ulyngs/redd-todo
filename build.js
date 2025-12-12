@@ -10,6 +10,15 @@ const buildWin = process.argv.includes('--win');
 const buildLinux = process.argv.includes('--linux');
 const buildMas = process.argv.includes('--mas');
 
+// Detect implicit "current platform" builds (when no flags are provided)
+const noExplicitPlatformFlags = !buildMac && !buildWin && !buildLinux && !buildMas;
+const isImplicitWin = noExplicitPlatformFlags && process.platform === 'win32';
+const isImplicitLinux = noExplicitPlatformFlags && process.platform === 'linux';
+
+// Read package.json so we can override metadata for platform-specific builds
+const pkgJsonPath = path.join(__dirname, 'package.json');
+const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+
 // If no flags, default to current platform
 const targets = [];
 if (buildMac || buildMas) targets.push(Platform.MAC);
@@ -122,6 +131,13 @@ builder.build({
       icon: 'assets/icon.png',
       artifactName: 'redd-todo-${version}-${arch}.${ext}'
     },
+    // electron-panel-window is macOS-only at runtime; excluding it from Windows/Linux
+    // packaging avoids electron-builder dependency graph errors on those platforms.
+    extraMetadata: (buildWin || buildLinux || isImplicitWin || isImplicitLinux) ? {
+      dependencies: Object.fromEntries(
+        Object.entries(pkg.dependencies || {}).filter(([name]) => name !== '@ashubashir/electron-panel-window')
+      )
+    } : undefined,
     defaultArch: 'x64'
   }
 }).then(() => {
