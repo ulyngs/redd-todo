@@ -775,7 +775,7 @@ body {
 /* Done Container */
 .done-container {
     margin-top: 0;
-    padding-top: 16px;
+    padding-top: 8px;
     padding-bottom: 16px;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
     flex-shrink: 0;
