@@ -1,0 +1,11 @@
+{
+  "name": "@redd/electron-panel-window-darwin",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "os": ["darwin"],
+  "dependencies": {
+    "@ashubashir/electron-panel-window": "^1.0.12"
+  }
+}
+

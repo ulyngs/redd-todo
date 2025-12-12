@@ -8,7 +8,7 @@ const { exec } = require('child_process');
 
 let PanelWindow;
 try {
-  ({ PanelWindow } = require('@ashubashir/electron-panel-window'));
+  ({ PanelWindow } = require('@redd/electron-panel-window-darwin'));
 } catch (e) {
   PanelWindow = null;
 }
