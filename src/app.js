@@ -1248,6 +1248,22 @@ function getDragAfterElement(container, x, selector) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
+// Helper to find insertion point for vertical lists (tasks)
+function getDragAfterElementVertical(container, y, selector) {
+    const draggableElements = [...container.querySelectorAll(`${selector}:not(.dragging)`)];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
 function moveTabToGroup(tabId, targetGroupId) {
     if (tabs[tabId]) {
         // Update group ID
@@ -1564,7 +1580,8 @@ function renderTasks() {
 function createTaskElement(task) {
     const taskElement = document.createElement('div');
     taskElement.className = `task-item ${task.completed ? 'completed-task' : ''}`;
-    taskElement.draggable = true;
+    // Reordering is only supported for incomplete tasks in the normal lists view.
+    taskElement.draggable = !task.completed && currentView === 'lists';
     taskElement.dataset.taskId = task.id;
 
     const favBtnClass = task.isFavourite ? 'fav-btn active' : 'fav-btn';
@@ -2494,77 +2511,76 @@ function updateFocusTimer() {
 
 // Drag and drop functions
 function handleDragStart(e) {
-    draggedTaskId = e.target.dataset.taskId;
-    e.target.classList.add('dragging');
+    // Use currentTarget so we always refer to the .task-item (not a child)
+    draggedTaskId = e.currentTarget?.dataset?.taskId;
+    e.currentTarget.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.target.outerHTML);
 }
 
 function handleDragEnd(e) {
-    e.target.classList.remove('dragging');
-    draggedTaskId = null;
+    e.currentTarget.classList.remove('dragging');
 
-    // Remove drag over classes
-    document.querySelectorAll('.task-item.drag-over, .bottom-drag-target.drag-over').forEach(el => {
-        el.classList.remove('drag-over');
-    });
+    // Persist whatever order the DOM ended up with.
+    persistTaskOrderFromDOM();
+
+    draggedTaskId = null;
 }
 
 function handleDragOver(e) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
-    const target = e.target.closest('.task-item');
+    // Live reordering: move the dragged element in the DOM as we hover.
+    // (This is the same UX as tab reordering.)
+    if (!draggedTaskId || currentView !== 'lists') return;
 
-    // Clear all previous drag-over states
-    document.querySelectorAll('.task-item.drag-over, .bottom-drag-target.drag-over').forEach(el => {
-        el.classList.remove('drag-over');
-    });
+    const container = tasksContainer;
+    const draggable = container.querySelector('.task-item.dragging');
+    if (!draggable) return;
 
-    if (target && target.dataset.taskId !== draggedTaskId) {
-        // Dragging over a task item - show blue line above it
-        target.classList.add('drag-over');
+    const afterElement = getDragAfterElementVertical(container, e.clientY, '.task-item');
+    const bottomTarget = container.querySelector('.bottom-drag-target');
+
+    if (afterElement == null) {
+        // Insert before bottom target if present, otherwise append.
+        if (bottomTarget) {
+            container.insertBefore(draggable, bottomTarget);
+        } else {
+            container.appendChild(draggable);
+        }
+    } else if (afterElement !== draggable) {
+        container.insertBefore(draggable, afterElement);
     }
 }
 
 function handleDrop(e) {
     e.preventDefault();
-
-    const targetTask = e.target.closest('.task-item');
-
-    if (!draggedTaskId) return;
-
-    if (targetTask && targetTask.dataset.taskId !== draggedTaskId) {
-        // Dropped on a task - reorder relative to that task
-        reorderTasks(draggedTaskId, targetTask.dataset.taskId);
-    }
-    // Bottom drops are handled by the bottom drag targets
+    // DOM already reflects the new order; just persist it.
+    persistTaskOrderFromDOM();
 }
 
-// Task reordering function
-function reorderTasks(draggedId, targetId) {
-    if (!currentTabId) return;
+function persistTaskOrderFromDOM() {
+    if (currentView !== 'lists') return;
+    if (!currentTabId || !tabs[currentTabId]) return;
 
     const currentTab = tabs[currentTabId];
-    const draggedIndex = currentTab.tasks.findIndex(task => task.id === draggedId);
-    const targetIndex = currentTab.tasks.findIndex(task => task.id === targetId);
+    const domTaskIds = Array.from(tasksContainer.querySelectorAll('.task-item'))
+        .map(el => el.dataset.taskId)
+        .filter(Boolean);
 
-    if (draggedIndex === -1 || targetIndex === -1) return;
+    // If there are no rendered tasks (e.g. empty state), don't mutate.
+    if (domTaskIds.length === 0) return;
 
-    // Remove dragged task
-    const [draggedTask] = currentTab.tasks.splice(draggedIndex, 1);
+    const byId = new Map(currentTab.tasks.map(t => [t.id, t]));
+    const incompletesInDomOrder = domTaskIds
+        .map(id => byId.get(id))
+        .filter(t => t && !t.completed);
+    const completed = currentTab.tasks.filter(t => t.completed);
 
-    // Calculate insert position
-    let insertIndex = targetIndex;
+    // Replace the tab's tasks array with incompletes in DOM order, plus completed tasks.
+    currentTab.tasks = [...incompletesInDomOrder, ...completed];
 
-    // If we removed an item before the target, adjust the index
-    if (draggedIndex < targetIndex) {
-        insertIndex = targetIndex - 1;
-    }
-
-    currentTab.tasks.splice(insertIndex, 0, draggedTask);
-
-    // Save and re-render
     saveData();
     renderTasks();
 }
@@ -2574,26 +2590,23 @@ function handleBottomDragOver(e) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
-    // Clear all drag-over states
-    document.querySelectorAll('.task-item.drag-over, .bottom-drag-target.drag-over').forEach(el => {
-        el.classList.remove('drag-over');
-    });
+    if (!draggedTaskId || currentView !== 'lists') return;
+    const container = tasksContainer;
+    const draggable = container.querySelector('.task-item.dragging');
+    const bottomTarget = e.currentTarget;
+    if (!draggable || !bottomTarget) return;
 
-    // Add drag-over to this bottom target
-    e.target.classList.add('drag-over');
+    // While hovering the bottom target, keep the dragged item at the end.
+    container.insertBefore(draggable, bottomTarget);
 }
 
 function handleBottomDragLeave(e) {
-    e.target.classList.remove('drag-over');
+    // no-op (we don't use the drag-over indicator anymore)
 }
 
 function handleBottomDrop(e) {
     e.preventDefault();
-    e.target.classList.remove('drag-over');
-
-    if (draggedTaskId) {
-        moveTaskToBottom(draggedTaskId);
-    }
+    persistTaskOrderFromDOM();
 }
 
 // Move task to bottom function
