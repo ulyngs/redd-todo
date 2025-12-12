@@ -430,6 +430,28 @@ async function performUndo() {
                  switchToTab(tab.id);
              }
         }
+    } else if (lastDeletedItem.type === 'tasks_bulk') {
+        const tasks = lastDeletedItem.data || [];
+        const tab = tabs[lastDeletedItem.tabId];
+        
+        if (tab && Array.isArray(tasks) && tasks.length > 0) {
+            // Restore locally (append is fine; completedAt sorting controls Done display order)
+            tab.tasks.push(...tasks);
+
+            // Restore to Basecamp (recreate, because the API delete is destructive)
+            if (lastDeletedItem.basecampListId && basecampConfig.isConnected) {
+                tasks.forEach(task => {
+                    if (task && task.basecampId) {
+                        createBasecampTodo(tab.id, task);
+                    }
+                });
+            }
+
+            // If user is on a different tab, switch so they see the restoration
+            if (currentTabId !== tab.id) {
+                switchToTab(tab.id);
+            }
+        }
     }
     
     lastDeletedItem = null;
@@ -2285,6 +2307,18 @@ function setupEventListeners() {
             if (!currentTabId || !tabs[currentTabId]) return;
             
             const currentTab = tabs[currentTabId];
+            const completedTasksLocal = currentTab.tasks.filter(task => task.completed);
+            if (completedTasksLocal.length === 0) return;
+
+            // Save for undo (deep copy)
+            lastDeletedItem = {
+                type: 'tasks_bulk',
+                data: JSON.parse(JSON.stringify(completedTasksLocal)),
+                tabId: currentTabId,
+                basecampListId: currentTab.basecampListId,
+                remindersListId: currentTab.remindersListId
+            };
+            showUndoToast(`${completedTasksLocal.length} completed task${completedTasksLocal.length === 1 ? '' : 's'} deleted`);
 
             // If connected to Basecamp, delete all completed tasks remotely
             if (currentTab.basecampListId && basecampConfig.isConnected) {
