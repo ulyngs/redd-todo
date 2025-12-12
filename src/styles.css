@@ -40,7 +40,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 8px 16px;
+    padding: 6px 16px 4px 16px;
     background: transparent;
     -webkit-app-region: drag;
     cursor: move;
