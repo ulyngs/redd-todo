@@ -449,9 +449,9 @@ async function performUndo() {
             }
 
             // If user is on a different tab, switch so they see the restoration
-            if (currentTabId !== tab.id) {
-                switchToTab(tab.id);
-            }
+             if (currentTabId !== tab.id) {
+                 switchToTab(tab.id);
+             }
         }
     }
     
@@ -1709,10 +1709,10 @@ function createTaskElement(task) {
 
     // Drag event listeners (only on reorderable tasks)
     if (canDragTask) {
-        taskElement.addEventListener('dragstart', handleDragStart);
-        taskElement.addEventListener('dragend', handleDragEnd);
-        taskElement.addEventListener('dragover', handleDragOver);
-        taskElement.addEventListener('drop', handleDrop);
+    taskElement.addEventListener('dragstart', handleDragStart);
+    taskElement.addEventListener('dragend', handleDragEnd);
+    taskElement.addEventListener('dragover', handleDragOver);
+    taskElement.addEventListener('drop', handleDrop);
     }
 
     return taskElement;
@@ -2256,9 +2256,9 @@ function setupEventListeners() {
             ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
         }
 
-        // Calculate elapsed time
-        const elapsed = Date.now() - focusStartTime;
-
+             // Calculate elapsed time
+            const elapsed = Date.now() - focusStartTime;
+            
         if (focusedTaskId) {
             // Always resolve the task across tabs (focus panel may not share currentTabId)
             const context = getTaskContext(focusedTaskId);
