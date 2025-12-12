@@ -114,7 +114,11 @@ builder.build({
           arch: ['x64']
         }
       ],
-      icon: 'assets/icon.ico'
+      icon: 'assets/icon.ico',
+      files: [
+        "!vendor/electron-panel-window-darwin",
+        "!node_modules/@redd/electron-panel-window-darwin"
+      ]
     },
     appx: {
       identityName: process.env.WINDOWS_IDENTITY_NAME,
@@ -139,9 +143,8 @@ builder.build({
     // electron-panel-window is macOS-only at runtime; excluding it from Windows/Linux
     // packaging avoids electron-builder dependency graph errors on those platforms.
     extraMetadata: (buildWin || buildLinux || isImplicitWin || isImplicitLinux) ? {
-      dependencies: Object.fromEntries(
-        Object.entries(pkg.dependencies || {}).filter(([name]) => name !== '@ashubashir/electron-panel-window')
-      )
+      // Remove the optional dependency that points to the Mac-specific package
+      optionalDependencies: {}
     } : undefined,
     defaultArch: 'x64'
   }
