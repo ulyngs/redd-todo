@@ -3,6 +3,7 @@ const builder = require('electron-builder');
 const fs = require('fs');
 const path = require('path');
 const Platform = builder.Platform;
+const Arch = builder.Arch;
 
 // Check command line arguments
 const buildMac = process.argv.includes('--mac');
@@ -51,7 +52,11 @@ if (buildMas) {
 }
 
 builder.build({
-  targets: targets.length > 0 ? builder.createTargets(targets) : undefined,
+  // Force x64 artifacts for Windows Store uploads (Partner Center is often finicky with ARM64-only packages,
+  // and we also want consistency regardless of the developer machine architecture).
+  targets: (buildWin && targets.length === 1 && targets[0] === Platform.WINDOWS)
+    ? Platform.WINDOWS.createTarget(['nsis', 'zip', 'appx'], Arch.x64)
+    : (targets.length > 0 ? builder.createTargets(targets) : undefined),
   config: {
     snap: null,
     appId: 'com.redd.todo',
