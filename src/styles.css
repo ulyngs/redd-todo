@@ -12,28 +12,6 @@ body {
     overflow: hidden;
 }
 
-/* Dedicated macOS focus panel window: plain white, no border/shadow */
-html.focus-panel-window body {
-    background: #fff;
-}
-
-html.focus-panel-window .app-container {
-    background: #fff;
-    box-shadow: none;
-    border-radius: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-}
-
-html.focus-panel-window #focus-mode {
-    background: #fff;
-}
-
-html.focus-panel-window .focus-container {
-    background: #fff;
-    backdrop-filter: none;
-}
-
 /* App Container */
 .app-container {
     width: 100vw;
@@ -610,6 +588,19 @@ html.focus-panel-window .focus-container {
     color: hsl(210, 40%, 98%);
     padding: 4px;
     transition: all 0.15s ease;
+}
+
+/* Focus indicator for the currently focused task (main window) */
+.focus-btn.active-focus {
+    background: rgba(0, 0, 0, 0.08);
+    border-color: rgba(0, 0, 0, 0.08);
+    color: #e11d48; /* red */
+}
+
+.focus-btn.active-focus:hover {
+    background: rgba(0, 0, 0, 0.12);
+    border-color: rgba(0, 0, 0, 0.12);
+    color: #be123c;
 }
 
 .focus-btn:hover {

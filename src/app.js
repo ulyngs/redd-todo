@@ -20,6 +20,7 @@ let focusTimerInterval = null;
     let draggedTabId = null;
     let draggedGroupId = null; // Track dragged group
     let focusedTaskId = null; // To track which task is currently in focus mode
+    let activeFocusTaskId = null; // Used to style the focused task in the main window
     let currentView = 'lists'; // 'lists' or 'favourites'
 
 // View Switcher Elements
@@ -144,7 +145,6 @@ function initApp() {
     // If this is the dedicated focus panel window (macOS), hide the full UI immediately.
     // The main process will send an IPC "enter-focus-mode" with the task payload.
     if (isFocusPanelWindow) {
-        document.documentElement.classList.add('focus-panel-window');
         normalMode.classList.add('hidden');
         focusMode.classList.remove('hidden');
     }
@@ -697,9 +697,19 @@ function focusTask(taskId) {
     
     const { task } = context;
 
+    // If this task is already focused (as indicated in the main window), clicking the icon exits focus mode.
+    if (process.platform === 'darwin' && !isFocusPanelWindow && activeFocusTaskId === taskId) {
+        ipcRenderer.send('exit-focus-mode');
+        activeFocusTaskId = null;
+        renderTasks();
+        return;
+    }
+
     // On macOS, use a dedicated floating panel window (NSPanel) for focus mode.
     // This is what allows the focus window to float above fullscreen Spaces.
     if (process.platform === 'darwin' && !isFocusPanelWindow) {
+        activeFocusTaskId = taskId;
+        renderTasks();
         ipcRenderer.send('open-focus-window', {
             taskId,
             taskName: task.text,
@@ -710,6 +720,7 @@ function focusTask(taskId) {
     }
 
     focusedTaskId = taskId;
+    activeFocusTaskId = taskId;
     console.log('Entering focus mode for task:', task.text);
     enterFocusMode(task.text, task.expectedDuration, task.timeSpent || 0);
 }
@@ -1613,9 +1624,10 @@ function createTaskElement(task) {
     // Build action buttons based on task completion status
     let actionButtons = '';
     if (!task.completed) {
+        const isActiveFocusTask = currentView === 'lists' && activeFocusTaskId === task.id;
         // Incomplete tasks get both focus and delete buttons
         actionButtons = `
-            <button class="focus-btn" data-task-id="${task.id}" title="Focus on this task">
+            <button class="focus-btn ${isActiveFocusTask ? 'active-focus' : ''}" data-task-id="${task.id}" title="${isActiveFocusTask ? 'Exit focus mode' : 'Focus on this task'}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"/>
                     <circle cx="12" cy="12" r="6"/>
@@ -2244,26 +2256,35 @@ function setupEventListeners() {
             ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
         }
 
-        if (focusedTaskId && currentTabId) {
-             // Calculate elapsed time
-            const elapsed = Date.now() - focusStartTime;
-            
-            // Find the task and update it
-            const task = tabs[currentTabId].tasks.find(t => t.id === focusedTaskId);
-            if (task) {
-                task.actualDuration = elapsed;
+        // Calculate elapsed time
+        const elapsed = Date.now() - focusStartTime;
+
+        if (focusedTaskId) {
+            // Always resolve the task across tabs (focus panel may not share currentTabId)
+            const context = getTaskContext(focusedTaskId);
+            if (context) {
+                context.task.actualDuration = elapsed;
                 saveData();
-                
-                // Toggle completion
                 toggleTask(focusedTaskId);
             }
-        } else if (currentTabId) {
-             // Fallback to find by name if ID is missing for some reason (legacy support)
-            const focusedTask = tabs[currentTabId].tasks.find(t => t.text === focusTaskName.textContent);
-            if (focusedTask) {
-                toggleTask(focusedTask.id);
+        } else {
+            // Legacy fallback: find by visible name across tabs
+            const name = focusTaskName?.textContent;
+            if (name) {
+                for (const tabId in tabs) {
+                    const t = tabs[tabId].tasks.find(task => task.text === name && !task.completed);
+                    if (t) {
+                        t.actualDuration = elapsed;
+                        saveData();
+                        toggleTask(t.id);
+                        break;
+                    }
+                }
             }
         }
+
+        // Ensure the main window updates immediately (important on macOS focus panel)
+        ipcRenderer.send('refresh-main-window');
         
         exitFocusMode();
     });
@@ -2477,6 +2498,11 @@ function exitFocusMode() {
 
     isFocusMode = false;
     focusedTaskId = null; // Clear focused task ID
+    // Only clear the "active focus" indicator in this window if we're not the main window on macOS.
+    // On macOS the main process will broadcast focus-status-changed when the panel closes.
+    if (!isFocusPanelWindow && process.platform !== 'darwin') {
+        activeFocusTaskId = null;
+    }
     focusDuration = null; // Reset duration
     stopFocusTimer();
     
@@ -2887,6 +2913,23 @@ ipcRenderer.on('enter-focus-mode', (event, payload) => {
 
 ipcRenderer.on('exit-focus-mode', () => {
     exitFocusMode();
+});
+
+// Used by main process to force the main window to re-load state
+ipcRenderer.on('refresh-data', () => {
+    if (isFocusPanelWindow) return;
+    loadData();
+    renderGroups();
+    renderTabs();
+    renderTasks();
+    updateBasecampUI();
+    updateRemindersUI();
+});
+
+ipcRenderer.on('focus-status-changed', (event, payload) => {
+    if (isFocusPanelWindow) return;
+    activeFocusTaskId = payload?.activeTaskId ?? null;
+    renderTasks();
 });
 
 // Basecamp Authentication Logic

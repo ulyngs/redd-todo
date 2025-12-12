@@ -21,6 +21,7 @@ const NETLIFY_EXCHANGE_URL = 'https://redd-todo.netlify.app/.netlify/functions/e
 let mainWindow;
 let focusWindow;
 let pendingFocusPayload = null;
+let activeFocusTaskId = null;
 
 function getFocusWindowClass() {
   if (process.platform === 'darwin' && PanelWindow) return PanelWindow;
@@ -51,8 +52,6 @@ function ensureFocusWindow() {
     height: 60,
     show: false,
     frame: false,
-    hasShadow: false,
-    backgroundColor: '#FFFFFF',
     alwaysOnTop: true,
     resizable: true,
     minimizable: false,
@@ -73,13 +72,6 @@ function ensureFocusWindow() {
 
   focusWindow.once('ready-to-show', () => {
     positionFocusWindow(focusWindow);
-    try {
-      if (typeof focusWindow.setHasShadow === 'function') {
-        focusWindow.setHasShadow(false);
-      }
-    } catch (e) {
-      // ignore
-    }
     if (process.platform === 'darwin' && typeof focusWindow.showInactive === 'function') {
       focusWindow.showInactive();
     } else {
@@ -114,6 +106,10 @@ function ensureFocusWindow() {
   focusWindow.on('closed', () => {
     focusWindow = null;
     pendingFocusPayload = null;
+    activeFocusTaskId = null;
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('focus-status-changed', { activeTaskId: null });
+    }
   });
 
   return focusWindow;
@@ -460,6 +456,10 @@ ipcMain.on('enter-fullscreen-focus', () => {
 ipcMain.on('exit-focus-mode', () => {
   // On macOS we use a dedicated focus window; exiting closes it.
   if (process.platform === 'darwin' && focusWindow) {
+    activeFocusTaskId = null;
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('focus-status-changed', { activeTaskId: null });
+    }
     focusWindow.close();
     return;
   }
@@ -482,6 +482,10 @@ ipcMain.on('open-focus-window', (event, payload) => {
   if (process.platform !== 'darwin') return;
 
   pendingFocusPayload = payload || null;
+  activeFocusTaskId = payload?.taskId || null;
+  if (mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('focus-status-changed', { activeTaskId: activeFocusTaskId });
+  }
   const win = ensureFocusWindow();
   if (!win) return;
 
@@ -537,6 +541,13 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => {
   if (mainWindow) {
     mainWindow.close();
+  }
+});
+
+// Renderer helper: allow secondary windows (e.g. focus panel) to request a UI refresh.
+ipcMain.on('refresh-main-window', () => {
+  if (mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('refresh-data');
   }
 });
 
