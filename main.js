@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, shell, screen } = require('electron');
 const path = require('path');
 const http = require('http');
 const https = require('https');
@@ -6,12 +6,109 @@ const url = require('url');
 const fetch = require('node-fetch');
 const { exec } = require('child_process');
 
+let PanelWindow;
+try {
+  ({ PanelWindow } = require('@ashubashir/electron-panel-window'));
+} catch (e) {
+  PanelWindow = null;
+}
+
 // Basecamp OAuth Configuration
 const BC_CLIENT_ID = 'd83392d7842f055157c3fef1f5464b2e15a013dc';
 const BC_REDIRECT_URI = 'http://localhost:3000/callback';
 const NETLIFY_EXCHANGE_URL = 'https://redd-todo.netlify.app/.netlify/functions/exchange';
 
 let mainWindow;
+let focusWindow;
+let pendingFocusPayload = null;
+
+function getFocusWindowClass() {
+  if (process.platform === 'darwin' && PanelWindow) return PanelWindow;
+  return BrowserWindow;
+}
+
+function positionFocusWindow(win) {
+  try {
+    const [w, h] = win.getSize();
+    const cursorPoint = screen.getCursorScreenPoint();
+    const display = screen.getDisplayNearestPoint(cursorPoint);
+    const area = display.workArea; // respects menu bar/dock
+    const x = Math.round(area.x + area.width - w - 20);
+    const y = Math.round(area.y + 20);
+    win.setPosition(x, y);
+  } catch (e) {
+    // best-effort positioning only
+  }
+}
+
+function ensureFocusWindow() {
+  if (focusWindow) return focusWindow;
+
+  const FocusWindowClass = getFocusWindowClass();
+
+  focusWindow = new FocusWindowClass({
+    width: 320,
+    height: 60,
+    show: false,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: true,
+    minimizable: false,
+    maximizable: false,
+    closable: true,
+    skipTaskbar: true,
+    fullscreenable: true, // for the in-focus fullscreen toggle
+    titleBarStyle: 'hidden',
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      enableRemoteModule: true
+    },
+    icon: path.join(__dirname, 'src/images/icon.png')
+  });
+
+  focusWindow.loadFile('src/index.html', { query: { focus: '1' } });
+
+  focusWindow.once('ready-to-show', () => {
+    positionFocusWindow(focusWindow);
+    if (process.platform === 'darwin' && typeof focusWindow.showInactive === 'function') {
+      focusWindow.showInactive();
+    } else {
+      focusWindow.show();
+    }
+  });
+
+  focusWindow.webContents.on('did-finish-load', () => {
+    if (process.platform === 'darwin') {
+      try {
+        focusWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      } catch (e) {
+        // ignore
+      }
+      try {
+        focusWindow.setAlwaysOnTop(true, 'floating');
+      } catch (e) {
+        focusWindow.setAlwaysOnTop(true, 'screen-saver');
+      }
+      try {
+        focusWindow.setWindowButtonVisibility(false);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (pendingFocusPayload) {
+      focusWindow.webContents.send('enter-focus-mode', pendingFocusPayload);
+    }
+  });
+
+  focusWindow.on('closed', () => {
+    focusWindow = null;
+    pendingFocusPayload = null;
+  });
+
+  return focusWindow;
+}
 
 function createMenu() {
   const isMac = process.platform === 'darwin';
@@ -298,42 +395,66 @@ app.on('activate', () => {
 
 // IPC listeners for focus mode
 ipcMain.on('enter-focus-mode', (event, taskName) => {
-  if (mainWindow) {
+  const targetWindow = (process.platform === 'darwin' && focusWindow) ? focusWindow : mainWindow;
+
+  if (targetWindow) {
     // Capture current position
-    const [currentX, currentY] = mainWindow.getPosition();
+    const [currentX, currentY] = targetWindow.getPosition();
     
     // Start with a reasonable default size, will be adjusted by set-focus-window-size
-    mainWindow.setSize(320, 60);
+    targetWindow.setSize(320, 60);
     // Restore position (setSize might center or move it on some platforms/configs)
-    mainWindow.setPosition(currentX, currentY);
+    targetWindow.setPosition(currentX, currentY);
     
-    mainWindow.setResizable(true);
-    mainWindow.setAlwaysOnTop(true, 'screen-saver');
-    mainWindow.setMinimizable(false);
+    targetWindow.setResizable(true);
+    targetWindow.setAlwaysOnTop(true, 'screen-saver');
+    targetWindow.setMinimizable(false);
     // Hide macOS traffic light buttons in focus mode
     if (process.platform === 'darwin') {
-      mainWindow.setWindowButtonVisibility(false);
+      targetWindow.setWindowButtonVisibility(false);
+      try {
+        targetWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      } catch (e) {
+        // ignore
+      }
     }
   }
 });
 
 ipcMain.on('set-focus-window-size', (event, width) => {
-  if (mainWindow) {
-    mainWindow.setFullScreen(false); // Ensure not fullscreen when resizing
-    mainWindow.setSize(width, 60);
+  const targetWindow = (process.platform === 'darwin' && focusWindow) ? focusWindow : mainWindow;
+
+  if (targetWindow) {
+    targetWindow.setFullScreen(false); // Ensure not fullscreen when resizing
+    const [currentX, currentY] = targetWindow.getPosition();
+    targetWindow.setSize(width, 60);
+    targetWindow.setPosition(currentX, currentY);
     // Removed mainWindow.center() to preserve position
   }
 });
 
 ipcMain.on('enter-fullscreen-focus', () => {
-  if (mainWindow) {
-    mainWindow.setResizable(true); // Allow resize for fullscreen transition
-    mainWindow.setFullScreen(true);
-    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  const targetWindow = (process.platform === 'darwin' && focusWindow) ? focusWindow : mainWindow;
+
+  if (targetWindow) {
+    targetWindow.setResizable(true); // Allow resize for fullscreen transition
+    try {
+      targetWindow.setFullScreen(true);
+    } catch (e) {
+      const display = screen.getDisplayMatching(targetWindow.getBounds());
+      targetWindow.setBounds(display.bounds);
+    }
+    targetWindow.setAlwaysOnTop(true, 'screen-saver');
   }
 });
 
 ipcMain.on('exit-focus-mode', () => {
+  // On macOS we use a dedicated focus window; exiting closes it.
+  if (process.platform === 'darwin' && focusWindow) {
+    focusWindow.close();
+    return;
+  }
+
   if (mainWindow) {
     mainWindow.setFullScreen(false);
     mainWindow.setSize(400, 600);
@@ -344,6 +465,46 @@ ipcMain.on('exit-focus-mode', () => {
     if (process.platform === 'darwin') {
       mainWindow.setWindowButtonVisibility(true);
     }
+  }
+});
+
+// Create/show the dedicated focus panel window (macOS only)
+ipcMain.on('open-focus-window', (event, payload) => {
+  if (process.platform !== 'darwin') return;
+
+  pendingFocusPayload = payload || null;
+  const win = ensureFocusWindow();
+  if (!win) return;
+
+  // If already loaded, send immediately
+  try {
+    if (!win.webContents.isLoadingMainFrame() && pendingFocusPayload) {
+      win.webContents.send('enter-focus-mode', pendingFocusPayload);
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // Keep it visible and floating
+  try {
+    win.setAlwaysOnTop(true, 'floating');
+  } catch (e) {
+    win.setAlwaysOnTop(true, 'screen-saver');
+  }
+  try {
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    if (typeof win.showInactive === 'function') {
+      win.showInactive();
+    } else {
+      win.show();
+    }
+  } catch (e) {
+    // ignore
   }
 });
 

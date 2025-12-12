@@ -1,5 +1,7 @@
 const { ipcRenderer, shell } = require('electron');
 
+const isFocusPanelWindow = new URLSearchParams(window.location.search).get('focus') === '1';
+
 // Application state
 let currentGroupId = null;
 let groups = {};
@@ -138,6 +140,13 @@ const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
 function initApp() {
     // Load saved data or create default tab
     loadData();
+
+    // If this is the dedicated focus panel window (macOS), hide the full UI immediately.
+    // The main process will send an IPC "enter-focus-mode" with the task payload.
+    if (isFocusPanelWindow) {
+        normalMode.classList.add('hidden');
+        focusMode.classList.remove('hidden');
+    }
 
     // Apply saved max height
     if (doneMaxHeight) {
@@ -664,6 +673,19 @@ function focusTask(taskId) {
     }
     
     const { task } = context;
+
+    // On macOS, use a dedicated floating panel window (NSPanel) for focus mode.
+    // This is what allows the focus window to float above fullscreen Spaces.
+    if (process.platform === 'darwin' && !isFocusPanelWindow) {
+        ipcRenderer.send('open-focus-window', {
+            taskId,
+            taskName: task.text,
+            duration: task.expectedDuration ?? null,
+            initialTimeSpent: task.timeSpent || 0
+        });
+        return;
+    }
+
     focusedTaskId = taskId;
     console.log('Entering focus mode for task:', task.text);
     enterFocusMode(task.text, task.expectedDuration, task.timeSpent || 0);
@@ -2359,6 +2381,8 @@ function updateFullscreenButtonState(isFullscreen) {
 
 function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
     console.log('enterFocusMode called with taskName:', taskName, 'duration:', duration, 'initialTimeSpent:', initialTimeSpent);
+    // If we re-enter focus mode (e.g. switching tasks), avoid duplicating timer intervals.
+    stopFocusTimer();
     isFocusMode = true;
     focusDuration = duration; // Set the duration
     
@@ -2804,8 +2828,17 @@ function hideDeleteConfirmModal() {
 }
 
 // IPC listeners
-ipcRenderer.on('enter-focus-mode', (event, taskName) => {
-    enterFocusMode(taskName);
+ipcRenderer.on('enter-focus-mode', (event, payload) => {
+    if (payload && typeof payload === 'object') {
+        if (payload.taskId) {
+            focusedTaskId = payload.taskId;
+        }
+        enterFocusMode(payload.taskName, payload.duration ?? null, payload.initialTimeSpent ?? 0);
+        return;
+    }
+
+    // Backwards compatibility (string taskName)
+    enterFocusMode(payload);
 });
 
 ipcRenderer.on('exit-focus-mode', () => {
