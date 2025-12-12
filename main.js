@@ -51,6 +51,8 @@ function ensureFocusWindow() {
     height: 60,
     show: false,
     frame: false,
+    hasShadow: false,
+    backgroundColor: '#FFFFFF',
     alwaysOnTop: true,
     resizable: true,
     minimizable: false,
@@ -71,6 +73,13 @@ function ensureFocusWindow() {
 
   focusWindow.once('ready-to-show', () => {
     positionFocusWindow(focusWindow);
+    try {
+      if (typeof focusWindow.setHasShadow === 'function') {
+        focusWindow.setHasShadow(false);
+      }
+    } catch (e) {
+      // ignore
+    }
     if (process.platform === 'darwin' && typeof focusWindow.showInactive === 'function') {
       focusWindow.showInactive();
     } else {

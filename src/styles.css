@@ -12,6 +12,28 @@ body {
     overflow: hidden;
 }
 
+/* Dedicated macOS focus panel window: plain white, no border/shadow */
+html.focus-panel-window body {
+    background: #fff;
+}
+
+html.focus-panel-window .app-container {
+    background: #fff;
+    box-shadow: none;
+    border-radius: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+html.focus-panel-window #focus-mode {
+    background: #fff;
+}
+
+html.focus-panel-window .focus-container {
+    background: #fff;
+    backdrop-filter: none;
+}
+
 /* App Container */
 .app-container {
     width: 100vw;

@@ -144,6 +144,7 @@ function initApp() {
     // If this is the dedicated focus panel window (macOS), hide the full UI immediately.
     // The main process will send an IPC "enter-focus-mode" with the task payload.
     if (isFocusPanelWindow) {
+        document.documentElement.classList.add('focus-panel-window');
         normalMode.classList.add('hidden');
         focusMode.classList.remove('hidden');
     }
