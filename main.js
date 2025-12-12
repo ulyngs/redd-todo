@@ -551,6 +551,19 @@ ipcMain.on('refresh-main-window', () => {
   }
 });
 
+// Broadcast task updates between windows (main <-> focus panel)
+ipcMain.on('task-updated', (event, payload) => {
+  if (!payload || !payload.taskId) return;
+  const senderId = event?.sender?.id;
+
+  if (mainWindow && mainWindow.webContents && mainWindow.webContents.id !== senderId) {
+    mainWindow.webContents.send('task-updated', payload);
+  }
+  if (focusWindow && focusWindow.webContents && focusWindow.webContents.id !== senderId) {
+    focusWindow.webContents.send('task-updated', payload);
+  }
+});
+
 async function exchangeCodeForToken(code) {
   
   // Call Netlify function to exchange code for token

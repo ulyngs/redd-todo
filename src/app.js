@@ -2731,6 +2731,9 @@ function editTaskText(taskId, textElement) {
             }
             
             saveData();
+
+            // Sync to other windows (e.g. macOS focus panel)
+            ipcRenderer.send('task-updated', { taskId, text: task.text });
         }
         renderTasks(); // Re-render to restore span and update UI
     }
@@ -2938,6 +2941,26 @@ ipcRenderer.on('refresh-data', () => {
 ipcRenderer.on('focus-status-changed', (event, payload) => {
     if (isFocusPanelWindow) return;
     activeFocusTaskId = payload?.activeTaskId ?? null;
+    renderTasks();
+});
+
+ipcRenderer.on('task-updated', (event, payload) => {
+    const taskId = payload?.taskId;
+    const text = payload?.text;
+    if (!taskId || typeof text !== 'string') return;
+
+    // Update the focus window display immediately if the focused task is renamed in the main window.
+    if (isFocusPanelWindow) {
+        if (focusedTaskId === taskId) {
+            focusTaskName.textContent = text;
+            focusTaskName.title = text;
+        }
+        return;
+    }
+
+    // If an update comes from the focus window (or elsewhere), refresh from storage.
+    // (We intentionally reload instead of mutating to avoid diverging state.)
+    loadData();
     renderTasks();
 });
 
