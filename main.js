@@ -5,6 +5,8 @@ const https = require('https');
 const url = require('url');
 const fetch = require('node-fetch');
 const { exec } = require('child_process');
+const fs = require('fs');
+const log = require('electron-log');
 
 let PanelWindow;
 try {
@@ -22,6 +24,9 @@ let mainWindow;
 let focusWindow;
 let pendingFocusPayload = null;
 let activeFocusTaskId = null;
+
+// Ensure logs go to a file we can inspect in production (incl. Mac App Store builds)
+log.transports.file.level = 'info';
 
 function getFocusWindowClass() {
   if (process.platform === 'darwin' && PanelWindow) return PanelWindow;
@@ -297,16 +302,47 @@ function runRemindersConnector(args) {
     } else {
       binaryPath = path.join(__dirname, 'src/reminders-connector');
     }
+
+    const exists = fs.existsSync(binaryPath);
+    log.info('[Reminders] runRemindersConnector start', {
+      packaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+      binaryPath,
+      exists,
+      args
+    });
+
+    if (!exists) {
+      const err = new Error(`Reminders connector binary not found at: ${binaryPath}`);
+      log.error('[Reminders] runRemindersConnector missing binary', { binaryPath });
+      reject(err);
+      return;
+    }
     
     execFile(binaryPath, args, (error, stdout, stderr) => {
       if (error) {
+        log.error('[Reminders] Connector Error', {
+          message: error.message,
+          code: error.code,
+          errno: error.errno,
+          stderr: (stderr || '').toString().trim(),
+          stdout: (stdout || '').toString().trim()
+        });
         console.error('Connector Error:', stderr || error.message);
         reject(error);
         return;
       }
+      if (stderr && stderr.toString().trim()) {
+        log.warn('[Reminders] Connector stderr', stderr.toString().trim());
+      }
       try {
+        log.info('[Reminders] Connector stdout (raw)', (stdout || '').toString().trim());
         resolve(JSON.parse(stdout));
       } catch (e) {
+        log.error('[Reminders] JSON Parse Error', {
+          message: e.message,
+          stdout: (stdout || '').toString().trim()
+        });
         console.error('JSON Parse Error:', stdout);
         resolve([]);
       }
@@ -348,7 +384,7 @@ ipcMain.handle('create-reminders-task', async (event, listId, title) => {
 const { autoUpdater } = require('electron-updater');
 
 // Configure logging for autoUpdater
-autoUpdater.logger = require('electron-log');
+autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
 ipcMain.on('check-for-updates', () => {

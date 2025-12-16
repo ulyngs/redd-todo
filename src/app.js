@@ -1917,17 +1917,26 @@ function setupEventListeners() {
         } else {
              remindersConnectBtn.addEventListener('click', async () => {
                  try {
+                     console.log('[Reminders] Connect clicked');
                      remindersConnectBtn.textContent = 'Connecting...';
                      remindersConnectBtn.disabled = true;
                      
                      // Try to fetch lists to trigger permission prompt
                      const lists = await ipcRenderer.invoke('fetch-reminders-lists');
-                     if (lists !== null) {
+                     console.log('[Reminders] fetch-reminders-lists result:', {
+                         type: Array.isArray(lists) ? 'array' : typeof lists,
+                         length: Array.isArray(lists) ? lists.length : undefined,
+                         keys: (lists && typeof lists === 'object' && !Array.isArray(lists)) ? Object.keys(lists) : undefined
+                     });
+
+                     // Only treat as connected if we actually got a list array back.
+                     if (Array.isArray(lists)) {
                          remindersConfig.isConnected = true;
                          saveData();
                          updateRemindersUI();
                      } else {
-                         alert('Could not connect to Reminders. Please check permissions.');
+                         const errMsg = (lists && typeof lists === 'object' && lists.error) ? lists.error : null;
+                         alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
                          remindersConnectBtn.disabled = false;
                          remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
                      }
@@ -3431,7 +3440,11 @@ function updateRemindersUI() {
 async function fetchRemindersLists() {
     try {
         const lists = await ipcRenderer.invoke('fetch-reminders-lists');
-        return lists || [];
+        if (!Array.isArray(lists)) {
+            console.warn('[Reminders] fetchRemindersLists expected array but got:', lists);
+            return [];
+        }
+        return lists;
     } catch (e) {
         console.error('Failed to fetch Reminders lists:', e);
         return [];
