@@ -559,6 +559,11 @@ body {
     border-bottom: 1px solid #667eea;
     width: 100%;
     -webkit-app-region: no-drag;
+    /* Textarea-specific styles */
+    resize: none;
+    overflow: hidden;
+    min-height: 1.4em; /* Match line-height */
+    display: block;
 }
 
 .task-actions {
@@ -673,7 +678,7 @@ body {
     border-radius: 8px;
     background: white;
     transition: border-color 0.2s ease;
-    padding-right: 8px;
+    padding-right: 6px;
 }
 
 .input-wrapper:focus-within {
@@ -701,12 +706,14 @@ body {
 }
 
 .duration-input-container.visible {
-    width: 110px; /* Increased from 70px to fit "e.g. 15 mins" */
+    width: 85px; /* Adjusted to fit spinners */
     opacity: 1;
 }
 
+.task-duration-input,
 #task-duration-input {
-    width: 85px; /* Increased from 40px */
+    flex: 1;
+    min-width: 0;
     border: none;
     background: transparent;
     text-align: right;
@@ -715,28 +722,104 @@ body {
     outline: none;
     -moz-appearance: textfield;
     appearance: textfield;
+    -webkit-app-region: no-drag;
 }
 
+.task-duration-input:placeholder-shown,
+#task-duration-input:placeholder-shown {
+    text-align: left;
+}
+
+.task-duration-input::placeholder,
 #task-duration-input::placeholder {
     color: #999; /* Lighter placeholder */
 }
 
+.task-duration-input::-webkit-outer-spin-button,
+.task-duration-input::-webkit-inner-spin-button,
 #task-duration-input::-webkit-outer-spin-button,
 #task-duration-input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
 
+.task-duration-edit.duration-input-container {
+    display: inline-flex;
+    vertical-align: middle;
+    flex-shrink: 0;
+    width: auto; /* Override the fixed 85px from .visible */
+    margin-left: 4px; /* Match .task-meta spacing */
+}
+
+.task-duration-edit .task-duration-input {
+    width: 28px; /* Compact width for existing tasks (just digits + m) */
+    flex: none;
+    text-align: right;
+}
+
 .duration-label {
     color: #999;
     font-size: 13px;
-    margin-left: 2px;
-    opacity: 0; /* Hidden by default (when showing "e.g. 15 mins") */
-    transition: opacity 0.2s ease;
+    margin-left: 0;
+    width: 0;
+    overflow: hidden;
+    opacity: 0; /* Hidden by default (when showing placeholder) */
+    transition: opacity 0.2s ease, width 0.2s ease, margin-left 0.2s ease;
 }
 
 .duration-input-container.has-value .duration-label {
+    width: 12px;
+    margin-left: 2px;
     opacity: 1; /* Show "m" only when user has typed a number */
+}
+
+/* Duration Spinner Buttons */
+.duration-spinners {
+    display: flex;
+    flex-direction: column;
+    margin-left: 0;
+    gap: 1px;
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, width 0.2s ease, margin-left 0.2s ease;
+}
+
+.duration-input-container.has-value .duration-spinners {
+    width: 16px;
+    margin-left: 2px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.duration-spinner-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 12px;
+    padding: 0;
+    border: none;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.15s ease;
+}
+
+.duration-spinner-btn:hover {
+    background: rgba(0, 0, 0, 0.12);
+    color: #333;
+}
+
+.duration-spinner-btn:active {
+    background: rgba(0, 0, 0, 0.18);
+    transform: scale(0.95);
+}
+
+.duration-spinner-btn svg {
+    display: block;
 }
 
 #add-task-btn {

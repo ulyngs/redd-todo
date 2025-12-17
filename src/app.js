@@ -58,6 +58,15 @@ const taskDurationInput = document.getElementById('task-duration-input');
 const settingsBtn = document.getElementById('settings-btn');
 const syncBtn = document.getElementById('sync-btn');
 
+function snapDurationToStep(value, direction, step = 5) {
+    const n = Number.isFinite(value) ? value : 0;
+    if (direction === 'up') {
+        return (n % step === 0) ? (n + step) : (Math.ceil(n / step) * step);
+    }
+    // direction === 'down'
+    return (n % step === 0) ? (n - step) : (Math.floor(n / step) * step);
+}
+
 // Done section elements
 const doneContainer = document.getElementById('done-container');
 const doneTasksContainer = document.querySelector('.done-tasks');
@@ -2234,6 +2243,32 @@ function setupEventListeners() {
         }
     });
 
+    // Duration spinner buttons
+    const durationIncrement = document.getElementById('duration-increment');
+    const durationDecrement = document.getElementById('duration-decrement');
+
+    if (durationIncrement) {
+        durationIncrement.addEventListener('click', () => {
+            const currentVal = parseInt(taskDurationInput.value, 10);
+            const snapped = snapDurationToStep(Number.isFinite(currentVal) ? currentVal : 0, 'up', 5);
+            const newVal = Math.min(Math.max(snapped, 1), 999);
+            taskDurationInput.value = newVal;
+            durationInputContainer.classList.add('has-value');
+        });
+    }
+    
+    if (durationDecrement) {
+        durationDecrement.addEventListener('click', () => {
+            const currentVal = parseInt(taskDurationInput.value, 10);
+            if (!Number.isFinite(currentVal) || currentVal <= 0) return;
+
+            const snapped = snapDurationToStep(currentVal, 'down', 5);
+            const newVal = Math.min(Math.max(snapped, 1), 999);
+            taskDurationInput.value = newVal;
+            durationInputContainer.classList.add('has-value');
+        });
+    }
+
     // Focus mode events
     exitFocusBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -2708,24 +2743,36 @@ function editTaskText(taskId, textElement) {
     
     const { task, tabId, tab } = context;
 
-    // Create input element
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = task.text;
-    input.className = 'task-edit-input';
+    // Create textarea element (auto-sizes to content)
+    const textarea = document.createElement('textarea');
+    textarea.value = task.text;
+    textarea.className = 'task-edit-input';
+    textarea.rows = 1; // Start with 1 row, will auto-resize
     
-    // Prevent drag start on input
-    input.addEventListener('mousedown', (e) => {
+    // Auto-resize function
+    function autoResize() {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+    
+    // Prevent drag start on textarea
+    textarea.addEventListener('mousedown', (e) => {
         e.stopPropagation();
     });
 
-    // Replace text with input
-    textElement.replaceWith(input);
-    input.focus();
+    // Replace text with textarea
+    textElement.replaceWith(textarea);
+    autoResize(); // Size to content immediately
+    textarea.focus();
+    // Place cursor at end of text
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
-    // Save on blur or enter
+    // Auto-resize on input
+    textarea.addEventListener('input', autoResize);
+
+    // Save on blur
     function saveEdit() {
-        const newText = input.value.trim();
+        const newText = textarea.value.trim();
         if (newText) {
             task.text = newText;
             
@@ -2747,9 +2794,11 @@ function editTaskText(taskId, textElement) {
         renderTasks(); // Re-render to restore span and update UI
     }
 
-    input.addEventListener('blur', saveEdit);
-    input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
+    textarea.addEventListener('blur', saveEdit);
+    textarea.addEventListener('keydown', (e) => {
+        // Save on Enter (without Shift), allow Shift+Enter for newlines
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
             saveEdit();
         }
     });
@@ -2760,40 +2809,98 @@ function editTaskDuration(taskId, metaElement) {
     if (!context) return;
     
     const { task } = context;
+    const isAddTimeClick = metaElement.classList && metaElement.classList.contains('add-time');
 
-    // Create input element for duration
-    const input = document.createElement('input');
-    input.type = 'number';
     // Determine what value to show: actualDuration (ms) converted to minutes, or expectedDuration
     let initialValue = '';
-    if (task.completed && task.actualDuration) {
+    if (isAddTimeClick) {
+        // Clicking the "+" should start with a default duration
+        initialValue = 5;
+    } else if (task.completed && task.actualDuration) {
         initialValue = Math.round(task.actualDuration / (1000 * 60));
     } else {
         initialValue = task.expectedDuration || '';
     }
-    
+
+    // Build the same UI as the "new task" duration input (input + "m" + steppers).
+    const container = document.createElement('span');
+    container.className = 'duration-input-container visible task-duration-edit';
+    if (String(initialValue).length > 0) container.classList.add('has-value');
+
+    const input = document.createElement('input');
+    input.type = 'number';
     input.value = initialValue;
-    input.className = 'task-edit-input';
-    input.style.width = '50px';
-    input.style.textAlign = 'center';
-    input.min = '0'; // Allow 0 to clear or low values
+    input.className = 'task-duration-input';
+    input.min = '1';
     input.max = '999';
-    input.placeholder = 'm';
-    
-    // Prevent drag start on input
-    input.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
+    input.placeholder = '15m';
+
+    const label = document.createElement('span');
+    label.className = 'duration-label';
+    label.textContent = 'm';
+
+    const spinners = document.createElement('div');
+    spinners.className = 'duration-spinners';
+
+    const incBtn = document.createElement('button');
+    incBtn.type = 'button';
+    incBtn.className = 'duration-spinner-btn';
+    incBtn.tabIndex = -1;
+    incBtn.setAttribute('aria-label', 'Increase duration');
+    incBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+
+    const decBtn = document.createElement('button');
+    decBtn.type = 'button';
+    decBtn.className = 'duration-spinner-btn';
+    decBtn.tabIndex = -1;
+    decBtn.setAttribute('aria-label', 'Decrease duration');
+    decBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+
+    spinners.appendChild(incBtn);
+    spinners.appendChild(decBtn);
+
+    container.appendChild(input);
+    container.appendChild(label);
+    container.appendChild(spinners);
+
+    // Prevent drag / accidental blur-save when clicking steppers
+    container.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    incBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+    decBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+    // Toggle label + spinner visibility
+    input.addEventListener('input', () => {
+        if (input.value.length > 0) container.classList.add('has-value');
+        else container.classList.remove('has-value');
     });
 
-    // Replace meta span with input
-    metaElement.replaceWith(input);
+    // Spinner behavior for existing tasks: 1-minute increments
+    incBtn.addEventListener('click', () => {
+        const currentVal = parseInt(input.value, 10);
+        const base = Number.isFinite(currentVal) ? currentVal : 0;
+        const newVal = Math.min(Math.max(base + 1, 1), 999);
+        input.value = newVal;
+        container.classList.add('has-value');
+    });
+
+    decBtn.addEventListener('click', () => {
+        const currentVal = parseInt(input.value, 10);
+        if (!Number.isFinite(currentVal) || currentVal <= 0) return;
+        const newVal = Math.min(Math.max(currentVal - 1, 1), 999);
+        input.value = newVal;
+        container.classList.add('has-value');
+    });
+
+    // Replace meta span with widget
+    metaElement.replaceWith(container);
     input.focus();
 
     // Save on blur or enter
     function saveEdit() {
         const newVal = input.value.trim();
         if (newVal) {
-            const minutes = parseInt(newVal);
+            const minutes = parseInt(newVal, 10);
             if (task.completed) {
                 // If completed, update actualDuration (store as ms)
                 task.actualDuration = minutes * 60 * 1000;
