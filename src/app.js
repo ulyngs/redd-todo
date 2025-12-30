@@ -3209,7 +3209,7 @@ function moveTaskToTabAtPosition(taskId, sourceTabId, targetTabId, position) {
 }
 
 // Handle sync-related updates when moving a task between tabs
-function handleTaskSyncOnMove(task, sourceTab, targetTab) {
+async function handleTaskSyncOnMove(task, sourceTab, targetTab) {
     // Handle sync-related ID updates
     // For Reminders: need to delete from source list and create in target list
     if (sourceTab.remindersListId && task.remindersId && remindersConfig.isConnected) {
@@ -3230,11 +3230,14 @@ function handleTaskSyncOnMove(task, sourceTab, targetTab) {
         task.remindersId = null; // Clear until new ID is set
     }
     
-    // For Basecamp: similar handling
-    if (sourceTab.basecampListId && task.basecampId && basecampConfig.isConnected) {
-        // Would need to implement Basecamp task deletion/creation
-        // For now, just clear the basecampId
-        task.basecampId = null;
+    // For Basecamp: move the todo to the new list (preserves the todo, no duplicates)
+    if (sourceTab.basecampListId && task.basecampId && targetTab.basecampListId) {
+        if (!basecampConfig.isConnected || !basecampConfig.accessToken) {
+            console.warn('Basecamp not connected or no access token - skipping Basecamp move');
+            return;
+        }
+        console.log('Moving Basecamp todo:', task.basecampId, 'from list', sourceTab.basecampListId, 'to list', targetTab.basecampListId);
+        await moveBasecampTodo(task, sourceTab, targetTab);
     }
 }
 
@@ -4046,6 +4049,121 @@ async function createBasecampTodo(tabId, task) {
         saveData();
     } catch (e) {
         console.error('Create BC Error:', e);
+    }
+}
+
+// Move a Basecamp todo to a different list (possibly in a different project)
+async function moveBasecampTodo(task, sourceTab, targetTab) {
+    if (!task.basecampId) {
+        console.warn('moveBasecampTodo: No basecampId on task');
+        return;
+    }
+    if (!basecampConfig.isConnected || !basecampConfig.accessToken) {
+        console.warn('moveBasecampTodo: Not connected to Basecamp');
+        return;
+    }
+    
+    try {
+        // Basecamp 3 API: To move a recording to a different parent, use PUT on the recordings/parent endpoint
+        // PUT /buckets/{bucket_id}/recordings/{recording_id}/parent.json
+        // Body: { "parent": { "id": target_todolist_id, "type": "Todolist" } }
+        // If moving to a different project, also include "bucket_id" in the parent object
+        
+        const sourceBucketId = sourceTab.basecampProjectId;
+        const targetBucketId = targetTab.basecampProjectId;
+        const targetListId = targetTab.basecampListId;
+        
+        console.log('Attempting Basecamp move via parent endpoint...');
+        console.log('  Source bucket:', sourceBucketId, 'Target bucket:', targetBucketId);
+        console.log('  Target list:', targetListId, 'Todo ID:', task.basecampId);
+        
+        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${sourceBucketId}/recordings/${task.basecampId}/parent.json`;
+        
+        const parentData = {
+            parent: {
+                id: parseInt(targetListId),
+                type: "Todolist"
+            }
+        };
+        
+        // If moving to a different project, include bucket_id
+        if (sourceBucketId !== targetBucketId) {
+            parentData.parent.bucket_id = parseInt(targetBucketId);
+        }
+        
+        const response = await basecampFetch(url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(parentData)
+        });
+        
+        if (response.ok) {
+            console.log('✓ Successfully moved Basecamp todo to new list');
+        } else {
+            // Log the error response for debugging
+            const errorText = await response.text();
+            console.warn('Move endpoint failed with status:', response.status, errorText);
+            console.log('Falling back to copy+delete...');
+            await fallbackMoveBasecampTodo(task, sourceTab, targetTab);
+        }
+    } catch (e) {
+        console.error('Move BC Error:', e);
+        // Fall back to copy+delete on error
+        console.log('Falling back to copy+delete due to error...');
+        await fallbackMoveBasecampTodo(task, sourceTab, targetTab);
+    }
+}
+
+// Fallback: Create in new list, then delete from old (creates archived copy but at least works)
+async function fallbackMoveBasecampTodo(task, sourceTab, targetTab) {
+    try {
+        const oldBasecampId = task.basecampId;
+        console.log('Fallback move: Creating todo in target list...');
+        
+        // Create in new list
+        const createUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${targetTab.basecampProjectId}/todolists/${targetTab.basecampListId}/todos.json`;
+        const createResponse = await basecampFetch(createUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: task.text })
+        });
+        
+        if (createResponse.ok) {
+            const data = await createResponse.json();
+            task.basecampId = data.id;
+            console.log('✓ Created new todo with ID:', task.basecampId);
+            
+            // If the task was completed, mark the new one as completed too
+            if (task.completed) {
+                console.log('Marking new todo as completed...');
+                const completeUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${targetTab.basecampProjectId}/todos/${task.basecampId}/completion.json`;
+                await basecampFetch(completeUrl, { method: 'POST' });
+            }
+            
+            // Delete the old one (this will archive it in Basecamp)
+            console.log('Deleting old todo:', oldBasecampId);
+            const deleteUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${sourceTab.basecampProjectId}/todos/${oldBasecampId}.json`;
+            const deleteResponse = await basecampFetch(deleteUrl, { method: 'DELETE' });
+            
+            if (deleteResponse.ok) {
+                console.log('✓ Fallback move completed successfully');
+            } else {
+                console.warn('Delete returned status:', deleteResponse.status);
+            }
+            
+            saveData();
+        } else {
+            const errorText = await createResponse.text();
+            console.error('Failed to create todo in target list:', createResponse.status, errorText);
+            // Don't clear basecampId - keep the old one so the task stays linked to source
+        }
+    } catch (e) {
+        console.error('Fallback move BC Error:', e);
+        // Don't clear basecampId on error - leave it linked to old location
     }
 }
 
