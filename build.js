@@ -117,6 +117,7 @@ builder.build({
       icon: 'assets/icon.ico'
     },
     appx: {
+      applicationId: 'ReDDTodo',
       identityName: process.env.WINDOWS_IDENTITY_NAME,
       publisher: process.env.WINDOWS_PUBLISHER,
       publisherDisplayName: process.env.WINDOWS_PUBLISHER_DISPLAY_NAME
