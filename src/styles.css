@@ -313,6 +313,17 @@ body {
     background: rgba(0, 0, 0, 0.05);
 }
 
+/* Task drop target styles */
+.tab.task-drop-target {
+    background: rgba(102, 126, 234, 0.15);
+    border-bottom: 2px solid #667eea;
+}
+
+.tab.task-drop-incompatible {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .tab.active {
     background: transparent;
     color: hsl(222.2, 84%, 4.9%);
@@ -411,6 +422,17 @@ body {
     opacity: 0.5;
     transform: rotate(5deg);
     cursor: grabbing;
+}
+
+/* Shrunk when hovering over a different tab */
+.task-item.dragging.drag-over-tab {
+    opacity: 0.3;
+    transform: scale(0.5) rotate(5deg);
+}
+
+/* Placeholder for task being moved to a new tab - matches existing drag style */
+.task-item.task-placeholder {
+    opacity: 0.5;
 }
 
 .task-item.drag-over {

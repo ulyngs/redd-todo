@@ -22,6 +22,12 @@ let focusTimerInterval = null;
     let focusedTaskId = null; // To track which task is currently in focus mode
     let activeFocusTaskId = null; // Used to style the focused task in the main window
     let currentView = 'lists'; // 'lists' or 'favourites'
+    
+    // Cross-tab task dragging state
+    let dragSourceTabId = null; // The tab where the dragged task originated
+    let tabHoverTimeout = null; // Timer for auto-switching tabs when hovering
+    let dragTargetTabId = null; // The tab we've switched to while dragging (null if same as source)
+    let dragPlaceholderPosition = 0; // Position where the placeholder is in the target tab
 
 // View Switcher Elements
 const viewListsBtn = document.getElementById('view-lists-btn');
@@ -1371,10 +1377,24 @@ function renderTabs() {
         tabElement.dataset.tabId = tab.id;
         tabElement.draggable = true; // Enable dragging
 
-        // Tab drag events
+        // Tab drag events (for tab reordering)
         tabElement.addEventListener('dragstart', handleTabDragStart);
-        tabElement.addEventListener('dragover', handleTabDragOver);
-        tabElement.addEventListener('drop', handleTabDrop);
+        tabElement.addEventListener('dragover', (e) => {
+            // Handle both tab reordering and task dropping on tabs
+            if (draggedTabId) {
+                handleTabDragOver(e);
+            } else if (draggedTaskId) {
+                handleTaskDragOverTab(e);
+            }
+        });
+        tabElement.addEventListener('dragleave', handleTaskDragLeaveTab);
+        tabElement.addEventListener('drop', (e) => {
+            if (draggedTabId) {
+                handleTabDrop(e);
+            } else if (draggedTaskId) {
+                handleTaskDropOnTab(e);
+            }
+        });
         tabElement.addEventListener('dragend', handleTabDragEnd);
 
         // Tab content
@@ -1498,6 +1518,201 @@ function getTaskContext(taskId) {
         if (task) return { task, tabId, tab: tabs[tabId] };
     }
     return null;
+}
+
+// Helper to determine the sync type of a tab
+// Returns: 'reminders', 'basecamp', or 'local'
+function getTabSyncType(tabId) {
+    const tab = tabs[tabId];
+    if (!tab) return null;
+    
+    if (tab.remindersListId) return 'reminders';
+    if (tab.basecampListId) return 'basecamp';
+    return 'local';
+}
+
+// Check if two tabs are compatible for task transfer
+function areTabsCompatible(sourceTabId, targetTabId) {
+    return getTabSyncType(sourceTabId) === getTabSyncType(targetTabId);
+}
+
+// Switch to a tab during a drag operation (creates a placeholder)
+function switchToTabForDrag(targetTabId) {
+    if (!draggedTaskId || !dragSourceTabId) return;
+    
+    // Get the original task data for the placeholder
+    const sourceTab = tabs[dragSourceTabId];
+    if (!sourceTab) return;
+    const task = sourceTab.tasks.find(t => t.id === draggedTaskId);
+    if (!task) return;
+    
+    // Mark that we've switched to a different tab during drag
+    dragTargetTabId = targetTabId;
+    dragPlaceholderPosition = 0; // Start at top
+    
+    // Switch to the target tab
+    if (!tabs[targetTabId]) return;
+    
+    // Update group if needed
+    if (tabs[targetTabId].groupId && tabs[targetTabId].groupId !== currentGroupId) {
+        currentGroupId = tabs[targetTabId].groupId;
+        renderGroups();
+    }
+    
+    currentTabId = targetTabId;
+    renderTabs();
+    
+    // Render tasks with a placeholder
+    renderTasksWithPlaceholder(task);
+    
+    // Show/Hide sync button based on tab type
+    if (tabs[targetTabId].basecampListId || tabs[targetTabId].remindersListId) {
+        syncBtn.classList.remove('hidden');
+    } else {
+        syncBtn.classList.add('hidden');
+    }
+}
+
+// Render tasks with a draggable placeholder at the current position
+function renderTasksWithPlaceholder(placeholderTask) {
+    const currentTab = tabs[currentTabId];
+    if (!currentTab) return;
+    
+    const incompleteTasks = currentTab.tasks.filter(task => !task.completed);
+    const completedTasks = currentTab.tasks.filter(task => task.completed).sort((a, b) => {
+        const timeA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const timeB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        return timeB - timeA;
+    });
+    
+    tasksContainer.innerHTML = '';
+    
+    // Insert placeholder at the right position among incomplete tasks
+    let insertedPlaceholder = false;
+    incompleteTasks.forEach((task, index) => {
+        if (index === dragPlaceholderPosition && !insertedPlaceholder) {
+            // Insert placeholder here
+            const placeholderEl = createPlaceholderElement(placeholderTask);
+            tasksContainer.appendChild(placeholderEl);
+            insertedPlaceholder = true;
+        }
+        const taskElement = createTaskElement(task);
+        tasksContainer.appendChild(taskElement);
+    });
+    
+    // If placeholder should be at the end
+    if (!insertedPlaceholder) {
+        const placeholderEl = createPlaceholderElement(placeholderTask);
+        tasksContainer.appendChild(placeholderEl);
+    }
+    
+    // Add bottom drag target
+    const bottomDragTarget = document.createElement('div');
+    bottomDragTarget.className = 'bottom-drag-target';
+    bottomDragTarget.addEventListener('dragover', handlePlaceholderDragOver);
+    bottomDragTarget.addEventListener('drop', handlePlaceholderDrop);
+    tasksContainer.appendChild(bottomDragTarget);
+    
+    // Render done section
+    doneTasksContainer.innerHTML = '';
+    if (completedTasks.length > 0) {
+        completedTasks.forEach(task => {
+            const taskElement = createTaskElement(task);
+            doneTasksContainer.appendChild(taskElement);
+        });
+        doneContainer.style.display = 'block';
+    } else {
+        doneContainer.style.display = 'none';
+    }
+}
+
+// Create a placeholder element for the dragged task
+function createPlaceholderElement(task) {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'task-item task-placeholder dragging';
+    placeholder.dataset.taskId = task.id;
+    placeholder.dataset.isPlaceholder = 'true';
+    
+    placeholder.innerHTML = `
+        <div class="drag-handle">⋮⋮</div>
+        <input type="checkbox" class="task-checkbox" disabled>
+        <span class="task-text">${task.text}</span>
+        <div class="task-actions"></div>
+    `;
+    
+    // Allow the placeholder to be dragged/repositioned
+    placeholder.addEventListener('dragover', handlePlaceholderDragOver);
+    placeholder.addEventListener('drop', handlePlaceholderDrop);
+    
+    return placeholder;
+}
+
+// Handle dragging over the task area when we have a placeholder
+function handlePlaceholderDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    if (!dragTargetTabId || !draggedTaskId) return;
+    
+    // Remove tab highlight styles since we're in the task area now
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('task-drop-target', 'task-drop-incompatible');
+    });
+    
+    // Calculate new position based on mouse Y
+    const container = tasksContainer;
+    const placeholder = container.querySelector('.task-placeholder');
+    
+    if (!placeholder) return;
+    
+    const afterElement = getDragAfterElementVertical(container, e.clientY, '.task-item:not(.task-placeholder)');
+    const bottomTarget = container.querySelector('.bottom-drag-target');
+    
+    if (afterElement == null) {
+        // Move to end
+        if (bottomTarget) {
+            container.insertBefore(placeholder, bottomTarget);
+        } else {
+            container.appendChild(placeholder);
+        }
+    } else if (afterElement !== placeholder) {
+        container.insertBefore(placeholder, afterElement);
+    }
+    
+    // Update placeholder position
+    const allItems = Array.from(container.querySelectorAll('.task-item'));
+    dragPlaceholderPosition = allItems.indexOf(placeholder);
+}
+
+// Handle drop in the task area when we have a placeholder
+function handlePlaceholderDrop(e) {
+    e.preventDefault();
+    
+    if (!dragTargetTabId || !draggedTaskId || !dragSourceTabId) return;
+    
+    // Get final position from placeholder
+    const container = tasksContainer;
+    const allItems = Array.from(container.querySelectorAll('.task-item:not(.task-placeholder)'));
+    const placeholder = container.querySelector('.task-placeholder');
+    
+    if (!placeholder) return;
+    
+    // Find where the placeholder is
+    let insertPosition = 0;
+    const children = Array.from(container.children);
+    for (let i = 0; i < children.length; i++) {
+        if (children[i] === placeholder) break;
+        if (children[i].classList.contains('task-item') && !children[i].dataset.isPlaceholder) {
+            insertPosition++;
+        }
+    }
+    
+    // Move the task to the target tab at the specified position
+    moveTaskToTabAtPosition(draggedTaskId, dragSourceTabId, dragTargetTabId, insertPosition);
+    
+    // Clean up
+    dragTargetTabId = null;
+    dragPlaceholderPosition = 0;
 }
 
 function toggleTaskFavourite(taskId) {
@@ -2205,6 +2420,21 @@ function setupEventListeners() {
             editTaskText(taskId, e.target);
         }
     });
+    
+    // Drag events for task container (handles placeholder positioning)
+    tasksContainer.addEventListener('dragover', (e) => {
+        // If we have a placeholder from cross-tab drag, handle its positioning
+        if (dragTargetTabId && draggedTaskId) {
+            handlePlaceholderDragOver(e);
+        }
+    });
+    
+    tasksContainer.addEventListener('drop', (e) => {
+        // If we have a placeholder from cross-tab drag, handle the drop
+        if (dragTargetTabId && draggedTaskId) {
+            handlePlaceholderDrop(e);
+        }
+    });
 
     // Task events for completed tasks (done section)
     doneTasksContainer.addEventListener('click', (e) => {
@@ -2655,18 +2885,58 @@ function updateFocusTimer() {
 function handleDragStart(e) {
     // Use currentTarget so we always refer to the .task-item (not a child)
     draggedTaskId = e.currentTarget?.dataset?.taskId;
+    dragSourceTabId = currentTabId; // Store the source tab for cross-tab moves
     e.currentTarget.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.target.outerHTML);
+    e.dataTransfer.setData('text/plain', draggedTaskId); // For cross-tab detection
 }
 
 function handleDragEnd(e) {
-    e.currentTarget.classList.remove('dragging');
+    e.currentTarget.classList.remove('dragging', 'drag-over-tab');
 
-    // Persist whatever order the DOM ended up with.
-    persistTaskOrderFromDOM();
+    // If we were dragging to a different tab with a placeholder, finalize the move
+    if (dragTargetTabId && draggedTaskId && dragSourceTabId) {
+        // Get the placeholder position
+        const container = tasksContainer;
+        const placeholder = container.querySelector('.task-placeholder');
+        
+        if (placeholder) {
+            // Find where the placeholder is
+            let insertPosition = 0;
+            const children = Array.from(container.children);
+            for (let i = 0; i < children.length; i++) {
+                if (children[i] === placeholder) break;
+                if (children[i].classList.contains('task-item') && !children[i].dataset.isPlaceholder) {
+                    insertPosition++;
+                }
+            }
+            
+            // Move the task to the target tab at the specified position
+            moveTaskToTabAtPosition(draggedTaskId, dragSourceTabId, dragTargetTabId, insertPosition);
+        }
+        
+        // Clean up placeholder state
+        dragTargetTabId = null;
+        dragPlaceholderPosition = 0;
+    } else {
+        // Normal same-tab reordering
+        persistTaskOrderFromDOM();
+    }
 
+    // Clean up cross-tab drag state
     draggedTaskId = null;
+    dragSourceTabId = null;
+    lastHoveredTabId = null;
+    if (tabHoverTimeout) {
+        clearTimeout(tabHoverTimeout);
+        tabHoverTimeout = null;
+    }
+    
+    // Remove any tab hover indicators
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('task-drop-target', 'task-drop-incompatible');
+    });
 }
 
 function handleDragOver(e) {
@@ -2749,6 +3019,223 @@ function handleBottomDragLeave(e) {
 function handleBottomDrop(e) {
     e.preventDefault();
     persistTaskOrderFromDOM();
+}
+
+// Cross-tab task drag handlers
+let lastHoveredTabId = null; // Track which tab we're hovering to prevent flickering
+
+function handleTaskDragOverTab(e) {
+    e.preventDefault();
+    
+    // Only handle if a task is being dragged (not a tab)
+    if (!draggedTaskId || draggedTabId) return;
+    
+    const targetTab = e.currentTarget;
+    const targetTabId = targetTab.dataset.tabId;
+    
+    // Don't do anything if hovering over the current tab or already switched to target
+    if (targetTabId === dragSourceTabId || targetTabId === dragTargetTabId) {
+        targetTab.classList.remove('task-drop-target', 'task-drop-incompatible');
+        return;
+    }
+    
+    // Check compatibility
+    const isCompatible = areTabsCompatible(dragSourceTabId, targetTabId);
+    
+    // Shrink the dragged task when over a compatible tab
+    const draggedElement = document.querySelector('.task-item.dragging');
+    if (draggedElement && isCompatible) {
+        draggedElement.classList.add('drag-over-tab');
+    }
+    
+    if (isCompatible) {
+        e.dataTransfer.dropEffect = 'move';
+        targetTab.classList.add('task-drop-target');
+        targetTab.classList.remove('task-drop-incompatible');
+        
+        // Set up a timer to switch to this tab after hovering for 500ms
+        // Only set up if we're hovering a new tab
+        if (lastHoveredTabId !== targetTabId) {
+            lastHoveredTabId = targetTabId;
+            if (tabHoverTimeout) {
+                clearTimeout(tabHoverTimeout);
+            }
+            tabHoverTimeout = setTimeout(() => {
+                // Switch to the target tab (but don't move the task yet)
+                switchToTabForDrag(targetTabId);
+                tabHoverTimeout = null;
+                
+                // Remove tab highlight
+                targetTab.classList.remove('task-drop-target');
+            }, 500);
+        }
+    } else {
+        e.dataTransfer.dropEffect = 'none';
+        targetTab.classList.add('task-drop-incompatible');
+        targetTab.classList.remove('task-drop-target');
+    }
+}
+
+function handleTaskDragLeaveTab(e) {
+    const targetTab = e.currentTarget;
+    const targetTabId = targetTab.dataset.tabId;
+    
+    // Only clear if we're actually leaving this tab (not just moving within it)
+    // Check if the related target is still within the tab
+    const relatedTarget = e.relatedTarget;
+    if (relatedTarget && targetTab.contains(relatedTarget)) {
+        return; // Still within the tab, don't clear
+    }
+    
+    targetTab.classList.remove('task-drop-target', 'task-drop-incompatible');
+    
+    // Restore the dragged task to full size when leaving a tab
+    const draggedElement = document.querySelector('.task-item.dragging');
+    if (draggedElement) {
+        draggedElement.classList.remove('drag-over-tab');
+    }
+    
+    // Clear the tab switch timer and reset hover tracking
+    if (lastHoveredTabId === targetTabId) {
+        lastHoveredTabId = null;
+    }
+    if (tabHoverTimeout) {
+        clearTimeout(tabHoverTimeout);
+        tabHoverTimeout = null;
+    }
+}
+
+function handleTaskDropOnTab(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Only handle if a task is being dragged
+    if (!draggedTaskId || draggedTabId) return;
+    
+    const targetTab = e.currentTarget;
+    const targetTabId = targetTab.dataset.tabId;
+    
+    // Don't do anything if dropping on the same tab (might have already been moved by hover)
+    if (targetTabId === dragSourceTabId) return;
+    
+    // Check compatibility
+    if (!areTabsCompatible(dragSourceTabId, targetTabId)) return;
+    
+    // Clear any pending tab switch
+    if (tabHoverTimeout) {
+        clearTimeout(tabHoverTimeout);
+        tabHoverTimeout = null;
+    }
+    
+    // Move the task to the new tab (at top since dropped directly on tab)
+    moveTaskToTab(draggedTaskId, dragSourceTabId, targetTabId, true);
+    
+    // Clean up
+    targetTab.classList.remove('task-drop-target', 'task-drop-incompatible');
+    const draggedElement = document.querySelector('.task-item.dragging');
+    if (draggedElement) {
+        draggedElement.classList.remove('drag-over-tab');
+    }
+}
+
+// Move a task from one tab to another
+// If addToTop is true, adds to the beginning of incomplete tasks (default when dropping on tab)
+function moveTaskToTab(taskId, sourceTabId, targetTabId, addToTop = true) {
+    const sourceTab = tabs[sourceTabId];
+    const targetTab = tabs[targetTabId];
+    
+    if (!sourceTab || !targetTab) return;
+    
+    // Find the task in the source tab
+    const taskIndex = sourceTab.tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
+    
+    // Remove from source tab
+    const [task] = sourceTab.tasks.splice(taskIndex, 1);
+    
+    // Add to the target tab
+    if (addToTop) {
+        // Add to the very beginning (top of incomplete tasks)
+        targetTab.tasks.unshift(task);
+    } else {
+        // Add at the end of incomplete tasks (before completed)
+        const firstCompletedIndex = targetTab.tasks.findIndex(t => t.completed);
+        if (firstCompletedIndex === -1) {
+            targetTab.tasks.push(task);
+        } else {
+            targetTab.tasks.splice(firstCompletedIndex, 0, task);
+        }
+    }
+    
+    handleTaskSyncOnMove(task, sourceTab, targetTab);
+    
+    // Switch to target tab and render
+    switchToTab(targetTabId);
+    saveData();
+}
+
+// Move a task to a specific position in the target tab
+function moveTaskToTabAtPosition(taskId, sourceTabId, targetTabId, position) {
+    const sourceTab = tabs[sourceTabId];
+    const targetTab = tabs[targetTabId];
+    
+    if (!sourceTab || !targetTab) return;
+    
+    // Find the task in the source tab
+    const taskIndex = sourceTab.tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
+    
+    // Remove from source tab
+    const [task] = sourceTab.tasks.splice(taskIndex, 1);
+    
+    // Insert at the specified position (among incomplete tasks)
+    const incompleteTasks = targetTab.tasks.filter(t => !t.completed);
+    const completedTasks = targetTab.tasks.filter(t => t.completed);
+    
+    // Clamp position to valid range
+    const clampedPosition = Math.max(0, Math.min(position, incompleteTasks.length));
+    
+    // Insert task at position
+    incompleteTasks.splice(clampedPosition, 0, task);
+    
+    // Rebuild the tasks array
+    targetTab.tasks = [...incompleteTasks, ...completedTasks];
+    
+    handleTaskSyncOnMove(task, sourceTab, targetTab);
+    
+    // Already on target tab, just re-render
+    saveData();
+    renderTasks();
+}
+
+// Handle sync-related updates when moving a task between tabs
+function handleTaskSyncOnMove(task, sourceTab, targetTab) {
+    // Handle sync-related ID updates
+    // For Reminders: need to delete from source list and create in target list
+    if (sourceTab.remindersListId && task.remindersId && remindersConfig.isConnected) {
+        // Delete from source Reminders list
+        deleteRemindersTask(task.remindersId);
+        // Create in target Reminders list
+        if (targetTab.remindersListId) {
+            createRemindersTask(targetTab.remindersListId, task.text).then(newId => {
+                if (newId) {
+                    task.remindersId = newId;
+                    if (task.completed) {
+                        updateRemindersCompletion(newId, true);
+                    }
+                    saveData();
+                }
+            });
+        }
+        task.remindersId = null; // Clear until new ID is set
+    }
+    
+    // For Basecamp: similar handling
+    if (sourceTab.basecampListId && task.basecampId && basecampConfig.isConnected) {
+        // Would need to implement Basecamp task deletion/creation
+        // For now, just clear the basecampId
+        task.basecampId = null;
+    }
 }
 
 // Move task to bottom function
