@@ -691,8 +691,28 @@ function toggleTask(taskId) {
         updateRemindersCompletion(task.remindersId, task.completed);
     }
 
-    renderTasks();
+    // Find the task element in the DOM and apply visual change immediately
+    const taskElement = document.querySelector(`.task-item[data-task-id="${taskId}"]`);
+    if (taskElement) {
+        const checkbox = taskElement.querySelector('.task-checkbox');
+        const textSpan = taskElement.querySelector('.task-text');
+        if (checkbox) checkbox.checked = task.completed;
+        if (textSpan) {
+            if (task.completed) {
+                textSpan.classList.add('completed');
+            } else {
+                textSpan.classList.remove('completed');
+            }
+        }
+    }
+    
+    // Save data immediately but delay the visual re-render
     saveData();
+    
+    // Wait 300ms before moving task between sections
+    setTimeout(() => {
+        renderTasks();
+    }, 300);
 }
 
 function focusTask(taskId) {
@@ -2300,8 +2320,13 @@ function setupEventListeners() {
             ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
         }
 
-             // Calculate elapsed time
-            const elapsed = Date.now() - focusStartTime;
+        // Calculate elapsed time
+        const elapsed = Date.now() - focusStartTime;
+        
+        // Apply strikethrough styling to the task name immediately for satisfying feedback
+        if (focusTaskName) {
+            focusTaskName.classList.add('completed');
+        }
             
         if (focusedTaskId) {
             // Always resolve the task across tabs (focus panel may not share currentTabId)
@@ -2327,10 +2352,17 @@ function setupEventListeners() {
             }
         }
 
-        // Ensure the main window updates immediately (important on macOS focus panel)
-        ipcRenderer.send('refresh-main-window');
-        
-        exitFocusMode();
+        // Wait 300ms before exiting focus mode (same delay as task completion animation)
+        setTimeout(() => {
+            // Ensure the main window updates (important on macOS focus panel)
+            ipcRenderer.send('refresh-main-window');
+            exitFocusMode();
+            
+            // Clean up the completed class for next focus session
+            if (focusTaskName) {
+                focusTaskName.classList.remove('completed');
+            }
+        }, 300);
     });
 
     if (resetFocusBtn) {

@@ -1329,6 +1329,11 @@ body {
     margin-right: 8px;
 }
 
+.focus-task-name.completed {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
 .focus-timer {
     font-size: 20px;
     font-weight: 600;
