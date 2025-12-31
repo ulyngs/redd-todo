@@ -3967,6 +3967,18 @@ async function syncBasecampList(tabId) {
             changes = true;
         }
 
+        // 4. Push local tasks without basecampId to Basecamp (created offline)
+        for (const task of tab.tasks) {
+            if (!task.basecampId) {
+                await createBasecampTodo(tabId, task);
+                // If task is completed, update remote status
+                if (task.completed) {
+                    updateBasecampCompletion(tabId, task);
+                }
+                changes = true;
+            }
+        }
+
         if (changes) {
             renderTasks();
             saveData();
@@ -4244,6 +4256,21 @@ async function syncRemindersList(tabId) {
         
         if (tab.tasks.length !== initialCount) {
             changes = true;
+        }
+
+        // 3. Push local tasks without remindersId to Reminders (created offline)
+        for (const task of tab.tasks) {
+            if (!task.remindersId) {
+                const newId = await createRemindersTask(tab.remindersListId, task.text);
+                if (newId) {
+                    task.remindersId = newId;
+                    // If task is completed, update remote status
+                    if (task.completed) {
+                        updateRemindersCompletion(newId, true);
+                    }
+                    changes = true;
+                }
+            }
         }
         
         if (changes) {
