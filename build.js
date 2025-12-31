@@ -60,7 +60,7 @@ builder.build({
   config: {
     snap: null,
     appId: 'com.redd.todo',
-    productName: 'ReDD Todo',
+    productName: 'ReDD Do',
     copyright: 'Copyright © 2025 Reduce Digital Distraction Ltd',
     directories: {
       output: 'dist',
@@ -86,7 +86,7 @@ builder.build({
       ],
       extendInfo: {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSRemindersUsageDescription": "ReDD Todo needs access to your reminders to sync tasks."
+        "NSRemindersUsageDescription": "ReDD Do needs access to your reminders to sync tasks."
       }
     },
     mas: {

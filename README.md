@@ -1,4 +1,4 @@
-# ReDD Todo
+# ReDD Do
 
 A simple, beautiful, and distraction-free todo app for Mac, Windows, and Linux built with Electron. Designed to help you focus on one task at a time while keeping track of your time.
 

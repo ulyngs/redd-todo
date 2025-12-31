@@ -651,7 +651,7 @@ ipcMain.on('start-basecamp-auth', (event) => {
             <html>
               <body style="font-family: system-ui; text-align: center; padding-top: 50px;">
                 <h1>Authentication successful!</h1>
-                <p>You can close this window and return to ReDD Todo.</p>
+                <p>You can close this window and return to ReDD Do.</p>
                 <script>window.close()</script>
               </body>
             </html>
