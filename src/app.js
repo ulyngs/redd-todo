@@ -123,6 +123,13 @@ const deleteConfirmMessage = document.getElementById('delete-confirm-message');
 const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
 const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 
+// Generic Confirm Modal Elements
+const confirmModal = document.getElementById('confirm-modal');
+const confirmModalTitle = document.getElementById('confirm-modal-title');
+const confirmModalMessage = document.getElementById('confirm-modal-message');
+const confirmModalCancel = document.getElementById('confirm-modal-cancel');
+const confirmModalOk = document.getElementById('confirm-modal-ok');
+
 // Undo Elements
 const undoToast = document.getElementById('undo-toast');
 const undoMessage = document.getElementById('undo-message');
@@ -207,12 +214,8 @@ function initApp() {
              // Just render tabs
              renderTabs();
              renderTasks();
-             // Update sync button visibility for current tab
-             if (tabs[currentTabId].basecampListId || tabs[currentTabId].remindersListId) {
-                 syncBtn.classList.remove('hidden');
-             } else {
-                 syncBtn.classList.add('hidden');
-             }
+             // Update sync button state
+             updateSyncButtonState();
         }
     } else if (Object.keys(tabs).length > 0) {
          // Should not happen if we migrate correctly, but safety fallback
@@ -311,11 +314,76 @@ function switchToTab(tabId) {
     renderTabs();
     renderTasks();
     
-    // Show/Hide sync button based on tab type
-    if (tabs[tabId].basecampListId || tabs[tabId].remindersListId) {
-        syncBtn.classList.remove('hidden');
-    } else {
+    // Update sync button state
+    updateSyncButtonState();
+}
+
+// Helper function to show a styled confirmation modal
+// Returns a Promise that resolves to true (OK clicked) or false (Cancel clicked)
+function showConfirmModal(title, message, okText = 'OK', cancelText = 'Cancel') {
+    return new Promise((resolve) => {
+        confirmModalTitle.textContent = title;
+        confirmModalMessage.textContent = message;
+        confirmModalOk.textContent = okText;
+        confirmModalCancel.textContent = cancelText;
+        confirmModal.classList.remove('hidden');
+        
+        const cleanup = () => {
+            confirmModal.classList.add('hidden');
+            confirmModalOk.removeEventListener('click', handleOk);
+            confirmModalCancel.removeEventListener('click', handleCancel);
+        };
+        
+        const handleOk = () => {
+            cleanup();
+            resolve(true);
+        };
+        
+        const handleCancel = () => {
+            cleanup();
+            resolve(false);
+        };
+        
+        confirmModalOk.addEventListener('click', handleOk);
+        confirmModalCancel.addEventListener('click', handleCancel);
+    });
+}
+
+// Helper function to update sync button visibility and state based on current tab and connection status
+function updateSyncButtonState() {
+    if (!currentTabId || !tabs[currentTabId]) {
         syncBtn.classList.add('hidden');
+        return;
+    }
+    
+    const tab = tabs[currentTabId];
+    const isSyncedToBasecamp = !!tab.basecampListId;
+    const isSyncedToReminders = !!tab.remindersListId;
+    
+    if (!isSyncedToBasecamp && !isSyncedToReminders) {
+        // Not a synced list - hide button
+        syncBtn.classList.add('hidden');
+        syncBtn.classList.remove('disconnected');
+        syncBtn.title = 'Sync';
+        return;
+    }
+    
+    // Check connection status for the relevant service(s)
+    const basecampDisconnected = isSyncedToBasecamp && !basecampConfig.isConnected;
+    const remindersDisconnected = isSyncedToReminders && !remindersConfig.isConnected;
+    
+    syncBtn.classList.remove('hidden');
+    
+    if (basecampDisconnected || remindersDisconnected) {
+        // Show button but mark as disconnected
+        syncBtn.classList.add('disconnected');
+        const services = [];
+        if (basecampDisconnected) services.push('Basecamp');
+        if (remindersDisconnected) services.push('Apple Reminders');
+        syncBtn.title = `${services.join(' & ')} disconnected - click to reconnect`;
+    } else {
+        syncBtn.classList.remove('disconnected');
+        syncBtn.title = 'Sync with ' + (isSyncedToBasecamp ? 'Basecamp' : '') + (isSyncedToBasecamp && isSyncedToReminders ? ' & ' : '') + (isSyncedToReminders ? 'Apple Reminders' : '');
     }
 }
 
@@ -692,6 +760,9 @@ function toggleTask(taskId) {
         // If task is being marked as completed, set timestamp
         task.completedAt = new Date().toISOString();
     }
+    
+    // Always track when status was last changed (for sync conflict resolution)
+    task.statusChangedAt = new Date().toISOString();
     
     // If Basecamp connected, sync status
     if (tab.basecampListId && basecampConfig.isConnected && task.basecampId) {
@@ -1571,12 +1642,8 @@ function switchToTabForDrag(targetTabId) {
     // Render tasks with a placeholder
     renderTasksWithPlaceholder(task);
     
-    // Show/Hide sync button based on tab type
-    if (tabs[targetTabId].basecampListId || tabs[targetTabId].remindersListId) {
-        syncBtn.classList.remove('hidden');
-    } else {
-        syncBtn.classList.add('hidden');
-    }
+    // Update sync button state
+    updateSyncButtonState();
 }
 
 // Render tasks with a draggable placeholder at the current position
@@ -2148,6 +2215,7 @@ function setupEventListeners() {
             saveData();
             updateBasecampUI();
             updateRemindersUI();
+            updateSyncButtonState();
             settingsModal.classList.add('hidden');
         }
     });
@@ -2184,6 +2252,7 @@ function setupEventListeners() {
                          remindersConfig.isConnected = true;
                          saveData();
                          updateRemindersUI();
+                         updateSyncButtonState();
                      } else {
                          const errMsg = (lists && typeof lists === 'object' && lists.error) ? lists.error : null;
                          alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
@@ -2206,6 +2275,7 @@ function setupEventListeners() {
             remindersConfig.isConnected = false;
             saveData();
             updateRemindersUI();
+            updateSyncButtonState();
             
             // Reset connect button state
             remindersConnectBtn.disabled = false;
@@ -2223,6 +2293,7 @@ function setupEventListeners() {
         basecampConfig.isConnected = false;
         saveData();
         updateBasecampUI();
+        updateSyncButtonState();
     });
     
     if (bcHelpLink) {
@@ -2251,18 +2322,63 @@ function setupEventListeners() {
     
     // Sync Button
     if (syncBtn) {
-        syncBtn.addEventListener('click', () => {
+        syncBtn.addEventListener('click', async () => {
             if (!currentTabId) return;
             
             const tab = tabs[currentTabId];
+            
+            // Check if any required connections are missing
+            const basecampDisconnected = tab.basecampListId && !basecampConfig.isConnected;
+            const remindersDisconnected = tab.remindersListId && !remindersConfig.isConnected;
+            
+            if (basecampDisconnected || remindersDisconnected) {
+                // Determine which service to reconnect to
+                const services = [];
+                if (basecampDisconnected) services.push('Basecamp');
+                if (remindersDisconnected) services.push('Apple Reminders');
+                
+                const message = `This list is synced with ${services.join(' & ')}, but the connection is not active.\n\nYour changes are saved locally and will sync when you reconnect.`;
+                
+                const reconnect = await showConfirmModal(
+                    'Connection Required',
+                    message,
+                    'Reconnect',
+                    'Cancel'
+                );
+                
+                if (reconnect) {
+                    // Directly trigger reconnection
+                    if (remindersDisconnected && process.platform === 'darwin') {
+                        // Reconnect to Apple Reminders
+                        try {
+                            const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+                            if (Array.isArray(lists)) {
+                                remindersConfig.isConnected = true;
+                                saveData();
+                                updateRemindersUI();
+                                updateSyncButtonState();
+                                // Now trigger the sync
+                                syncBtn.click();
+                            }
+                        } catch (e) {
+                            console.error('Failed to reconnect to Reminders:', e);
+                        }
+                    } else if (basecampDisconnected) {
+                        // Reconnect to Basecamp via OAuth
+                        ipcRenderer.send('start-basecamp-auth');
+                    }
+                }
+                return;
+            }
+            
             syncBtn.classList.add('spinning');
             
             const promises = [];
             
-            if (tab.basecampListId) {
+            if (tab.basecampListId && basecampConfig.isConnected) {
                 promises.push(syncBasecampList(currentTabId));
             }
-            if (tab.remindersListId) {
+            if (tab.remindersListId && remindersConfig.isConnected) {
                 promises.push(syncRemindersList(currentTabId));
             }
             
@@ -3623,6 +3739,7 @@ ipcRenderer.on('basecamp-auth-success', async (event, data) => {
     basecampConfig.isConnected = true;
     saveData();
     updateBasecampUI();
+    updateSyncButtonState();
     
     // Reset button
     if (oauthConnectBtn) {
@@ -3943,15 +4060,18 @@ async function syncBasecampList(tabId) {
             if (localTask) {
                 // Timestamp-based conflict resolution for completion status
                 if (localTask.completed !== remote.completed) {
-                    const localTime = localTask.completedAt ? new Date(localTask.completedAt).getTime() : 0;
-                    // Basecamp stores completion timestamp in completion.created_at
+                    // Use statusChangedAt for local (tracks any status change), fallback to completedAt
+                    const localTime = localTask.statusChangedAt ? new Date(localTask.statusChangedAt).getTime() : 
+                                     (localTask.completedAt ? new Date(localTask.completedAt).getTime() : 0);
+                    // Basecamp: use updated_at for any change, or completion.created_at for completion
                     const remoteCompletedAt = remote.completion?.created_at;
-                    const remoteTime = remoteCompletedAt ? new Date(remoteCompletedAt).getTime() : 0;
+                    const remoteTime = remote.updated_at ? new Date(remote.updated_at).getTime() : 
+                                      (remoteCompletedAt ? new Date(remoteCompletedAt).getTime() : 0);
                     
                     // Debug logging
                     console.log('Basecamp sync conflict for:', localTask.text);
-                    console.log('  Local:', localTask.completed, 'completedAt:', localTask.completedAt, 'time:', localTime);
-                    console.log('  Remote:', remote.completed, 'completion.created_at:', remoteCompletedAt, 'time:', remoteTime);
+                    console.log('  Local:', localTask.completed, 'statusChangedAt:', localTask.statusChangedAt, 'time:', localTime);
+                    console.log('  Remote:', remote.completed, 'updated_at:', remote.updated_at, 'time:', remoteTime);
                     
                     // Determine which one wins based on timestamps
                     let useRemote = false;
@@ -3976,6 +4096,7 @@ async function syncBasecampList(tabId) {
                     if (useRemote) {
                         localTask.completed = remote.completed;
                         localTask.completedAt = remoteCompletedAt || null;
+                        localTask.statusChangedAt = remote.updated_at || remoteCompletedAt || null;
                         changes = true;
                     } else {
                         updateBasecampCompletion(tabId, localTask);
@@ -3993,6 +4114,7 @@ async function syncBasecampList(tabId) {
                     text: remote.content,
                     completed: remote.completed,
                     completedAt: remote.completion?.created_at || null,
+                    statusChangedAt: remote.updated_at || remote.completion?.created_at || null,
                     createdAt: remote.created_at,
                     expectedDuration: null,
                     actualDuration: null,
@@ -4268,9 +4390,17 @@ async function syncRemindersList(tabId) {
             if (existingTask) {
                 // Timestamp-based conflict resolution for completion status
                 if (existingTask.completed !== rTask.completed) {
-                    const localTime = existingTask.completedAt ? new Date(existingTask.completedAt).getTime() : 0;
-                    // Reminders completionDate is Unix timestamp in seconds, convert to ms
-                    const remoteTime = rTask.completionDate ? rTask.completionDate * 1000 : 0;
+                    // Use statusChangedAt for local (tracks any status change)
+                    // Use lastModifiedDate for remote (tracks any modification including un-completing)
+                    const localTime = existingTask.statusChangedAt ? new Date(existingTask.statusChangedAt).getTime() : 
+                                     (existingTask.completedAt ? new Date(existingTask.completedAt).getTime() : 0);
+                    // lastModifiedDate is Unix timestamp in seconds, convert to ms
+                    const remoteTime = rTask.lastModifiedDate ? rTask.lastModifiedDate * 1000 : 0;
+                    
+                    // Debug logging
+                    console.log('Reminders sync conflict for:', existingTask.text);
+                    console.log('  Local:', existingTask.completed, 'statusChangedAt:', existingTask.statusChangedAt, 'time:', localTime);
+                    console.log('  Remote:', rTask.completed, 'lastModifiedDate:', rTask.lastModifiedDate, 'time:', remoteTime);
                     
                     // Determine which one wins based on timestamps
                     let useRemote = false;
@@ -4289,9 +4419,12 @@ async function syncRemindersList(tabId) {
                         useRemote = rTask.completed && !existingTask.completed;
                     }
                     
+                    console.log('  Decision: useRemote =', useRemote);
+                    
                     if (useRemote) {
                         existingTask.completed = rTask.completed;
                         existingTask.completedAt = rTask.completionDate ? new Date(rTask.completionDate * 1000).toISOString() : null;
+                        existingTask.statusChangedAt = rTask.lastModifiedDate ? new Date(rTask.lastModifiedDate * 1000).toISOString() : null;
                         changes = true;
                     } else {
                         updateRemindersCompletion(existingTask.remindersId, existingTask.completed);
@@ -4311,6 +4444,7 @@ async function syncRemindersList(tabId) {
                     text: rTask.name,
                     completed: rTask.completed,
                     completedAt: rTask.completionDate ? new Date(rTask.completionDate * 1000).toISOString() : null,
+                    statusChangedAt: rTask.lastModifiedDate ? new Date(rTask.lastModifiedDate * 1000).toISOString() : null,
                     createdAt: new Date().toISOString(),
                     expectedDuration: null,
                     actualDuration: null,
