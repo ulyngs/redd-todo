@@ -207,6 +207,12 @@ function initApp() {
              // Just render tabs
              renderTabs();
              renderTasks();
+             // Update sync button visibility for current tab
+             if (tabs[currentTabId].basecampListId || tabs[currentTabId].remindersListId) {
+                 syncBtn.classList.remove('hidden');
+             } else {
+                 syncBtn.classList.add('hidden');
+             }
         }
     } else if (Object.keys(tabs).length > 0) {
          // Should not happen if we migrate correctly, but safety fallback
