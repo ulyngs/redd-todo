@@ -3941,9 +3941,20 @@ async function syncBasecampList(tabId) {
             const localTask = tab.tasks.find(t => t.basecampId === remote.id);
             
             if (localTask) {
-                // Local is authoritative for completion status - update remote if different
+                // Timestamp-based conflict resolution for completion status
                 if (localTask.completed !== remote.completed) {
-                    updateBasecampCompletion(tabId, localTask);
+                    const localTime = localTask.completedAt ? new Date(localTask.completedAt).getTime() : 0;
+                    const remoteTime = remote.completed_at ? new Date(remote.completed_at).getTime() : 0;
+                    
+                    if (localTime >= remoteTime) {
+                        // Local is more recent (or equal) - update remote
+                        updateBasecampCompletion(tabId, localTask);
+                    } else {
+                        // Remote is more recent - update local
+                        localTask.completed = remote.completed;
+                        localTask.completedAt = remote.completed_at || null;
+                        changes = true;
+                    }
                 }
                 // Update text if remote changed
                 if (localTask.text !== remote.content) {
@@ -3956,6 +3967,7 @@ async function syncBasecampList(tabId) {
                     id: `task_${++taskCounter}`,
                     text: remote.content,
                     completed: remote.completed,
+                    completedAt: remote.completed_at || null,
                     createdAt: remote.created_at,
                     expectedDuration: null,
                     actualDuration: null,
@@ -4229,9 +4241,21 @@ async function syncRemindersList(tabId) {
             const existingTask = tab.tasks.find(t => t.remindersId === rTask.id);
             
             if (existingTask) {
-                // Local is authoritative for completion status - update remote if different
+                // Timestamp-based conflict resolution for completion status
                 if (existingTask.completed !== rTask.completed) {
-                    updateRemindersCompletion(existingTask.remindersId, existingTask.completed);
+                    const localTime = existingTask.completedAt ? new Date(existingTask.completedAt).getTime() : 0;
+                    // Reminders completionDate is Unix timestamp in seconds, convert to ms
+                    const remoteTime = rTask.completionDate ? rTask.completionDate * 1000 : 0;
+                    
+                    if (localTime >= remoteTime) {
+                        // Local is more recent (or equal) - update remote
+                        updateRemindersCompletion(existingTask.remindersId, existingTask.completed);
+                    } else {
+                        // Remote is more recent - update local
+                        existingTask.completed = rTask.completed;
+                        existingTask.completedAt = rTask.completionDate ? new Date(rTask.completionDate * 1000).toISOString() : null;
+                        changes = true;
+                    }
                 }
                 // Update text if changed remotely
                 if (existingTask.text !== rTask.name) {
@@ -4246,6 +4270,7 @@ async function syncRemindersList(tabId) {
                     id: `task_${++taskCounter}`,
                     text: rTask.name,
                     completed: rTask.completed,
+                    completedAt: rTask.completionDate ? new Date(rTask.completionDate * 1000).toISOString() : null,
                     createdAt: new Date().toISOString(),
                     expectedDuration: null,
                     actualDuration: null,
