@@ -3935,10 +3935,9 @@ async function syncBasecampList(tabId) {
             const localTask = tab.tasks.find(t => t.basecampId === remote.id);
             
             if (localTask) {
-                // Update local status if remote changed
+                // Local is authoritative for completion status - update remote if different
                 if (localTask.completed !== remote.completed) {
-                    localTask.completed = remote.completed;
-                    changes = true;
+                    updateBasecampCompletion(tabId, localTask);
                 }
                 // Update text if remote changed
                 if (localTask.text !== remote.content) {
@@ -4212,10 +4211,9 @@ async function syncRemindersList(tabId) {
             const existingTask = tab.tasks.find(t => t.remindersId === rTask.id);
             
             if (existingTask) {
-                // Update status if changed remotely
+                // Local is authoritative for completion status - update remote if different
                 if (existingTask.completed !== rTask.completed) {
-                    existingTask.completed = rTask.completed;
-                    changes = true;
+                    updateRemindersCompletion(existingTask.remindersId, existingTask.completed);
                 }
                 // Update text if changed remotely
                 if (existingTask.text !== rTask.name) {
