@@ -510,6 +510,17 @@ body {
     border-color: hsl(214, 32%, 85%);
 }
 
+.task-checkbox:hover:not(:checked)::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: hsl(214, 32%, 80%);
+    font-size: 12px;
+    font-weight: bold;
+}
+
 .task-checkbox:focus {
     outline: none;
     box-shadow: 0 0 0 2px hsl(214, 32%, 85%);
