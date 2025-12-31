@@ -3944,16 +3944,41 @@ async function syncBasecampList(tabId) {
                 // Timestamp-based conflict resolution for completion status
                 if (localTask.completed !== remote.completed) {
                     const localTime = localTask.completedAt ? new Date(localTask.completedAt).getTime() : 0;
-                    const remoteTime = remote.completed_at ? new Date(remote.completed_at).getTime() : 0;
+                    // Basecamp stores completion timestamp in completion.created_at
+                    const remoteCompletedAt = remote.completion?.created_at;
+                    const remoteTime = remoteCompletedAt ? new Date(remoteCompletedAt).getTime() : 0;
                     
-                    if (localTime >= remoteTime) {
-                        // Local is more recent (or equal) - update remote
-                        updateBasecampCompletion(tabId, localTask);
+                    // Debug logging
+                    console.log('Basecamp sync conflict for:', localTask.text);
+                    console.log('  Local:', localTask.completed, 'completedAt:', localTask.completedAt, 'time:', localTime);
+                    console.log('  Remote:', remote.completed, 'completion.created_at:', remoteCompletedAt, 'time:', remoteTime);
+                    
+                    // Determine which one wins based on timestamps
+                    let useRemote = false;
+                    
+                    if (localTime > 0 && remoteTime > 0) {
+                        // Both have timestamps - most recent wins
+                        useRemote = remoteTime > localTime;
+                    } else if (remoteTime > 0 && localTime === 0) {
+                        // Remote has timestamp, local doesn't - remote wins
+                        // (remote was actively completed at a known time)
+                        useRemote = true;
+                    } else if (localTime > 0 && remoteTime === 0) {
+                        // Local has timestamp, remote doesn't - local wins
+                        useRemote = false;
                     } else {
-                        // Remote is more recent - update local
+                        // Neither has timestamps - prefer completed state to avoid losing work
+                        useRemote = remote.completed && !localTask.completed;
+                    }
+                    
+                    console.log('  Decision: useRemote =', useRemote);
+                    
+                    if (useRemote) {
                         localTask.completed = remote.completed;
-                        localTask.completedAt = remote.completed_at || null;
+                        localTask.completedAt = remoteCompletedAt || null;
                         changes = true;
+                    } else {
+                        updateBasecampCompletion(tabId, localTask);
                     }
                 }
                 // Update text if remote changed
@@ -3967,7 +3992,7 @@ async function syncBasecampList(tabId) {
                     id: `task_${++taskCounter}`,
                     text: remote.content,
                     completed: remote.completed,
-                    completedAt: remote.completed_at || null,
+                    completedAt: remote.completion?.created_at || null,
                     createdAt: remote.created_at,
                     expectedDuration: null,
                     actualDuration: null,
@@ -4247,14 +4272,29 @@ async function syncRemindersList(tabId) {
                     // Reminders completionDate is Unix timestamp in seconds, convert to ms
                     const remoteTime = rTask.completionDate ? rTask.completionDate * 1000 : 0;
                     
-                    if (localTime >= remoteTime) {
-                        // Local is more recent (or equal) - update remote
-                        updateRemindersCompletion(existingTask.remindersId, existingTask.completed);
+                    // Determine which one wins based on timestamps
+                    let useRemote = false;
+                    
+                    if (localTime > 0 && remoteTime > 0) {
+                        // Both have timestamps - most recent wins
+                        useRemote = remoteTime > localTime;
+                    } else if (remoteTime > 0 && localTime === 0) {
+                        // Remote has timestamp, local doesn't - remote wins
+                        useRemote = true;
+                    } else if (localTime > 0 && remoteTime === 0) {
+                        // Local has timestamp, remote doesn't - local wins
+                        useRemote = false;
                     } else {
-                        // Remote is more recent - update local
+                        // Neither has timestamps - prefer completed state to avoid losing work
+                        useRemote = rTask.completed && !existingTask.completed;
+                    }
+                    
+                    if (useRemote) {
                         existingTask.completed = rTask.completed;
                         existingTask.completedAt = rTask.completionDate ? new Date(rTask.completionDate * 1000).toISOString() : null;
                         changes = true;
+                    } else {
+                        updateRemindersCompletion(existingTask.remindersId, existingTask.completed);
                     }
                 }
                 // Update text if changed remotely
