@@ -73,7 +73,8 @@ func fetchTasks(listId: String) {
                 "name": rem.title ?? "No Title",
                 "completed": rem.isCompleted,
                 "notes": rem.notes ?? "",
-                "creationDate": rem.creationDate?.timeIntervalSince1970 ?? 0
+                "creationDate": rem.creationDate?.timeIntervalSince1970 ?? 0,
+                "completionDate": rem.completionDate?.timeIntervalSince1970 ?? 0
             ] as [String : Any]
         }
         output(result)
