@@ -353,7 +353,7 @@ function showConfirmModal(title, message, okText = 'OK', cancelText = 'Cancel') 
 
 // Helper function to update sync button visibility and state based on current tab and connection status
 function updateSyncButtonState() {
-    if (!currentTabId || !tabs[currentTabId]) {
+    if (currentView === 'favourites' || !currentTabId || !tabs[currentTabId]) {
         syncBtn.classList.add('hidden');
         return;
     }
@@ -1568,6 +1568,7 @@ function switchView(viewName) {
         if (groupsContainerMain) groupsContainerMain.style.display = 'none';
         if (tabsContainerMain) tabsContainerMain.style.display = 'none';
     }
+    updateSyncButtonState();
     renderTasks();
 }
 
