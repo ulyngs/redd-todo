@@ -1725,7 +1725,6 @@ function createPlaceholderElement(task) {
     placeholder.dataset.isPlaceholder = 'true';
 
     placeholder.innerHTML = `
-        <div class="drag-handle">⋮⋮</div>
         <input type="checkbox" class="task-checkbox" disabled>
         <span class="task-text">${task.text}</span>
         <div class="task-actions"></div>
@@ -2002,7 +2001,6 @@ function createTaskElement(task) {
     }
 
     taskElement.innerHTML = `
-        <div class="drag-handle">⋮⋮</div>
         <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} data-task-id="${task.id}">
         <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>${metaHtml}
         <div class="task-actions">
