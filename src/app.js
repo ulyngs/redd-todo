@@ -2257,9 +2257,11 @@ function createTaskElement(task) {
                             toolbar.addEventListener('mousedown', (e) => e.stopPropagation());
                         }
 
-                        // Set initial content if any
+                        // Set initial content if any (use setTimeout to ensure Quill is fully ready)
                         if (task.notes) {
-                            taskElement.quillInstance.root.innerHTML = task.notes;
+                            setTimeout(() => {
+                                taskElement.quillInstance.clipboard.dangerouslyPasteHTML(task.notes);
+                            }, 0);
                         }
 
                         // Handle focus/blur to show/hide toolbar
@@ -2287,6 +2289,7 @@ function createTaskElement(task) {
                         taskElement.quillInstance.on('text-change', () => {
                             const content = taskElement.quillInstance.root.innerHTML;
                             task.notes = content;
+                            task.notesChangedAt = new Date().toISOString(); // Track when notes changed
                             if (content && content !== '<p><br></p>') {
                                 notesBtn.classList.add('has-notes');
                             } else {
@@ -2302,6 +2305,13 @@ function createTaskElement(task) {
 
                         // Prevent drag propagation from editor
                         taskElement.quillInstance.root.addEventListener('mousedown', (e) => e.stopPropagation());
+                    }
+                } else {
+                    // Quill already exists - reload notes content in case it was updated by sync
+                    const currentContent = taskElement.quillInstance.root.innerHTML;
+                    const isEmpty = !currentContent || currentContent === '<p><br></p>';
+                    if (task.notes && (isEmpty || currentContent !== task.notes)) {
+                        taskElement.quillInstance.clipboard.dangerouslyPasteHTML(task.notes);
                     }
                 }
             }
@@ -3292,6 +3302,7 @@ function setupEventListeners() {
                                 const context = getTaskContext(focusedTaskId);
                                 if (context) {
                                     context.task.notes = content;
+                                    context.task.notesChangedAt = new Date().toISOString(); // Track when notes changed
                                     if (content && content !== '<p><br></p>') {
                                         notesFocusBtn.classList.add('has-notes');
                                     } else {
@@ -4745,6 +4756,49 @@ async function syncBasecampList(tabId) {
                     localTask.text = remote.content;
                     changes = true;
                 }
+
+                // Timestamp-based conflict resolution for notes/description
+                // Normalize notes for comparison (empty string, null, undefined are all "no notes")
+                const localNotes = localTask.notes || '';
+                const remoteDescription = remote.description || '';
+
+                if (localNotes !== remoteDescription) {
+                    // Use notesChangedAt for local, updated_at for remote
+                    const localNotesTime = localTask.notesChangedAt ? new Date(localTask.notesChangedAt).getTime() : 0;
+                    const remoteTime = remote.updated_at ? new Date(remote.updated_at).getTime() : 0;
+
+                    // Debug logging
+                    console.log('Basecamp notes sync conflict for:', localTask.text);
+                    console.log('  Local notes:', localNotes.substring(0, 50), 'notesChangedAt:', localTask.notesChangedAt, 'time:', localNotesTime);
+                    console.log('  Remote description:', remoteDescription.substring(0, 50), 'updated_at:', remote.updated_at, 'time:', remoteTime);
+
+                    let useRemoteNotes = false;
+
+                    if (localNotesTime > 0 && remoteTime > 0) {
+                        // Both have timestamps - most recent wins
+                        useRemoteNotes = remoteTime > localNotesTime;
+                    } else if (remoteTime > 0 && localNotesTime === 0) {
+                        // Remote has timestamp, local doesn't - remote wins
+                        useRemoteNotes = true;
+                    } else if (localNotesTime > 0 && remoteTime === 0) {
+                        // Local has timestamp, remote doesn't - local wins
+                        useRemoteNotes = false;
+                    } else {
+                        // Neither has timestamps - prefer having content to avoid losing work
+                        useRemoteNotes = remoteDescription && !localNotes;
+                    }
+
+                    console.log('  Decision: useRemoteNotes =', useRemoteNotes);
+
+                    if (useRemoteNotes) {
+                        localTask.notes = remoteDescription;
+                        localTask.notesChangedAt = remote.updated_at || null;
+                        changes = true;
+                    } else if (localNotes) {
+                        // Push local notes to Basecamp as description
+                        updateBasecampTodoDescription(tabId, localTask);
+                    }
+                }
             } else {
                 // New task from remote
                 tab.tasks.push({
@@ -4756,7 +4810,9 @@ async function syncBasecampList(tabId) {
                     createdAt: remote.created_at,
                     expectedDuration: null,
                     actualDuration: null,
-                    basecampId: remote.id
+                    basecampId: remote.id,
+                    notes: remote.description || null,
+                    notesChangedAt: remote.description ? (remote.updated_at || null) : null
                 });
                 changes = true;
             }
@@ -4828,6 +4884,33 @@ async function updateBasecampTodoText(tabId, task) {
     }
 }
 
+async function updateBasecampTodoDescription(tabId, task) {
+    const tab = tabs[tabId];
+    if (!tab || !task.basecampId) return;
+
+    try {
+        const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${task.basecampId}.json`;
+
+        console.log('Pushing notes to Basecamp:', task.text, 'description:', task.notes);
+
+        // Basecamp API requires content field when updating - include both content and description
+        const response = await basecampFetch(url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                content: task.text,
+                description: task.notes || ''
+            })
+        });
+
+        console.log('Basecamp description update response:', response.status, response.ok);
+    } catch (e) {
+        console.error('Update BC Description Error:', e);
+    }
+}
+
 async function deleteBasecampTodo(tabId, basecampId) {
     const tab = tabs[tabId];
     if (!tab || !tab.basecampProjectId || !basecampConfig.isConnected) return;
@@ -4849,12 +4932,19 @@ async function createBasecampTodo(tabId, task) {
 
     try {
         const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json`;
+
+        // Build request body with content and optional description (notes)
+        const body = { content: task.text };
+        if (task.notes) {
+            body.description = task.notes;
+        }
+
         const response = await basecampFetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ content: task.text })
+            body: JSON.stringify(body)
         });
         const data = await response.json();
 
@@ -5073,6 +5163,49 @@ async function syncRemindersList(tabId) {
                     existingTask.text = rTask.name;
                     changes = true;
                 }
+
+                // Timestamp-based conflict resolution for notes
+                // Normalize notes for comparison (empty string, null, undefined are all "no notes")
+                const localNotes = existingTask.notes || '';
+                const remoteNotes = rTask.notes || '';
+
+                if (localNotes !== remoteNotes) {
+                    // Use notesChangedAt for local, lastModifiedDate for remote
+                    const localNotesTime = existingTask.notesChangedAt ? new Date(existingTask.notesChangedAt).getTime() : 0;
+                    const remoteTime = rTask.lastModifiedDate ? rTask.lastModifiedDate * 1000 : 0;
+
+                    // Debug logging
+                    console.log('Reminders notes sync conflict for:', existingTask.text);
+                    console.log('  Local notes:', localNotes.substring(0, 50), 'notesChangedAt:', existingTask.notesChangedAt, 'time:', localNotesTime);
+                    console.log('  Remote notes:', remoteNotes.substring(0, 50), 'lastModifiedDate:', rTask.lastModifiedDate, 'time:', remoteTime);
+
+                    let useRemoteNotes = false;
+
+                    if (localNotesTime > 0 && remoteTime > 0) {
+                        // Both have timestamps - most recent wins
+                        useRemoteNotes = remoteTime > localNotesTime;
+                    } else if (remoteTime > 0 && localNotesTime === 0) {
+                        // Remote has timestamp, local doesn't - remote wins
+                        useRemoteNotes = true;
+                    } else if (localNotesTime > 0 && remoteTime === 0) {
+                        // Local has timestamp, remote doesn't - local wins
+                        useRemoteNotes = false;
+                    } else {
+                        // Neither has timestamps - prefer having content to avoid losing work
+                        useRemoteNotes = remoteNotes && !localNotes;
+                    }
+
+                    console.log('  Decision: useRemoteNotes =', useRemoteNotes);
+
+                    if (useRemoteNotes) {
+                        existingTask.notes = remoteNotes;
+                        existingTask.notesChangedAt = rTask.lastModifiedDate ? new Date(rTask.lastModifiedDate * 1000).toISOString() : null;
+                        changes = true;
+                    } else if (localNotes) {
+                        // Push local notes to remote
+                        updateRemindersNotes(existingTask.remindersId, localNotes);
+                    }
+                }
             } else {
                 // Add new task
                 // Only add if not completed, or if we want to sync completed too?
@@ -5087,7 +5220,9 @@ async function syncRemindersList(tabId) {
                     expectedDuration: null,
                     actualDuration: null,
                     basecampId: null,
-                    remindersId: rTask.id
+                    remindersId: rTask.id,
+                    notes: rTask.notes || null,
+                    notesChangedAt: rTask.notes ? (rTask.lastModifiedDate ? new Date(rTask.lastModifiedDate * 1000).toISOString() : null) : null
                 });
                 changes = true;
             }
@@ -5110,6 +5245,10 @@ async function syncRemindersList(tabId) {
                     // If task is completed, update remote status
                     if (task.completed) {
                         updateRemindersCompletion(newId, true);
+                    }
+                    // If task has notes, push them to Reminders
+                    if (task.notes) {
+                        updateRemindersNotes(newId, task.notes);
                     }
                     changes = true;
                 }
@@ -5139,6 +5278,14 @@ async function updateRemindersTitle(remindersId, title) {
         await ipcRenderer.invoke('update-reminders-title', remindersId, title);
     } catch (e) {
         console.error('Failed to update Reminder title:', e);
+    }
+}
+
+async function updateRemindersNotes(remindersId, notes) {
+    try {
+        await ipcRenderer.invoke('update-reminders-notes', remindersId, notes);
+    } catch (e) {
+        console.error('Failed to update Reminder notes:', e);
     }
 }
 
