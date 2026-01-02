@@ -2053,6 +2053,31 @@ function createTaskElement(task) {
 
 // Event listeners
 function setupEventListeners() {
+    // Custom Window Drag Logic for Focus Window
+    const focusContainer = document.querySelector('.focus-container');
+    if (focusContainer) {
+        focusContainer.addEventListener('mousedown', (e) => {
+            // Check if clicking on an interactive element (buttons, etc.)
+            if (e.target.closest('button') || e.target.closest('.focus-buttons-container button')) {
+                return;
+            }
+
+            // Start custom drag
+            ipcRenderer.send('window-drag-start');
+            document.body.style.cursor = 'grabbing';
+            focusContainer.style.cursor = 'grabbing';
+
+            const handleMouseUp = () => {
+                ipcRenderer.send('window-drag-end');
+                document.body.style.cursor = '';
+                focusContainer.style.cursor = 'grab';
+                window.removeEventListener('mouseup', handleMouseUp);
+            };
+
+            window.addEventListener('mouseup', handleMouseUp);
+        });
+    }
+
     // View Switcher Listeners
     if (viewListsBtn) {
         viewListsBtn.addEventListener('click', () => switchView('lists'));

@@ -261,13 +261,13 @@ function runJxa(script) {
   return new Promise((resolve, reject) => {
     const { spawn } = require('child_process');
     const process = spawn('osascript', ['-l', 'JavaScript']);
-    
+
     let stdout = '';
     let stderr = '';
-    
+
     process.stdout.on('data', (data) => stdout += data);
     process.stderr.on('data', (data) => stderr += data);
-    
+
     process.on('close', (code) => {
       if (code !== 0) {
         console.error('JXA Error:', stderr);
@@ -276,16 +276,16 @@ function runJxa(script) {
       }
       try {
         if (!stdout.trim()) {
-           resolve(null);
+          resolve(null);
         } else {
-           resolve(JSON.parse(stdout));
+          resolve(JSON.parse(stdout));
         }
       } catch (e) {
         // If not JSON, return raw string
         resolve(stdout.trim());
       }
     });
-    
+
     process.stdin.write(script);
     process.stdin.end();
   });
@@ -295,7 +295,7 @@ function runJxa(script) {
 function runRemindersConnector(args) {
   return new Promise((resolve, reject) => {
     const { execFile } = require('child_process');
-    
+
     let binaryPath;
     if (app.isPackaged) {
       binaryPath = path.join(process.resourcesPath, 'reminders-connector');
@@ -318,7 +318,7 @@ function runRemindersConnector(args) {
       reject(err);
       return;
     }
-    
+
     execFile(binaryPath, args, (error, stdout, stderr) => {
       if (error) {
         log.error('[Reminders] Connector Error', {
@@ -394,9 +394,9 @@ ipcMain.on('check-for-updates', () => {
     // Optional: Force dev update config if needed, or just log
     // autoUpdater.forceDevUpdateConfig = true; 
   }
-  
+
   autoUpdater.checkForUpdatesAndNotify().catch(err => {
-      console.log('Update check error (expected in dev):', err.message);
+    console.log('Update check error (expected in dev):', err.message);
   });
 });
 
@@ -416,7 +416,7 @@ ipcMain.on('install-update', () => {
 app.on('ready', () => {
   createMainWindow();
   createMenu();
-  
+
   if (process.env.NODE_ENV !== 'development') {
     autoUpdater.checkForUpdatesAndNotify();
   }
@@ -441,12 +441,12 @@ ipcMain.on('enter-focus-mode', (event, taskName) => {
   if (targetWindow) {
     // Capture current position
     const [currentX, currentY] = targetWindow.getPosition();
-    
+
     // Start with a reasonable default size, will be adjusted by set-focus-window-size
     targetWindow.setSize(320, 60);
     // Restore position (setSize might center or move it on some platforms/configs)
     targetWindow.setPosition(currentX, currentY);
-    
+
     targetWindow.setResizable(true);
     targetWindow.setAlwaysOnTop(true, 'screen-saver');
     targetWindow.setMinimizable(false);
@@ -600,8 +600,38 @@ ipcMain.on('task-updated', (event, payload) => {
   }
 });
 
+// Custom window dragging logic related variables
+let dragInterval = null;
+
+ipcMain.on('window-drag-start', (event) => {
+  const targetWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!targetWindow) return;
+
+  const cursorPoint = screen.getCursorScreenPoint();
+  const [winX, winY] = targetWindow.getPosition();
+  const offset = { x: cursorPoint.x - winX, y: cursorPoint.y - winY };
+
+  if (dragInterval) clearInterval(dragInterval);
+
+  dragInterval = setInterval(() => {
+    const cursor = screen.getCursorScreenPoint();
+    try {
+      targetWindow.setPosition(cursor.x - offset.x, cursor.y - offset.y);
+    } catch (e) {
+      clearInterval(dragInterval);
+    }
+  }, 10); // Update every 10ms
+});
+
+ipcMain.on('window-drag-end', () => {
+  if (dragInterval) {
+    clearInterval(dragInterval);
+    dragInterval = null;
+  }
+});
+
 async function exchangeCodeForToken(code) {
-  
+
   // Call Netlify function to exchange code for token
   const response = await fetch(NETLIFY_EXCHANGE_URL, {
     method: 'POST',
@@ -614,12 +644,12 @@ async function exchangeCodeForToken(code) {
       client_id: BC_CLIENT_ID
     })
   });
-  
+
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Token exchange failed: ${text}`);
   }
-  
+
   return await response.json();
 }
 
@@ -636,7 +666,7 @@ ipcMain.on('start-basecamp-auth', (event) => {
         try {
           // Exchange code for token via Netlify function
           const tokenData = await exchangeCodeForToken(code);
-          
+
           // Send tokens back to renderer
           if (mainWindow) {
             mainWindow.webContents.send('basecamp-auth-success', {
@@ -661,11 +691,11 @@ ipcMain.on('start-basecamp-auth', (event) => {
           res.writeHead(500);
           res.end('Authentication failed: ' + error.message);
           if (mainWindow) {
-             mainWindow.webContents.send('basecamp-auth-error', error.message);
+            mainWindow.webContents.send('basecamp-auth-error', error.message);
           }
         }
       }
-      
+
       // Close server shortly after to ensure response is sent
       setTimeout(() => server.close(), 1000);
     }
@@ -675,16 +705,16 @@ ipcMain.on('start-basecamp-auth', (event) => {
     const authUrl = `https://launchpad.37signals.com/authorization/new?type=web_server&client_id=${BC_CLIENT_ID}&redirect_uri=${encodeURIComponent(BC_REDIRECT_URI)}`;
     shell.openExternal(authUrl);
   });
-  
+
   server.on('error', (e) => {
-      console.error('Server error', e);
-      if (e.code === 'EADDRINUSE') {
-          console.log('Port 3000 in use, retrying...');
-          setTimeout(() => {
-              server.close();
-              server.listen(3000);
-          }, 1000);
-      }
+    console.error('Server error', e);
+    if (e.code === 'EADDRINUSE') {
+      console.log('Port 3000 in use, retrying...');
+      setTimeout(() => {
+        server.close();
+        server.listen(3000);
+      }, 1000);
+    }
   });
 
 });
