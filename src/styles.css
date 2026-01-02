@@ -22,9 +22,12 @@ body {
     backdrop-filter: blur(10px);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    padding-top: 4px; /* Added some top padding */
-    padding-bottom: 42px; /* Space for fixed footer */
-    overflow: hidden; /* Prevent app-wide scroll */
+    padding-top: 4px;
+    /* Added some top padding */
+    padding-bottom: 42px;
+    /* Space for fixed footer */
+    overflow: hidden;
+    /* Prevent app-wide scroll */
 }
 
 /* Normal Mode UI wrapper */
@@ -56,10 +59,12 @@ body {
 .view-switcher {
     display: flex;
     align-items: center;
-    background: transparent; /* Removed background */
+    background: transparent;
+    /* Removed background */
     border-radius: 6px;
     padding: 2px;
-    margin: 0; /* Centered by flex parent */
+    margin: 0;
+    /* Centered by flex parent */
     -webkit-app-region: no-drag;
 }
 
@@ -73,20 +78,24 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ccc; /* Lighter gray for inactive state */
+    color: #ccc;
+    /* Lighter gray for inactive state */
     transition: all 0.2s ease;
     padding: 0;
 }
 
 .view-btn:hover {
     color: #666;
-    background: transparent; /* Removed hover background */
+    background: transparent;
+    /* Removed hover background */
 }
 
 .view-btn.active {
-    background: transparent; /* Removed active background */
+    background: transparent;
+    /* Removed active background */
     color: #333;
-    box-shadow: none; /* Removed active shadow */
+    box-shadow: none;
+    /* Removed active shadow */
 }
 
 /* Ensure heart is always filled in switch, adjusting opacity or color if needed */
@@ -107,8 +116,10 @@ body {
 
 .win-btn {
     width: 46px;
-    height: 100%; /* Fill the title bar height */
-    min-height: 40px; /* Fallback */
+    height: 100%;
+    /* Fill the title bar height */
+    min-height: 40px;
+    /* Fallback */
     border: none;
     background: transparent;
     display: flex;
@@ -243,7 +254,8 @@ body {
     padding: 8px 16px 0 16px;
     background: transparent;
     border-bottom: 1px solid hsl(214, 32%, 91%);
-    position: relative; /* For absolute positioning of settings button if needed */
+    position: relative;
+    /* For absolute positioning of settings button if needed */
 }
 
 .tabs {
@@ -252,7 +264,8 @@ body {
     gap: 2px;
     overflow-x: auto;
     align-items: center;
-    margin-right: 16px; /* Space for settings button */
+    margin-right: 16px;
+    /* Space for settings button */
 }
 
 .settings-btn {
@@ -261,7 +274,7 @@ body {
     transform: none;
     top: auto;
     right: auto;
-    
+
     /* New positioning */
     background: transparent;
     border: none;
@@ -274,7 +287,8 @@ body {
     justify-content: center;
     -webkit-app-region: no-drag;
     transition: all 0.2s ease;
-    margin-left: auto; /* Push to the right */
+    margin-left: auto;
+    /* Push to the right */
     flex-shrink: 0;
 }
 
@@ -544,11 +558,13 @@ body {
     margin-left: 8px;
     white-space: nowrap;
     flex-shrink: 0;
-    cursor: pointer; /* Make it clear it's interactive */
+    cursor: pointer;
+    /* Make it clear it's interactive */
 }
 
 .task-meta.add-time {
-    opacity: 0; /* Hide by default */
+    opacity: 0;
+    /* Hide by default */
     transition: opacity 0.2s ease;
     color: #ccc;
     font-weight: bold;
@@ -556,7 +572,8 @@ body {
 }
 
 .task-item:hover .task-meta.add-time {
-    opacity: 1; /* Show on hover */
+    opacity: 1;
+    /* Show on hover */
 }
 
 .task-meta.add-time:hover {
@@ -564,13 +581,16 @@ body {
 }
 
 .task-meta:hover {
-    text-decoration: underline; /* Hint at editability */
+    text-decoration: underline;
+    /* Hint at editability */
 }
 
 .task-meta.actual-time {
-    color: #999; /* Reset to default grey */
+    color: #999;
+    /* Reset to default grey */
     font-weight: normal;
-    cursor: pointer; /* Allow editing */
+    cursor: pointer;
+    /* Allow editing */
     text-decoration: none;
 }
 
@@ -595,7 +615,8 @@ body {
     /* Textarea-specific styles */
     resize: none;
     overflow: hidden;
-    min-height: 1.4em; /* Match line-height */
+    min-height: 1.4em;
+    /* Match line-height */
     display: block;
 }
 
@@ -606,7 +627,9 @@ body {
     flex-shrink: 0;
 }
 
-.focus-btn, .delete-btn, .fav-btn {
+.focus-btn,
+.delete-btn,
+.fav-btn {
     padding: 4px 8px;
     border: none;
     border-radius: 6px;
@@ -632,7 +655,8 @@ body {
 .focus-btn.active-focus {
     background: rgba(0, 0, 0, 0.08);
     border-color: rgba(0, 0, 0, 0.08);
-    color: #e11d48; /* red */
+    color: #e11d48;
+    /* red */
 }
 
 .focus-btn.active-focus:hover {
@@ -667,7 +691,8 @@ body {
 
 .fav-btn {
     background: transparent;
-    color: #d1d5db; /* Light gray */
+    color: #d1d5db;
+    /* Light gray */
     padding: 4px;
     min-width: 28px;
 }
@@ -678,11 +703,13 @@ body {
 
 .fav-btn:hover {
     transform: scale(1.1);
-    color: #9ca3af; /* Slightly darker on hover */
+    color: #9ca3af;
+    /* Slightly darker on hover */
 }
 
 .fav-btn.active {
-    color: #4b5563; /* Darker gray */
+    color: #4b5563;
+    /* Darker gray */
 }
 
 .fav-btn.active svg {
@@ -693,7 +720,8 @@ body {
 /* Add Task Container */
 .add-task-container {
     display: flex;
-    align-items: center; /* Ensure vertical centering */
+    align-items: center;
+    /* Ensure vertical centering */
     padding: 8px 16px;
     gap: 8px;
     flex-shrink: 0;
@@ -739,7 +767,8 @@ body {
 }
 
 .duration-input-container.visible {
-    width: 85px; /* Adjusted to fit spinners */
+    width: 85px;
+    /* Adjusted to fit spinners */
     opacity: 1;
 }
 
@@ -751,7 +780,8 @@ body {
     background: transparent;
     text-align: right;
     font-size: 13px;
-    color: #000; /* User wants black text when typing */
+    color: #000;
+    /* User wants black text when typing */
     outline: none;
     -moz-appearance: textfield;
     appearance: textfield;
@@ -765,7 +795,8 @@ body {
 
 .task-duration-input::placeholder,
 #task-duration-input::placeholder {
-    color: #999; /* Lighter placeholder */
+    color: #999;
+    /* Lighter placeholder */
 }
 
 .task-duration-input::-webkit-outer-spin-button,
@@ -780,12 +811,15 @@ body {
     display: inline-flex;
     vertical-align: middle;
     flex-shrink: 0;
-    width: auto; /* Override the fixed 85px from .visible */
-    margin-left: 4px; /* Match .task-meta spacing */
+    width: auto;
+    /* Override the fixed 85px from .visible */
+    margin-left: 4px;
+    /* Match .task-meta spacing */
 }
 
 .task-duration-edit .task-duration-input {
-    width: 28px; /* Compact width for existing tasks (just digits + m) */
+    width: 28px;
+    /* Compact width for existing tasks (just digits + m) */
     flex: none;
     text-align: right;
 }
@@ -796,14 +830,16 @@ body {
     margin-left: 0;
     width: 0;
     overflow: hidden;
-    opacity: 0; /* Hidden by default (when showing placeholder) */
+    opacity: 0;
+    /* Hidden by default (when showing placeholder) */
     transition: opacity 0.2s ease, width 0.2s ease, margin-left 0.2s ease;
 }
 
 .duration-input-container.has-value .duration-label {
     width: 12px;
     margin-left: 2px;
-    opacity: 1; /* Show "m" only when user has typed a number */
+    opacity: 1;
+    /* Show "m" only when user has typed a number */
 }
 
 /* Duration Spinner Buttons */
@@ -879,8 +915,10 @@ body {
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-    width: 0px;  /* Hide vertical scrollbar */
-    height: 4px; /* Make horizontal scrollbar thin */
+    width: 0px;
+    /* Hide vertical scrollbar */
+    height: 4px;
+    /* Make horizontal scrollbar thin */
 }
 
 ::-webkit-scrollbar-track {
@@ -898,7 +936,8 @@ body {
 
 /* Tabs specific scrollbar */
 .tabs::-webkit-scrollbar {
-    height: 0px; /* Hide horizontal scrollbar for tabs entirely */
+    height: 0px;
+    /* Hide horizontal scrollbar for tabs entirely */
 }
 
 /* Done Container */
@@ -1120,12 +1159,15 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: transparent; /* Let container handle background */
-    /* backdrop-filter: blur(10px); */ /* Moved to container */
+    background: transparent;
+    /* Let container handle background */
+    /* backdrop-filter: blur(10px); */
+    /* Moved to container */
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0; /* Remove any padding */
+    padding: 0;
+    /* Remove any padding */
 }
 
 .hidden {
@@ -1139,16 +1181,18 @@ body {
     min-width: 0;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    border-radius: 0; /* Remove border radius as it fills the window */
+    border-radius: 0;
+    /* Remove border radius as it fills the window */
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
-    box-shadow: none; /* Remove shadow as it fills the window */
-    border: none; /* Remove border */
+    padding: 0 14px;
+    box-shadow: none;
+    /* Remove shadow as it fills the window */
+    border: none;
+    /* Remove border */
     position: relative;
-    cursor: default;
-    -webkit-app-region: drag;
+    cursor: grab;
     transition: all 0.3s ease;
 }
 
@@ -1160,7 +1204,8 @@ body {
     border-radius: 10px;
     pointer-events: none;
     box-sizing: border-box;
-    border: 3px solid rgba(102, 126, 234, 0); /* #667eea */
+    border: 3px solid rgba(102, 126, 234, 0);
+    /* #667eea */
     animation: attentionRing 900ms ease-out 1;
 }
 
@@ -1169,14 +1214,17 @@ body {
         border-color: rgba(102, 126, 234, 0);
         box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
     }
+
     15% {
         border-color: rgba(102, 126, 234, 0.95);
         box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.35);
     }
+
     70% {
         border-color: rgba(102, 126, 234, 0.65);
         box-shadow: 0 0 0 6px rgba(102, 126, 234, 0.15);
     }
+
     100% {
         border-color: rgba(102, 126, 234, 0);
         box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
@@ -1208,7 +1256,7 @@ body {
     text-align: center;
     margin-right: 0;
     white-space: normal;
-    
+
     /* Split screen layout */
     flex: 0 0 50%;
     width: 100%;
@@ -1226,8 +1274,9 @@ body {
     text-align: center;
     width: 100%;
     margin: 0;
-    opacity: 1 !important; /* Always show timer in fullscreen */
-    
+    opacity: 1 !important;
+    /* Always show timer in fullscreen */
+
     /* Split screen layout */
     flex: 0 0 50%;
     display: flex;
@@ -1282,7 +1331,7 @@ body {
 .focus-buttons-container {
     position: absolute;
     top: 50%;
-    right: 24px;
+    right: 14px;
     transform: translateY(-50%);
     display: flex;
     gap: 4px;
@@ -1352,7 +1401,7 @@ body {
 
 .focus-task-name {
     color: #333;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 400;
     flex: 1;
     text-align: left;
@@ -1368,14 +1417,16 @@ body {
 }
 
 .focus-timer {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     color: #333;
     text-align: right;
     -webkit-app-region: no-drag;
     flex-shrink: 0;
-    width: auto; /* Allow timer to take only needed space */
-    min-width: 90px; /* Minimum width to prevent jumping */
+    width: auto;
+    /* Allow timer to take only needed space */
+    min-width: 90px;
+    /* Minimum width to prevent jumping */
     margin-left: auto;
     transition: opacity 0.2s ease;
 }
@@ -1383,6 +1434,7 @@ body {
 .focus-timer.overtime {
     color: #ef4444;
 }
+
 /* Basecamp Settings */
 .settings-section {
     margin-bottom: 24px;
@@ -1392,7 +1444,8 @@ body {
     font-size: 14px;
     font-weight: 600;
     color: #333;
-    margin-bottom: 0; /* Removed default margin, controlled by parent layout */
+    margin-bottom: 0;
+    /* Removed default margin, controlled by parent layout */
 }
 
 .settings-desc {
@@ -1597,8 +1650,13 @@ body {
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .sync-btn.disconnected {
@@ -1645,7 +1703,8 @@ body {
     transition: opacity 0.2s ease;
 }
 
-.add-task-resizer:hover, .add-task-resizer.dragging {
+.add-task-resizer:hover,
+.add-task-resizer.dragging {
     opacity: 1;
 }
 
@@ -1653,7 +1712,7 @@ body {
     content: '';
     width: 32px;
     height: 4px;
-    background: rgba(0,0,0,0.2);
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 2px;
 }
 
@@ -1681,8 +1740,15 @@ body {
 }
 
 @keyframes slideUp {
-    from { transform: translate(-50%, 100%); opacity: 0; }
-    to { transform: translate(-50%, 0); opacity: 1; }
+    from {
+        transform: translate(-50%, 100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
 }
 
 .undo-btn {
@@ -1736,12 +1802,15 @@ body {
 /* Apple Reminders specific button style */
 #reminders-connect-btn {
     background: white;
-    color: #09090b; /* shadcn-like text color */
-    border: 1px solid #e4e4e7; /* shadcn-like border color */
+    color: #09090b;
+    /* shadcn-like text color */
+    border: 1px solid #e4e4e7;
+    /* shadcn-like border color */
 }
 
 #reminders-connect-btn:hover {
-    background: #f4f4f5; /* shadcn-like hover bg */
+    background: #f4f4f5;
+    /* shadcn-like hover bg */
     color: #18181b;
 }
 
@@ -1765,12 +1834,15 @@ body {
 /* Apple Reminders specific button style */
 #reminders-connect-btn {
     background: white;
-    color: #09090b; /* shadcn-like text color */
-    border: 1px solid #e4e4e7; /* shadcn-like border color */
+    color: #09090b;
+    /* shadcn-like text color */
+    border: 1px solid #e4e4e7;
+    /* shadcn-like border color */
 }
 
 #reminders-connect-btn:hover {
-    background: #f4f4f5; /* shadcn-like hover bg */
+    background: #f4f4f5;
+    /* shadcn-like hover bg */
     color: #18181b;
 }
 

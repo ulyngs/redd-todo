@@ -54,7 +54,7 @@ function ensureFocusWindow() {
 
   focusWindow = new FocusWindowClass({
     width: 320,
-    height: 60,
+    height: 48,
     show: false,
     frame: false,
     alwaysOnTop: true,
@@ -443,7 +443,7 @@ ipcMain.on('enter-focus-mode', (event, taskName) => {
     const [currentX, currentY] = targetWindow.getPosition();
 
     // Start with a reasonable default size, will be adjusted by set-focus-window-size
-    targetWindow.setSize(320, 60);
+    targetWindow.setSize(320, 48);
     // Restore position (setSize might center or move it on some platforms/configs)
     targetWindow.setPosition(currentX, currentY);
 
@@ -468,7 +468,7 @@ ipcMain.on('set-focus-window-size', (event, width) => {
   if (targetWindow) {
     targetWindow.setFullScreen(false); // Ensure not fullscreen when resizing
     const [currentX, currentY] = targetWindow.getPosition();
-    targetWindow.setSize(width, 60);
+    targetWindow.setSize(width, 48);
     targetWindow.setPosition(currentX, currentY);
     // Removed mainWindow.center() to preserve position
   }
