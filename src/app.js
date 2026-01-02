@@ -3721,15 +3721,18 @@ function editTaskDuration(taskId, metaElement) {
     incBtn.addEventListener('click', () => {
         const currentVal = parseInt(input.value, 10);
         const base = Number.isFinite(currentVal) ? currentVal : 0;
-        const newVal = Math.min(Math.max(base + 1, 1), 999);
+        const newVal = Math.min(Math.max(base + 1, 0), 999);
         input.value = newVal;
         container.classList.add('has-value');
     });
 
     decBtn.addEventListener('click', () => {
         const currentVal = parseInt(input.value, 10);
-        if (!Number.isFinite(currentVal) || currentVal <= 0) return;
-        const newVal = Math.min(Math.max(currentVal - 1, 1), 999);
+        if (!Number.isFinite(currentVal) || currentVal <= 0) {
+            input.value = 0; // Ensure it goes to 0 if invalid or < 0
+            return;
+        }
+        const newVal = Math.min(Math.max(currentVal - 1, 0), 999);
         input.value = newVal;
         container.classList.add('has-value');
     });
