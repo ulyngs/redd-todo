@@ -15,19 +15,20 @@ let enableGroups = false; // Feature toggle for tab groups
 let focusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
-    // Track dragged items
-    let draggedTaskId = null;
-    let draggedTabId = null;
-    let draggedGroupId = null; // Track dragged group
-    let focusedTaskId = null; // To track which task is currently in focus mode
-    let activeFocusTaskId = null; // Used to style the focused task in the main window
-    let currentView = 'lists'; // 'lists' or 'favourites'
-    
-    // Cross-tab task dragging state
-    let dragSourceTabId = null; // The tab where the dragged task originated
-    let tabHoverTimeout = null; // Timer for auto-switching tabs when hovering
-    let dragTargetTabId = null; // The tab we've switched to while dragging (null if same as source)
-    let dragPlaceholderPosition = 0; // Position where the placeholder is in the target tab
+// Track dragged items
+let draggedTaskId = null;
+let draggedTabId = null;
+let draggedGroupId = null; // Track dragged group
+let focusedTaskId = null; // To track which task is currently in focus mode
+let activeFocusTaskId = null; // Used to style the focused task in the main window
+let currentView = 'lists'; // 'lists' or 'favourites'
+let favouritesOrder = []; // Order of favourite task IDs for custom sorting
+
+// Cross-tab task dragging state
+let dragSourceTabId = null; // The tab where the dragged task originated
+let tabHoverTimeout = null; // Timer for auto-switching tabs when hovering
+let dragTargetTabId = null; // The tab we've switched to while dragging (null if same as source)
+let dragPlaceholderPosition = 0; // Position where the placeholder is in the target tab
 
 // View Switcher Elements
 const viewListsBtn = document.getElementById('view-lists-btn');
@@ -211,18 +212,18 @@ function initApp() {
         if (!tabs[currentTabId] || tabs[currentTabId].groupId !== currentGroupId) {
             switchToTab(currentGroupTabs[0].id);
         } else {
-             // Just render tabs
-             renderTabs();
-             renderTasks();
-             // Update sync button state
-             updateSyncButtonState();
+            // Just render tabs
+            renderTabs();
+            renderTasks();
+            // Update sync button state
+            updateSyncButtonState();
         }
     } else if (Object.keys(tabs).length > 0) {
-         // Should not happen if we migrate correctly, but safety fallback
-         renderTabs();
-         renderTasks();
+        // Should not happen if we migrate correctly, but safety fallback
+        renderTabs();
+        renderTasks();
     }
-    
+
     // Check Basecamp connection status
     updateBasecampUI();
     updateRemindersUI();
@@ -241,13 +242,13 @@ function initApp() {
 function createGroup(name) {
     const groupId = `group_${Date.now()}`;
     const groupName = name.trim() || 'New Group';
-    
+
     groups[groupId] = {
         id: groupId,
         name: groupName,
         order: Object.keys(groups).length
     };
-    
+
     saveData();
     switchToGroup(groupId);
     return groupId;
@@ -255,10 +256,10 @@ function createGroup(name) {
 
 function switchToGroup(groupId) {
     if (!groups[groupId]) return;
-    
+
     currentGroupId = groupId;
     renderGroups();
-    
+
     // Switch to first tab in this group
     const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
     if (groupTabs.length > 0) {
@@ -288,7 +289,7 @@ function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId
 
     renderTabs();
     saveData();
-    
+
     // If connected to Basecamp, fetch tasks immediately
     if (bcProjectId && bcListId) {
         syncBasecampList(tabId);
@@ -297,7 +298,7 @@ function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId
     if (remindersListId) {
         syncRemindersList(tabId);
     }
-    
+
     return tabId;
 }
 
@@ -313,7 +314,7 @@ function switchToTab(tabId) {
     currentTabId = tabId;
     renderTabs();
     renderTasks();
-    
+
     // Update sync button state
     updateSyncButtonState();
 }
@@ -327,23 +328,23 @@ function showConfirmModal(title, message, okText = 'OK', cancelText = 'Cancel') 
         confirmModalOk.textContent = okText;
         confirmModalCancel.textContent = cancelText;
         confirmModal.classList.remove('hidden');
-        
+
         const cleanup = () => {
             confirmModal.classList.add('hidden');
             confirmModalOk.removeEventListener('click', handleOk);
             confirmModalCancel.removeEventListener('click', handleCancel);
         };
-        
+
         const handleOk = () => {
             cleanup();
             resolve(true);
         };
-        
+
         const handleCancel = () => {
             cleanup();
             resolve(false);
         };
-        
+
         confirmModalOk.addEventListener('click', handleOk);
         confirmModalCancel.addEventListener('click', handleCancel);
     });
@@ -355,11 +356,11 @@ function updateSyncButtonState() {
         syncBtn.classList.add('hidden');
         return;
     }
-    
+
     const tab = tabs[currentTabId];
     const isSyncedToBasecamp = !!tab.basecampListId;
     const isSyncedToReminders = !!tab.remindersListId;
-    
+
     if (!isSyncedToBasecamp && !isSyncedToReminders) {
         // Not a synced list - hide button
         syncBtn.classList.add('hidden');
@@ -367,13 +368,13 @@ function updateSyncButtonState() {
         syncBtn.title = 'Sync';
         return;
     }
-    
+
     // Check connection status for the relevant service(s)
     const basecampDisconnected = isSyncedToBasecamp && !basecampConfig.isConnected;
     const remindersDisconnected = isSyncedToReminders && !remindersConfig.isConnected;
-    
+
     syncBtn.classList.remove('hidden');
-    
+
     if (basecampDisconnected || remindersDisconnected) {
         // Show button but mark as disconnected
         syncBtn.classList.add('disconnected');
@@ -397,9 +398,9 @@ function closeTab(tabId) {
     if (tab.tasks && tab.tasks.length > 0) {
         const completedCount = tab.tasks.filter(t => t.completed).length;
         const uncompletedCount = tab.tasks.length - completedCount;
-        
+
         const confirmMessage = `Are you sure you wanted to delete the todo-list <strong>'${tab.name}'</strong>, with ${uncompletedCount} uncompleted and ${completedCount} completed tasks?`;
-        
+
         showDeleteConfirmModal(tabId, confirmMessage);
         return;
     }
@@ -411,7 +412,7 @@ function performTabDeletion(tabId) {
     if (!tabs[tabId]) return;
 
     const tabIndex = Object.keys(tabs).indexOf(tabId);
-    
+
     // Save for undo
     lastDeletedItem = {
         type: 'tab',
@@ -438,10 +439,10 @@ function performTabDeletion(tabId) {
 function showUndoToast(message) {
     undoMessage.textContent = message;
     undoToast.classList.remove('hidden');
-    
+
     // Clear existing timeout
     if (undoTimeout) clearTimeout(undoTimeout);
-    
+
     // Auto hide after 5 seconds
     undoTimeout = setTimeout(() => {
         hideUndoToast();
@@ -455,75 +456,75 @@ function hideUndoToast() {
 
 async function performUndo() {
     if (!lastDeletedItem) return;
-    
+
     if (lastDeletedItem.type === 'tab') {
         const tab = lastDeletedItem.data;
         tabs[tab.id] = tab;
-        
+
         // Switch to restored tab
         switchToTab(tab.id);
-        
+
     } else if (lastDeletedItem.type === 'group') {
         const group = lastDeletedItem.data;
         const groupTabs = lastDeletedItem.tabs;
-        
+
         // Restore group
         groups[group.id] = group;
-        
+
         // Restore tabs
         groupTabs.forEach(tab => {
             tabs[tab.id] = tab;
         });
-        
+
         // Switch to restored group
         currentGroupId = group.id;
         renderGroups();
-        
+
         if (groupTabs.length > 0) {
             switchToTab(groupTabs[0].id);
         }
     } else if (lastDeletedItem.type === 'task') {
         const task = lastDeletedItem.data;
         const tab = tabs[lastDeletedItem.tabId];
-        
-        if (tab) {
-             // Restore locally
-             if (lastDeletedItem.index !== undefined && lastDeletedItem.index >= 0) {
-                 tab.tasks.splice(lastDeletedItem.index, 0, task);
-             } else {
-                 tab.tasks.push(task);
-             }
 
-             // Restore to Basecamp
-             if (lastDeletedItem.basecampListId && basecampConfig.isConnected && task.basecampId) {
-                 // Creating a NEW todo because we can't un-delete easily via API usually, 
-                 // unless we archived it? Basecamp API uses "recording" buckets. 
-                 // Actually Basecamp 3 API supports "unarchiving" but we sent a DELETE request.
-                 // A DELETE request in BC3 usually trashes it. Recovering from trash is hard via API.
-                 // So we recreate it.
-                 // But wait, if we recreate it, it gets a NEW ID.
-                 // So we need to update the local task with the new ID.
-                 createBasecampTodo(tab.id, task);
-             }
-             
-             // Restore to Reminders
-             if (lastDeletedItem.remindersListId && remindersConfig.isConnected && task.remindersId) {
-                 // Reminders API also deletes. We must recreate.
-                 const newId = await createRemindersTask(lastDeletedItem.remindersListId, task.text);
-                 if (newId) {
-                     task.remindersId = newId;
-                 }
-             }
-             
-             // Switch to the tab if we aren't on it
-             if (currentTabId !== tab.id) {
-                 switchToTab(tab.id);
-             }
+        if (tab) {
+            // Restore locally
+            if (lastDeletedItem.index !== undefined && lastDeletedItem.index >= 0) {
+                tab.tasks.splice(lastDeletedItem.index, 0, task);
+            } else {
+                tab.tasks.push(task);
+            }
+
+            // Restore to Basecamp
+            if (lastDeletedItem.basecampListId && basecampConfig.isConnected && task.basecampId) {
+                // Creating a NEW todo because we can't un-delete easily via API usually, 
+                // unless we archived it? Basecamp API uses "recording" buckets. 
+                // Actually Basecamp 3 API supports "unarchiving" but we sent a DELETE request.
+                // A DELETE request in BC3 usually trashes it. Recovering from trash is hard via API.
+                // So we recreate it.
+                // But wait, if we recreate it, it gets a NEW ID.
+                // So we need to update the local task with the new ID.
+                createBasecampTodo(tab.id, task);
+            }
+
+            // Restore to Reminders
+            if (lastDeletedItem.remindersListId && remindersConfig.isConnected && task.remindersId) {
+                // Reminders API also deletes. We must recreate.
+                const newId = await createRemindersTask(lastDeletedItem.remindersListId, task.text);
+                if (newId) {
+                    task.remindersId = newId;
+                }
+            }
+
+            // Switch to the tab if we aren't on it
+            if (currentTabId !== tab.id) {
+                switchToTab(tab.id);
+            }
         }
     } else if (lastDeletedItem.type === 'tasks_bulk') {
         const tasks = lastDeletedItem.data || [];
         const tab = tabs[lastDeletedItem.tabId];
-        
+
         if (tab && Array.isArray(tasks) && tasks.length > 0) {
             // Restore locally (append is fine; completedAt sorting controls Done display order)
             tab.tasks.push(...tasks);
@@ -538,12 +539,12 @@ async function performUndo() {
             }
 
             // If user is on a different tab, switch so they see the restoration
-             if (currentTabId !== tab.id) {
-                 switchToTab(tab.id);
-             }
+            if (currentTabId !== tab.id) {
+                switchToTab(tab.id);
+            }
         }
     }
-    
+
     lastDeletedItem = null;
     hideUndoToast();
     renderTabs();
@@ -575,22 +576,22 @@ function deleteGroup(groupId) {
 
     const group = groups[groupId];
     const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
-    
+
     if (groupTabs.length > 0) {
         let totalTasks = 0;
         let completedTasks = 0;
-        
+
         groupTabs.forEach(tab => {
             if (tab.tasks) {
                 totalTasks += tab.tasks.length;
                 completedTasks += tab.tasks.filter(t => t.completed).length;
             }
         });
-        
+
         const uncompletedTasks = totalTasks - completedTasks;
-        
+
         const confirmMessage = `Are you sure you want to delete the group <strong>'${group.name}'</strong>?<br><br>This will delete <strong>${groupTabs.length} lists</strong> containing ${uncompletedTasks} uncompleted and ${completedTasks} completed tasks.`;
-        
+
         showGroupDeleteConfirmModal(groupId, confirmMessage);
         return;
     }
@@ -603,7 +604,7 @@ function performGroupDeletion(groupId) {
 
     // Delete all tabs in this group
     const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
-    
+
     // Save for undo
     lastDeletedItem = {
         type: 'group',
@@ -612,7 +613,7 @@ function performGroupDeletion(groupId) {
         index: groups[groupId].order // Store order/index
     };
     showUndoToast(`Group '${groups[groupId].name}' deleted`);
-    
+
     groupTabs.forEach(tab => {
         delete tabs[tab.id];
     });
@@ -625,7 +626,7 @@ function performGroupDeletion(groupId) {
         const remainingGroups = Object.keys(groups);
         currentGroupId = remainingGroups[0];
     }
-    
+
     // If we switched groups, we need to pick a valid tab in the new group
     const currentGroupTabs = Object.values(tabs).filter(t => t.groupId === currentGroupId);
     if (currentGroupTabs.length > 0) {
@@ -667,24 +668,24 @@ function addTask(text) {
 
     let targetTabId = currentTabId;
     if (currentView === 'favourites') {
-         const allTabIds = Object.keys(tabs);
-         if (allTabIds.length > 0) {
-             targetTabId = allTabIds[0];
-         }
+        const allTabIds = Object.keys(tabs);
+        if (allTabIds.length > 0) {
+            targetTabId = allTabIds[0];
+        }
     }
 
     if (!targetTabId) return; // Should not happen if tabs exist
 
     tabs[targetTabId].tasks.push(task);
-    
+
     // If this is a Basecamp list, create the todo in Basecamp
     if (tabs[targetTabId].basecampListId && basecampConfig.isConnected) {
         createBasecampTodo(targetTabId, task);
     }
-    
+
     renderTasks();
     saveData();
-    
+
     // Reset inputs
     newTaskInput.value = '';
     taskDurationInput.value = '';
@@ -696,10 +697,10 @@ function addTask(text) {
 function deleteTask(taskId) {
     const context = getTaskContext(taskId);
     if (!context) return;
-    
+
     const { task, tabId, tab } = context;
     const taskIndex = tab.tasks.findIndex(t => t.id === taskId);
-    
+
     if (taskIndex !== -1) {
         // Save for undo
         lastDeletedItem = {
@@ -737,22 +738,22 @@ function toggleTask(taskId) {
         console.log('❌ Task not found, returning');
         return;
     }
-    
+
     const { task, tabId, tab } = context;
     const wasCompleted = task.completed;
-    
+
     // Toggle the completion status
     task.completed = !task.completed;
-    
+
     // If the task was completed and is now incomplete, move it to the beginning
     if (wasCompleted && !task.completed) {
         console.log('✅ Condition met: was completed and now incomplete, moving to beginning');
         // Remove from current position
         const taskIndex = tab.tasks.indexOf(task);
         if (taskIndex !== -1) {
-             tab.tasks.splice(taskIndex, 1);
-             // Insert at the beginning
-             tab.tasks.unshift(task);
+            tab.tasks.splice(taskIndex, 1);
+            // Insert at the beginning
+            tab.tasks.unshift(task);
         }
         // Clear completedAt
         task.completedAt = null;
@@ -760,15 +761,15 @@ function toggleTask(taskId) {
         // If task is being marked as completed, set timestamp
         task.completedAt = new Date().toISOString();
     }
-    
+
     // Always track when status was last changed (for sync conflict resolution)
     task.statusChangedAt = new Date().toISOString();
-    
+
     // If Basecamp connected, sync status
     if (tab.basecampListId && basecampConfig.isConnected && task.basecampId) {
         updateBasecampCompletion(tabId, task);
     }
-    
+
     // If Reminders connected, sync status
     if (tab.remindersListId && remindersConfig.isConnected && task.remindersId) {
         updateRemindersCompletion(task.remindersId, task.completed);
@@ -788,10 +789,10 @@ function toggleTask(taskId) {
             }
         }
     }
-    
+
     // Save data immediately but delay the visual re-render
     saveData();
-    
+
     // Wait 300ms before moving task between sections
     setTimeout(() => {
         renderTasks();
@@ -800,13 +801,13 @@ function toggleTask(taskId) {
 
 function focusTask(taskId) {
     console.log('focusTask called with taskId:', taskId);
-    
+
     const context = getTaskContext(taskId);
     if (!context) {
         console.log('❌ Task not found');
         return;
     }
-    
+
     const { task } = context;
 
     // If this task is already focused (as indicated in the main window), clicking the icon exits focus mode.
@@ -847,7 +848,7 @@ function handleTabDragStart(e) {
 function handleTabDragEnd(e) {
     e.target.classList.remove('dragging');
     draggedTabId = null;
-    
+
     document.querySelectorAll('.tab').forEach(el => {
         el.classList.remove('drag-over');
     });
@@ -855,25 +856,25 @@ function handleTabDragEnd(e) {
 
 function handleTabDragOver(e) {
     e.preventDefault();
-    
+
     if (draggedTabId) {
         const target = e.target.closest('.tab');
-        
+
         if (target && target.dataset.tabId === draggedTabId) return;
 
         e.dataTransfer.dropEffect = 'move';
-        
+
         const container = tabsContainer;
         const afterElement = getDragAfterElement(container, e.clientX, '.tab');
         const draggable = document.querySelector('.tab.dragging');
-        
+
         if (draggable) {
             if (afterElement == null) {
                 const addBtn = container.querySelector('.add-tab-btn-subtle');
                 if (addBtn) {
                     container.insertBefore(draggable, addBtn);
                 } else {
-                     container.appendChild(draggable);
+                    container.appendChild(draggable);
                 }
             } else {
                 container.insertBefore(draggable, afterElement);
@@ -884,11 +885,11 @@ function handleTabDragOver(e) {
 
 function handleTabDrop(e) {
     e.preventDefault();
-    
+
     if (draggedTabId) {
         saveTabOrderFromDOM();
     }
-    
+
     document.querySelectorAll('.tab.drag-over').forEach(el => {
         el.classList.remove('drag-over');
     });
@@ -897,21 +898,21 @@ function handleTabDrop(e) {
 function saveTabOrderFromDOM() {
     const tabElements = Array.from(tabsContainer.querySelectorAll('.tab'));
     const newTabs = {};
-    
+
     tabElements.forEach(el => {
         const tabId = el.dataset.tabId;
         if (tabs[tabId]) {
             newTabs[tabId] = tabs[tabId];
         }
     });
-    
+
     if (enableGroups) {
         const otherTabs = Object.keys(tabs).filter(key => tabs[key].groupId !== currentGroupId);
         otherTabs.forEach(key => {
             newTabs[key] = tabs[key];
         });
     }
-    
+
     tabs = newTabs;
     saveData();
 }
@@ -920,14 +921,14 @@ function saveTabOrderFromDOM() {
     // Reconstruct the tabs object in the new order
     const tabElements = Array.from(tabsContainer.querySelectorAll('.tab'));
     const newTabs = {};
-    
+
     tabElements.forEach(el => {
         const tabId = el.dataset.tabId;
         if (tabs[tabId]) {
             newTabs[tabId] = tabs[tabId];
         }
     });
-    
+
     if (enableGroups) {
         // If groups are enabled, preserve tabs from other groups
         const otherTabs = Object.keys(tabs).filter(key => tabs[key].groupId !== currentGroupId);
@@ -935,7 +936,7 @@ function saveTabOrderFromDOM() {
             newTabs[key] = tabs[key];
         });
     }
-    
+
     tabs = newTabs;
     saveData();
 }
@@ -944,21 +945,21 @@ function reorderTabs(draggedId, targetId) {
     const tabIds = Object.keys(tabs);
     const draggedIndex = tabIds.indexOf(draggedId);
     const targetIndex = tabIds.indexOf(targetId);
-    
+
     if (draggedIndex === -1 || targetIndex === -1) return;
-    
+
     // Create new ordered object
     const newTabs = {};
     const tabArray = Object.entries(tabs);
     const [draggedEntry] = tabArray.splice(draggedIndex, 1);
-    
+
     // If moving right (higher index), we need to adjust target index because removal shifted indices
     // But splice logic is cleaner if we just use the target index logic similar to tasks
     // Let's reconstruct the array
-    
+
     // We need to know if we are dropping BEFORE or AFTER the target
     // Typically simpler to just insert at target index
-    
+
     let insertIndex = targetIndex;
     if (draggedIndex < targetIndex) {
         // If dragging from left to right, we want to insert AFTER the target? 
@@ -971,11 +972,11 @@ function reorderTabs(draggedId, targetId) {
         // Let's stick to "insert before target". 
         // But if I drag A to C, and drop, it goes before C.
         // If I drag C to A, and drop, it goes before A.
-        
+
         // Correction: `splice` insert puts it AT index, pushing existing element at that index to the right.
         // So if I have [A, B, C], drag A to C. Remove A -> [B, C]. Target C is index 1. Splice(1, 0, A) -> [B, A, C].
         // This feels like "swapping" or "placing before".
-        
+
         // To enable placing "after" the last item, we usually need drop targets. 
         // But for tabs, "place before" is usually fine enough as long as you can reach the end.
         // Since we can't easily drop "after" the last element without a specific target or logic, 
@@ -987,13 +988,13 @@ function reorderTabs(draggedId, targetId) {
         // So if dragged < target, insertIndex = targetIndex.
         // If dragged > target (moving left), [A, B, C]. Drag C to A. Remove C -> [A, B]. Target A is index 0. 
         // Insert at 0 -> [C, A, B]. Correct.
-        
+
         // However, standard splice behavior:
         // const arr = ['A', 'B', 'C']; 
         // Remove 'A' (idx 0): ['B', 'C']. Target 'C' is now idx 1.
         // If I want it before C: splice(1, 0, 'A') -> ['B', 'A', 'C'].
         // If I want it after C: splice(2, 0, 'A') -> ['B', 'C', 'A'].
-        
+
         // Let's stick to a simple "insert at target index" approach which effectively puts it "before" the target.
         // BUT, if moving right, the target has shifted left by 1.
         // original indices: A:0, B:1, C:2.
@@ -1001,16 +1002,16 @@ function reorderTabs(draggedId, targetId) {
         // Remove A. Array is [B, C]. C is at 1.
         // If we use original target index (2), we insert at 2 (end). -> [B, C, A]. 
         // This feels natural for "drag A onto C".
-        
+
         // Let's try simply:
         // 1. Convert tabs to array of entries
         // 2. Remove dragged entry
         // 3. Insert at target index (adjusting if needed)
-        
+
         // Actually, let's use the same logic as tasks:
         // if (draggedIndex < targetIndex) insertIndex = targetIndex;
         // else insertIndex = targetIndex; 
-        
+
         // Wait, in task logic:
         // if (draggedIndex < targetIndex) insertIndex = targetIndex - 1;
         // That was because we hadn't removed it yet? No, we did splice.
@@ -1019,9 +1020,9 @@ function reorderTabs(draggedId, targetId) {
         // let insertIndex = targetIndex;
         // if (draggedIndex < targetIndex) insertIndex = targetIndex - 1;
         // currentTab.tasks.splice(insertIndex, 0, draggedTask);
-        
+
         // Let's copy that logic, it worked for tasks.
-         if (draggedIndex < targetIndex) {
+        if (draggedIndex < targetIndex) {
             insertIndex = targetIndex; // Note: In tasks I did targetIndex - 1, let's verify why.
             // Tasks: [A, B, C]. Drag A(0) to C(2). 
             // Splice A: [B, C]. C is at 1.
@@ -1031,7 +1032,7 @@ function reorderTabs(draggedId, targetId) {
             // Usually dropping ON C means "put before C" or "swap with C".
             // If I want to put after C, I need to drop past C.
             // Let's stick to "insert before target" logic.
-            
+
             insertIndex = targetIndex - 1;
         }
     }
@@ -1041,19 +1042,19 @@ function reorderTabs(draggedId, targetId) {
     // 2. Remove dragged key.
     // 3. Find index of target key in remaining array.
     // 4. Insert dragged key before target key.
-    
+
     // Let's do that, it's more robust than index math pre-removal.
     const keys = Object.keys(tabs);
     const remainingKeys = keys.filter(k => k !== draggedId);
     const newTargetIndex = remainingKeys.indexOf(targetId);
-    
+
     // If we are dragging right and dropping on a target, we usually expect it to go AFTER if we passed the center, 
     // but simple "insert before" is standard.
     // Exception: If we are dragging from left to right, and drop on the last item, we might want it to be last?
     // "Insert before" means we can never make it the last item by dropping on the last item.
     // We would need a drop target after the last item.
     // OR, we change logic: if dragging right, place AFTER target. If dragging left, place BEFORE target.
-    
+
     let finalIndex = newTargetIndex;
     if (draggedIndex < targetIndex) {
         // Dragging right: Insert AFTER target
@@ -1062,14 +1063,14 @@ function reorderTabs(draggedId, targetId) {
         // Dragging left: Insert BEFORE target
         finalIndex = newTargetIndex;
     }
-    
+
     remainingKeys.splice(finalIndex, 0, draggedId);
-    
+
     // Reconstruct tabs object
     remainingKeys.forEach(key => {
         newTabs[key] = tabs[key];
     });
-    
+
     tabs = newTabs;
     saveData();
     renderTabs();
@@ -1144,12 +1145,12 @@ function renderGroups() {
         const name = prompt('Enter group name:');
         if (name) createGroup(name);
         */
-       // Better: Reuse tab modal but set a flag? Or just use standard prompt for MVP.
-       // Let's stick to prompt for speed, can upgrade later.
-       // Actually, user said "clicking a plus just like for the existing tabs".
-       // The existing tabs use a custom modal. It would be nice to use that.
-       // Let's make showTabNameModal handle groups too.
-       showGroupModal();
+        // Better: Reuse tab modal but set a flag? Or just use standard prompt for MVP.
+        // Let's stick to prompt for speed, can upgrade later.
+        // Actually, user said "clicking a plus just like for the existing tabs".
+        // The existing tabs use a custom modal. It would be nice to use that.
+        // Let's make showTabNameModal handle groups too.
+        showGroupModal();
     });
     groupsContainer.appendChild(addGroupBtn);
 }
@@ -1159,15 +1160,15 @@ function showGroupModal() {
     modalTitle.textContent = 'Enter group name';
     createTabBtn.textContent = 'Create Group';
     tabNameInput.value = '';
-    tabNameInput.placeholder = 'My Group'; 
+    tabNameInput.placeholder = 'My Group';
     tabNameModal.classList.remove('hidden');
-    
+
     // Handle Basecamp visibility
     if (basecampConfig.isConnected) {
         basecampSelection.classList.remove('hidden');
         bcProjectSelect.innerHTML = '<option value="">Select a project...</option>';
         bcListWrapper.classList.add('hidden'); // No list selection for groups initially
-        
+
         fetchBasecampProjects().then(projects => {
             if (projects.length === 0) {
                 bcProjectSelect.innerHTML = '<option value="">No projects found</option>';
@@ -1183,11 +1184,11 @@ function showGroupModal() {
     } else {
         basecampSelection.classList.add('hidden');
     }
-    
+
     // We need to know we are creating a group
     // Let's attach a temporary handler or flag
     tabNameModal.dataset.mode = 'group';
-    
+
     tabNameInput.focus();
 }
 
@@ -1210,7 +1211,7 @@ function showGroupRenameModal(groupId) {
 async function handleModalCreate() {
     const mode = tabNameModal.dataset.mode;
     let name = tabNameInput.value.trim();
-    
+
     if (mode === 'group') {
         // Check if Basecamp project is selected
         const bcProjectId = bcProjectSelect.value;
@@ -1222,21 +1223,21 @@ async function handleModalCreate() {
         }
 
         const groupId = createGroup(name);
-        
+
         if (isImporting) {
             try {
                 // Fetch all todo lists from the project
                 const lists = await getBasecampTodoLists(bcProjectId);
-                
+
                 // Create tabs for each list
                 // Use for...of to allow await if we needed sequential async operations, 
                 // but createNewTab is sync (except for the syncBasecampList call which is async background)
                 // We want to trigger sync for all of them.
-                
+
                 for (const list of lists) {
                     createNewTab(list.name, bcProjectId, list.id);
                 }
-                
+
                 // After creating all tabs, we might want to re-render or switch to the first one?
                 // createNewTab already saves and renders.
                 // Maybe switch to the first imported tab?
@@ -1248,14 +1249,14 @@ async function handleModalCreate() {
                 // It calls syncBasecampList(tabId) if connected.
                 // It DOES NOT call switchToTab.
                 // Wait, in the event listener for creating a NEW tab (not group), it calls switchToTab(newTabId).
-                
+
                 // So here, we should decide which tab to switch to. 
                 // Probably the first one.
                 const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
                 if (groupTabs.length > 0) {
                     switchToTab(groupTabs[0].id);
                 }
-                
+
             } catch (e) {
                 console.error('Import Error:', e);
                 alert('Failed to import all lists from Basecamp.');
@@ -1290,7 +1291,7 @@ function handleGroupDragStart(e) {
 function handleGroupDragEnd(e) {
     e.target.classList.remove('dragging');
     draggedGroupId = null;
-    
+
     document.querySelectorAll('.group-tab').forEach(el => {
         el.classList.remove('drag-over');
     });
@@ -1306,12 +1307,12 @@ function handleGroupDragOver(e) {
         e.dataTransfer.dropEffect = 'move';
         target.classList.add('drag-over');
         return;
-    } 
+    }
 
     // Case 2: Reordering groups (Live Reordering)
     if (draggedGroupId) {
         e.dataTransfer.dropEffect = 'move';
-        
+
         // Don't reorder if over itself
         if (target.dataset.groupId === draggedGroupId) return;
 
@@ -1319,7 +1320,7 @@ function handleGroupDragOver(e) {
         const container = groupsContainer;
         const afterElement = getDragAfterElement(container, e.clientX, '.group-tab');
         const draggable = document.querySelector('.group-tab.dragging');
-        
+
         if (draggable) {
             if (afterElement == null) {
                 container.appendChild(draggable);
@@ -1340,16 +1341,16 @@ function handleGroupDragLeave(e) {
 function handleGroupDrop(e) {
     e.preventDefault();
     const target = e.target.closest('.group-tab');
-    
+
     if (target) {
         target.classList.remove('drag-over');
         const targetGroupId = target.dataset.groupId;
-        
+
         // Case 1: Moving Tab to Group
         if (draggedTabId && targetGroupId) {
             moveTabToGroup(draggedTabId, targetGroupId);
-        } 
-        
+        }
+
         // Case 2: Group Reordering - Save the new order from DOM
         if (draggedGroupId) {
             saveGroupOrderFromDOM();
@@ -1360,14 +1361,14 @@ function handleGroupDrop(e) {
 // Helper to save group order based on DOM position
 function saveGroupOrderFromDOM() {
     const groupElements = Array.from(groupsContainer.querySelectorAll('.group-tab'));
-    
+
     groupElements.forEach((el, index) => {
         const groupId = el.dataset.groupId;
         if (groups[groupId]) {
             groups[groupId].order = index;
         }
     });
-    
+
     saveData();
     // We don't need to renderGroups() because the DOM is already correct,
     // but we might want to ensure everything is clean.
@@ -1378,12 +1379,12 @@ function saveGroupOrderFromDOM() {
 // Helper to find insertion point
 function getDragAfterElement(container, x, selector) {
     const draggableElements = [...container.querySelectorAll(`${selector}:not(.dragging)`)];
-    
+
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         // Measure distance to the center of the element
         const offset = x - box.left - box.width / 2;
-        
+
         // We are interested in offsets < 0 (cursor is to the left of the center)
         // We want the element where the cursor is just to the left of its center (closest negative offset)
         if (offset < 0 && offset > closest.offset) {
@@ -1397,11 +1398,11 @@ function getDragAfterElement(container, x, selector) {
 // Helper to find insertion point for vertical lists (tasks)
 function getDragAfterElementVertical(container, y, selector) {
     const draggableElements = [...container.querySelectorAll(`${selector}:not(.dragging)`)];
-    
+
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const offset = y - box.top - box.height / 2;
-        
+
         if (offset < 0 && offset > closest.offset) {
             return { offset: offset, element: child };
         } else {
@@ -1415,11 +1416,11 @@ function moveTabToGroup(tabId, targetGroupId) {
         // Update group ID
         tabs[tabId].groupId = targetGroupId;
         saveData();
-        
+
         // Refresh view
         renderTabs();
         renderGroups(); // Optional, maybe to show count?
-        
+
         // If we moved the active tab to another group, deciding what to do
         // Usually we stay on current group. So the tab disappears from view.
         if (tabId === currentTabId && currentGroupId !== targetGroupId) {
@@ -1444,7 +1445,7 @@ function renderTabs() {
     if (enableGroups) {
         tabsToRender = tabsToRender.filter(tab => tab.groupId === currentGroupId);
     }
-    
+
     // Sort tabs? Currently they rely on object insertion order, which is usually consistent in JS for non-integer keys.
     // Ideally we would have an 'order' field but for now insertion order is used.
 
@@ -1476,7 +1477,7 @@ function renderTabs() {
 
         // Tab content
         const tabContent = document.createElement('span');
-        
+
         // Add Basecamp logo if connected
         if (tab.basecampListId) {
             const img = document.createElement('img');
@@ -1500,10 +1501,10 @@ function renderTabs() {
             icon.style.color = '#555'; // Subtle grey
             tabContent.appendChild(icon);
         }
-        
+
         const textNode = document.createTextNode(tab.name);
         tabContent.appendChild(textNode);
-        
+
         tabElement.appendChild(tabContent);
 
         // Close button (only if more than one tab AND it is the current tab)
@@ -1554,7 +1555,7 @@ function renderTabs() {
 function switchView(viewName) {
     if (currentView === viewName) return;
     currentView = viewName;
-    
+
     if (currentView === 'lists') {
         viewListsBtn.classList.add('active');
         viewFavBtn.classList.remove('active');
@@ -1579,6 +1580,23 @@ function getAllFavouriteTasks() {
             }
         });
     });
+
+    // Sort by favouritesOrder if available
+    // Tasks not in favouritesOrder go to the end, preserving their relative order
+    if (favouritesOrder.length > 0) {
+        allTasks.sort((a, b) => {
+            const indexA = favouritesOrder.indexOf(a.id);
+            const indexB = favouritesOrder.indexOf(b.id);
+            // If both are in the order array, sort by their position
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            // If only one is in the order array, it comes first
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            // If neither is in the order array, preserve original order
+            return 0;
+        });
+    }
+
     return allTasks;
 }
 
@@ -1588,7 +1606,7 @@ function getTaskContext(taskId) {
         const task = tabs[currentTabId].tasks.find(t => t.id === taskId);
         if (task) return { task, tabId: currentTabId, tab: tabs[currentTabId] };
     }
-    
+
     // Search all
     for (const tabId in tabs) {
         const task = tabs[tabId].tasks.find(t => t.id === taskId);
@@ -1602,7 +1620,7 @@ function getTaskContext(taskId) {
 function getTabSyncType(tabId) {
     const tab = tabs[tabId];
     if (!tab) return null;
-    
+
     if (tab.remindersListId) return 'reminders';
     if (tab.basecampListId) return 'basecamp';
     return 'local';
@@ -1616,32 +1634,32 @@ function areTabsCompatible(sourceTabId, targetTabId) {
 // Switch to a tab during a drag operation (creates a placeholder)
 function switchToTabForDrag(targetTabId) {
     if (!draggedTaskId || !dragSourceTabId) return;
-    
+
     // Get the original task data for the placeholder
     const sourceTab = tabs[dragSourceTabId];
     if (!sourceTab) return;
     const task = sourceTab.tasks.find(t => t.id === draggedTaskId);
     if (!task) return;
-    
+
     // Mark that we've switched to a different tab during drag
     dragTargetTabId = targetTabId;
     dragPlaceholderPosition = 0; // Start at top
-    
+
     // Switch to the target tab
     if (!tabs[targetTabId]) return;
-    
+
     // Update group if needed
     if (tabs[targetTabId].groupId && tabs[targetTabId].groupId !== currentGroupId) {
         currentGroupId = tabs[targetTabId].groupId;
         renderGroups();
     }
-    
+
     currentTabId = targetTabId;
     renderTabs();
-    
+
     // Render tasks with a placeholder
     renderTasksWithPlaceholder(task);
-    
+
     // Update sync button state
     updateSyncButtonState();
 }
@@ -1650,16 +1668,16 @@ function switchToTabForDrag(targetTabId) {
 function renderTasksWithPlaceholder(placeholderTask) {
     const currentTab = tabs[currentTabId];
     if (!currentTab) return;
-    
+
     const incompleteTasks = currentTab.tasks.filter(task => !task.completed);
     const completedTasks = currentTab.tasks.filter(task => task.completed).sort((a, b) => {
         const timeA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
         const timeB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
         return timeB - timeA;
     });
-    
+
     tasksContainer.innerHTML = '';
-    
+
     // Insert placeholder at the right position among incomplete tasks
     let insertedPlaceholder = false;
     incompleteTasks.forEach((task, index) => {
@@ -1672,20 +1690,20 @@ function renderTasksWithPlaceholder(placeholderTask) {
         const taskElement = createTaskElement(task);
         tasksContainer.appendChild(taskElement);
     });
-    
+
     // If placeholder should be at the end
     if (!insertedPlaceholder) {
         const placeholderEl = createPlaceholderElement(placeholderTask);
         tasksContainer.appendChild(placeholderEl);
     }
-    
+
     // Add bottom drag target
     const bottomDragTarget = document.createElement('div');
     bottomDragTarget.className = 'bottom-drag-target';
     bottomDragTarget.addEventListener('dragover', handlePlaceholderDragOver);
     bottomDragTarget.addEventListener('drop', handlePlaceholderDrop);
     tasksContainer.appendChild(bottomDragTarget);
-    
+
     // Render done section
     doneTasksContainer.innerHTML = '';
     if (completedTasks.length > 0) {
@@ -1705,18 +1723,18 @@ function createPlaceholderElement(task) {
     placeholder.className = 'task-item task-placeholder dragging';
     placeholder.dataset.taskId = task.id;
     placeholder.dataset.isPlaceholder = 'true';
-    
+
     placeholder.innerHTML = `
         <div class="drag-handle">⋮⋮</div>
         <input type="checkbox" class="task-checkbox" disabled>
         <span class="task-text">${task.text}</span>
         <div class="task-actions"></div>
     `;
-    
+
     // Allow the placeholder to be dragged/repositioned
     placeholder.addEventListener('dragover', handlePlaceholderDragOver);
     placeholder.addEventListener('drop', handlePlaceholderDrop);
-    
+
     return placeholder;
 }
 
@@ -1724,23 +1742,23 @@ function createPlaceholderElement(task) {
 function handlePlaceholderDragOver(e) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    
+
     if (!dragTargetTabId || !draggedTaskId) return;
-    
+
     // Remove tab highlight styles since we're in the task area now
     document.querySelectorAll('.tab').forEach(tab => {
         tab.classList.remove('task-drop-target', 'task-drop-incompatible');
     });
-    
+
     // Calculate new position based on mouse Y
     const container = tasksContainer;
     const placeholder = container.querySelector('.task-placeholder');
-    
+
     if (!placeholder) return;
-    
+
     const afterElement = getDragAfterElementVertical(container, e.clientY, '.task-item:not(.task-placeholder)');
     const bottomTarget = container.querySelector('.bottom-drag-target');
-    
+
     if (afterElement == null) {
         // Move to end
         if (bottomTarget) {
@@ -1751,7 +1769,7 @@ function handlePlaceholderDragOver(e) {
     } else if (afterElement !== placeholder) {
         container.insertBefore(placeholder, afterElement);
     }
-    
+
     // Update placeholder position
     const allItems = Array.from(container.querySelectorAll('.task-item'));
     dragPlaceholderPosition = allItems.indexOf(placeholder);
@@ -1760,16 +1778,16 @@ function handlePlaceholderDragOver(e) {
 // Handle drop in the task area when we have a placeholder
 function handlePlaceholderDrop(e) {
     e.preventDefault();
-    
+
     if (!dragTargetTabId || !draggedTaskId || !dragSourceTabId) return;
-    
+
     // Get final position from placeholder
     const container = tasksContainer;
     const allItems = Array.from(container.querySelectorAll('.task-item:not(.task-placeholder)'));
     const placeholder = container.querySelector('.task-placeholder');
-    
+
     if (!placeholder) return;
-    
+
     // Find where the placeholder is
     let insertPosition = 0;
     const children = Array.from(container.children);
@@ -1779,10 +1797,10 @@ function handlePlaceholderDrop(e) {
             insertPosition++;
         }
     }
-    
+
     // Move the task to the target tab at the specified position
     moveTaskToTabAtPosition(draggedTaskId, dragSourceTabId, dragTargetTabId, insertPosition);
-    
+
     // Clean up
     dragTargetTabId = null;
     dragPlaceholderPosition = 0;
@@ -1813,14 +1831,14 @@ function renderTasks() {
         const allFavs = getAllFavouriteTasks();
         tasksToRender = allFavs.filter(task => !task.completed);
         completedTasksToRender = allFavs.filter(task => task.completed);
-        
+
         tasksContainer.innerHTML = '';
         doneTasksContainer.innerHTML = '';
-        
+
         if (tasksToRender.length === 0 && completedTasksToRender.length === 0) {
-             tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No favourited tasks yet. Click the heart on a task to favourite it! ❤️</div>';
-             doneContainer.style.display = 'none';
-             return;
+            tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No favourited tasks yet. Click the heart on a task to favourite it! ❤️</div>';
+            doneContainer.style.display = 'none';
+            return;
         }
     } else {
         if (!currentTabId) {
@@ -1835,11 +1853,11 @@ function renderTasks() {
             doneContainer.style.display = 'none';
             return;
         }
-        
+
         tasksToRender = currentTab.tasks.filter(task => !task.completed);
         completedTasksToRender = currentTab.tasks.filter(task => task.completed);
     }
-    
+
     // Separate completed and incomplete tasks
     const incompleteTasks = tasksToRender;
     // Sort completed tasks by completion time (most recent first)
@@ -1904,13 +1922,13 @@ function renderTasks() {
             const totalMinutes = Math.round(totalTimeMs / (1000 * 60));
             const hours = Math.floor(totalMinutes / 60);
             const minutes = totalMinutes % 60;
-            
+
             let timeString = 'Time spent: ';
             if (hours > 0) {
                 timeString += `${hours}hr `;
             }
             timeString += `${minutes}m`;
-            
+
             doneTimeSpent.textContent = timeString;
             doneTimeSpent.style.display = 'block';
         } else {
@@ -1924,8 +1942,8 @@ function renderTasks() {
 function createTaskElement(task) {
     const taskElement = document.createElement('div');
     taskElement.className = `task-item ${task.completed ? 'completed-task' : ''}`;
-    // Reordering is only supported for incomplete tasks in the normal lists view.
-    const canDragTask = !task.completed && currentView === 'lists';
+    // Reordering is supported for incomplete tasks in both lists and favourites views
+    const canDragTask = !task.completed;
     taskElement.draggable = canDragTask;
     taskElement.dataset.taskId = task.id;
 
@@ -1974,8 +1992,8 @@ function createTaskElement(task) {
         }
         metaHtml = `<span class="task-meta actual-time">${timeDisplay}</span>`;
     } else if (task.completed) {
-         // Completed but no duration set? Allow adding it.
-         metaHtml = `<span class="task-meta add-time" title="Add actual duration">+</span>`;
+        // Completed but no duration set? Allow adding it.
+        metaHtml = `<span class="task-meta add-time" title="Add actual duration">+</span>`;
     } else if (!task.completed && task.expectedDuration) {
         metaHtml = `<span class="task-meta" title="Click to edit duration">${task.expectedDuration}m</span>`;
     } else if (!task.completed) {
@@ -1999,7 +2017,7 @@ function createTaskElement(task) {
             e.stopPropagation();
         });
     });
-    
+
     const taskTextSpan = taskElement.querySelector('.task-text');
     if (taskTextSpan) {
         taskTextSpan.addEventListener('click', (e) => {
@@ -2019,17 +2037,17 @@ function createTaskElement(task) {
     const favBtn = taskElement.querySelector('.fav-btn');
     if (favBtn) {
         favBtn.addEventListener('click', (e) => {
-             e.stopPropagation();
-             toggleTaskFavourite(task.id);
+            e.stopPropagation();
+            toggleTaskFavourite(task.id);
         });
     }
 
     // Drag event listeners (only on reorderable tasks)
     if (canDragTask) {
-    taskElement.addEventListener('dragstart', handleDragStart);
-    taskElement.addEventListener('dragend', handleDragEnd);
-    taskElement.addEventListener('dragover', handleDragOver);
-    taskElement.addEventListener('drop', handleDrop);
+        taskElement.addEventListener('dragstart', handleDragStart);
+        taskElement.addEventListener('dragend', handleDragEnd);
+        taskElement.addEventListener('dragover', handleDragOver);
+        taskElement.addEventListener('drop', handleDrop);
     }
 
     return taskElement;
@@ -2063,28 +2081,28 @@ function setupEventListeners() {
             }
 
             let tabName = tabNameInput.value.trim();
-            
+
             // Get Basecamp selection
             const bcProjectId = bcProjectSelect.value;
             const bcListId = bcListSelect.value;
-            
+
             // Get Reminders selection
             const remindersListId = remindersListSelect.value;
 
             // If creating from Basecamp list and name is empty, use list name
             if (bcListId && (!tabName || tabName === '')) {
-                 const selectedOption = bcListSelect.options[bcListSelect.selectedIndex];
-                 if (selectedOption) {
-                     tabName = selectedOption.text;
-                 }
+                const selectedOption = bcListSelect.options[bcListSelect.selectedIndex];
+                if (selectedOption) {
+                    tabName = selectedOption.text;
+                }
             }
-            
+
             // If creating from Reminders list and name is empty, use list name
             if (remindersListId && (!tabName || tabName === '')) {
-                 const selectedOption = remindersListSelect.options[remindersListSelect.selectedIndex];
-                 if (selectedOption) {
-                     tabName = selectedOption.text;
-                 }
+                const selectedOption = remindersListSelect.options[remindersListSelect.selectedIndex];
+                if (selectedOption) {
+                    tabName = selectedOption.text;
+                }
             }
 
             if (renamingTabId) {
@@ -2108,7 +2126,7 @@ function setupEventListeners() {
         if (groupsToggle) {
             groupsToggle.checked = enableGroups;
         }
-        
+
         // Show current version
         const versionEl = document.getElementById('current-app-version');
         if (versionEl) {
@@ -2125,15 +2143,15 @@ function setupEventListeners() {
             saveData();
             renderGroups();
             renderTabs();
-            
+
             // If we just enabled groups, ensure we are in a valid state
             if (enableGroups) {
                 if (!currentGroupId || !groups[currentGroupId]) {
                     // Fallback to first group or create default
                     if (Object.keys(groups).length > 0) {
-                         switchToGroup(Object.keys(groups)[0]);
+                        switchToGroup(Object.keys(groups)[0]);
                     } else {
-                         createGroup('General');
+                        createGroup('General');
                     }
                 } else {
                     // Re-select current group to filter tabs correctly
@@ -2191,7 +2209,7 @@ function setupEventListeners() {
     if (undoBtn) {
         undoBtn.addEventListener('click', performUndo);
     }
-    
+
     if (closeUndoBtn) {
         closeUndoBtn.addEventListener('click', hideUndoToast);
     }
@@ -2203,7 +2221,7 @@ function setupEventListeners() {
         const clientId = bcClientIdInput.value.trim();
         const clientSecret = bcClientSecretInput.value.trim();
         const email = bcEmailInput.value.trim();
-        
+
         if (accountId && token) {
             basecampConfig.accountId = accountId;
             basecampConfig.accessToken = token;
@@ -2223,48 +2241,48 @@ function setupEventListeners() {
     // Reminders Connect Button
     if (remindersConnectBtn) {
         if (process.platform !== 'darwin') {
-             // Disable for non-Mac
-             remindersConnectBtn.disabled = true;
-             remindersConnectBtn.title = 'Apple Reminders integration is only available on macOS';
-             remindersConnectBtn.style.opacity = '0.5';
-             remindersConnectBtn.style.cursor = 'not-allowed';
-             
-             // Add explanatory text near the button if possible, or just rely on title/alert
-             // Let's modify the text to be clear
-             remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders (macOS only)';
-        } else {
-             remindersConnectBtn.addEventListener('click', async () => {
-                 try {
-                     console.log('[Reminders] Connect clicked');
-                     remindersConnectBtn.textContent = 'Connecting...';
-                     remindersConnectBtn.disabled = true;
-                     
-                     // Try to fetch lists to trigger permission prompt
-                     const lists = await ipcRenderer.invoke('fetch-reminders-lists');
-                     console.log('[Reminders] fetch-reminders-lists result:', {
-                         type: Array.isArray(lists) ? 'array' : typeof lists,
-                         length: Array.isArray(lists) ? lists.length : undefined,
-                         keys: (lists && typeof lists === 'object' && !Array.isArray(lists)) ? Object.keys(lists) : undefined
-                     });
+            // Disable for non-Mac
+            remindersConnectBtn.disabled = true;
+            remindersConnectBtn.title = 'Apple Reminders integration is only available on macOS';
+            remindersConnectBtn.style.opacity = '0.5';
+            remindersConnectBtn.style.cursor = 'not-allowed';
 
-                     // Only treat as connected if we actually got a list array back.
-                     if (Array.isArray(lists)) {
-                         remindersConfig.isConnected = true;
-                         saveData();
-                         updateRemindersUI();
-                         updateSyncButtonState();
-                     } else {
-                         const errMsg = (lists && typeof lists === 'object' && lists.error) ? lists.error : null;
-                         alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
-                         remindersConnectBtn.disabled = false;
-                         remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
-                     }
-                 } catch (error) {
-                     console.error(error);
-                     alert('Failed to connect to Reminders: ' + error);
-                     remindersConnectBtn.disabled = false;
-                     remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
-                 }
+            // Add explanatory text near the button if possible, or just rely on title/alert
+            // Let's modify the text to be clear
+            remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders (macOS only)';
+        } else {
+            remindersConnectBtn.addEventListener('click', async () => {
+                try {
+                    console.log('[Reminders] Connect clicked');
+                    remindersConnectBtn.textContent = 'Connecting...';
+                    remindersConnectBtn.disabled = true;
+
+                    // Try to fetch lists to trigger permission prompt
+                    const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+                    console.log('[Reminders] fetch-reminders-lists result:', {
+                        type: Array.isArray(lists) ? 'array' : typeof lists,
+                        length: Array.isArray(lists) ? lists.length : undefined,
+                        keys: (lists && typeof lists === 'object' && !Array.isArray(lists)) ? Object.keys(lists) : undefined
+                    });
+
+                    // Only treat as connected if we actually got a list array back.
+                    if (Array.isArray(lists)) {
+                        remindersConfig.isConnected = true;
+                        saveData();
+                        updateRemindersUI();
+                        updateSyncButtonState();
+                    } else {
+                        const errMsg = (lists && typeof lists === 'object' && lists.error) ? lists.error : null;
+                        alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
+                        remindersConnectBtn.disabled = false;
+                        remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+                    }
+                } catch (error) {
+                    console.error(error);
+                    alert('Failed to connect to Reminders: ' + error);
+                    remindersConnectBtn.disabled = false;
+                    remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+                }
             });
         }
     }
@@ -2276,7 +2294,7 @@ function setupEventListeners() {
             saveData();
             updateRemindersUI();
             updateSyncButtonState();
-            
+
             // Reset connect button state
             remindersConnectBtn.disabled = false;
             remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
@@ -2295,7 +2313,7 @@ function setupEventListeners() {
         updateBasecampUI();
         updateSyncButtonState();
     });
-    
+
     if (bcHelpLink) {
         bcHelpLink.addEventListener('click', (e) => {
             e.preventDefault();
@@ -2319,33 +2337,33 @@ function setupEventListeners() {
             manualAuthFields.classList.toggle('hidden');
         });
     }
-    
+
     // Sync Button
     if (syncBtn) {
         syncBtn.addEventListener('click', async () => {
             if (!currentTabId) return;
-            
+
             const tab = tabs[currentTabId];
-            
+
             // Check if any required connections are missing
             const basecampDisconnected = tab.basecampListId && !basecampConfig.isConnected;
             const remindersDisconnected = tab.remindersListId && !remindersConfig.isConnected;
-            
+
             if (basecampDisconnected || remindersDisconnected) {
                 // Determine which service to reconnect to
                 const services = [];
                 if (basecampDisconnected) services.push('Basecamp');
                 if (remindersDisconnected) services.push('Apple Reminders');
-                
+
                 const message = `This list is synced with ${services.join(' & ')}, but the connection is not active.\n\nYour changes are saved locally and will sync when you reconnect.`;
-                
+
                 const reconnect = await showConfirmModal(
                     'Connection Required',
                     message,
                     'Reconnect',
                     'Cancel'
                 );
-                
+
                 if (reconnect) {
                     // Directly trigger reconnection
                     if (remindersDisconnected && process.platform === 'darwin') {
@@ -2370,29 +2388,29 @@ function setupEventListeners() {
                 }
                 return;
             }
-            
+
             syncBtn.classList.add('spinning');
-            
+
             const promises = [];
-            
+
             if (tab.basecampListId && basecampConfig.isConnected) {
                 promises.push(syncBasecampList(currentTabId));
             }
             if (tab.remindersListId && remindersConfig.isConnected) {
                 promises.push(syncRemindersList(currentTabId));
             }
-            
+
             Promise.all(promises).finally(() => {
                 setTimeout(() => syncBtn.classList.remove('spinning'), 500);
             });
         });
     }
-    
+
     // Basecamp Project Selection
     bcProjectSelect.addEventListener('change', () => {
         const projectId = bcProjectSelect.value;
         const isGroupMode = tabNameModal.dataset.mode === 'group';
-        
+
         if (projectId) {
             if (isGroupMode) {
                 // Group creation: Pre-fill name and change button text
@@ -2422,7 +2440,7 @@ function setupEventListeners() {
         if (selectedOption && bcListSelect.value) {
             const projectOption = bcProjectSelect.options[bcProjectSelect.selectedIndex];
             let prefix = '';
-            
+
             if (projectOption) {
                 const projectName = projectOption.text;
                 const firstWord = projectName.trim().split(/\s+/)[0]; // Handle multiple spaces
@@ -2430,7 +2448,7 @@ function setupEventListeners() {
                     prefix = `${firstWord}: `;
                 }
             }
-            
+
             tabNameInput.value = prefix + selectedOption.text;
         }
     });
@@ -2477,7 +2495,7 @@ function setupEventListeners() {
                 hideDeleteConfirmModal();
                 return;
             }
-            
+
             // Exit fullscreen focus mode if active
             const focusContainer = document.querySelector('.focus-container');
             if (focusContainer && focusContainer.classList.contains('fullscreen')) {
@@ -2497,7 +2515,7 @@ function setupEventListeners() {
             }
         });
     }
-    
+
     if (settingsModal) {
         settingsModal.addEventListener('click', (e) => {
             if (e.target === settingsModal) {
@@ -2512,7 +2530,7 @@ function setupEventListeners() {
         doneHeading.addEventListener('click', (e) => {
             // Don't toggle if clicking the delete button
             if (e.target.closest('.delete-all-btn')) return;
-            
+
             isDoneCollapsed = !isDoneCollapsed;
             if (isDoneCollapsed) {
                 doneContainer.classList.add('collapsed');
@@ -2542,19 +2560,50 @@ function setupEventListeners() {
             editTaskText(taskId, e.target);
         }
     });
-    
+
     // Drag events for task container (handles placeholder positioning)
     tasksContainer.addEventListener('dragover', (e) => {
         // If we have a placeholder from cross-tab drag, handle its positioning
         if (dragTargetTabId && draggedTaskId) {
             handlePlaceholderDragOver(e);
+            return;
+        }
+
+        // Handle same-tab dragging in blank space below tasks
+        // This fixes the animation glitch when dropping in the empty area
+        if (draggedTaskId && !dragTargetTabId) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const draggable = tasksContainer.querySelector('.task-item.dragging');
+            if (!draggable) return;
+
+            // Check if we're below all task items
+            const taskItems = Array.from(tasksContainer.querySelectorAll('.task-item:not(.dragging)'));
+            const bottomTarget = tasksContainer.querySelector('.bottom-drag-target');
+
+            // If mouse is below the last task item (or no task items), move to end
+            if (taskItems.length === 0 || e.clientY > taskItems[taskItems.length - 1].getBoundingClientRect().bottom) {
+                if (bottomTarget) {
+                    tasksContainer.insertBefore(draggable, bottomTarget);
+                } else {
+                    tasksContainer.appendChild(draggable);
+                }
+            }
         }
     });
-    
+
     tasksContainer.addEventListener('drop', (e) => {
         // If we have a placeholder from cross-tab drag, handle the drop
         if (dragTargetTabId && draggedTaskId) {
             handlePlaceholderDrop(e);
+            return;
+        }
+
+        // Handle same-tab drop in blank space
+        if (draggedTaskId && !dragTargetTabId) {
+            e.preventDefault();
+            persistTaskOrderFromDOM();
         }
     });
 
@@ -2571,9 +2620,9 @@ function setupEventListeners() {
             // Edit task text for completed tasks
             editTaskText(taskId, e.target);
         } else if (e.target.classList.contains('task-meta') || e.target.closest('.task-meta')) {
-             // Edit task duration for completed tasks
-             const metaEl = e.target.classList.contains('task-meta') ? e.target : e.target.closest('.task-meta');
-             editTaskDuration(taskId, metaEl);
+            // Edit task duration for completed tasks
+            const metaEl = e.target.classList.contains('task-meta') ? e.target : e.target.closest('.task-meta');
+            editTaskDuration(taskId, metaEl);
         }
     });
 
@@ -2591,7 +2640,7 @@ function setupEventListeners() {
     newTaskInput.addEventListener('input', () => {
         const hasText = newTaskInput.value.trim().length > 0;
         addTaskBtn.disabled = !hasText;
-        
+
         if (hasText) {
             durationInputContainer.classList.add('visible');
         } else {
@@ -2599,13 +2648,13 @@ function setupEventListeners() {
             // Also clear duration if task input is cleared? Maybe not.
         }
     });
-    
+
     taskDurationInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             addTask(newTaskInput.value);
         }
     });
-    
+
     // Toggle label visibility based on input
     taskDurationInput.addEventListener('input', () => {
         if (taskDurationInput.value.length > 0) {
@@ -2628,7 +2677,7 @@ function setupEventListeners() {
             durationInputContainer.classList.add('has-value');
         });
     }
-    
+
     if (durationDecrement) {
         durationDecrement.addEventListener('click', () => {
             const currentVal = parseInt(taskDurationInput.value, 10);
@@ -2662,7 +2711,7 @@ function setupEventListeners() {
     completeFocusBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         // Check if we are in fullscreen mode and exit it correctly
         const focusContainer = document.querySelector('.focus-container');
         if (focusContainer && focusContainer.classList.contains('fullscreen')) {
@@ -2674,12 +2723,12 @@ function setupEventListeners() {
 
         // Calculate elapsed time
         const elapsed = Date.now() - focusStartTime;
-        
+
         // Apply strikethrough styling to the task name immediately for satisfying feedback
         if (focusTaskName) {
             focusTaskName.classList.add('completed');
         }
-            
+
         if (focusedTaskId) {
             // Always resolve the task across tabs (focus panel may not share currentTabId)
             const context = getTaskContext(focusedTaskId);
@@ -2709,7 +2758,7 @@ function setupEventListeners() {
             // Ensure the main window updates (important on macOS focus panel)
             ipcRenderer.send('refresh-main-window');
             exitFocusMode();
-            
+
             // Clean up the completed class for next focus session
             if (focusTaskName) {
                 focusTaskName.classList.remove('completed');
@@ -2721,7 +2770,7 @@ function setupEventListeners() {
         resetFocusBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             // Reset timer to start from 0
             focusStartTime = Date.now();
             updateFocusTimer();
@@ -2732,7 +2781,7 @@ function setupEventListeners() {
         fullscreenFocusBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             const focusContainer = document.querySelector('.focus-container');
             if (focusContainer.classList.contains('fullscreen')) {
                 // Exit fullscreen
@@ -2755,7 +2804,7 @@ function setupEventListeners() {
     if (deleteAllBtn) {
         deleteAllBtn.addEventListener('click', () => {
             if (!currentTabId || !tabs[currentTabId]) return;
-            
+
             const currentTab = tabs[currentTabId];
             const completedTasksLocal = currentTab.tasks.filter(task => task.completed);
             if (completedTasksLocal.length === 0) return;
@@ -2777,7 +2826,7 @@ function setupEventListeners() {
                     deleteBasecampTodo(currentTabId, task.basecampId);
                 });
             }
-            
+
             // Keep only incomplete tasks
             tabs[currentTabId].tasks = tabs[currentTabId].tasks.filter(task => !task.completed);
             saveData();
@@ -2820,31 +2869,31 @@ function setupEventListeners() {
     const resizer = document.getElementById('add-task-resizer');
     if (resizer) {
         let startY, startMaxHeight;
-        
+
         resizer.addEventListener('mousedown', (e) => {
             startY = e.clientY;
             // Ensure we have a number
             startMaxHeight = parseInt(window.getComputedStyle(doneContainer).maxHeight) || doneMaxHeight;
-            
+
             document.documentElement.style.cursor = 'row-resize';
             resizer.classList.add('dragging');
-            
+
             const handleMouseMove = (e) => {
                 const deltaY = startY - e.clientY; // Drag up = positive delta
                 // If dragging up, max height increases. If dragging down, decreases.
                 // Dragging UP means e.clientY is SMALLER than startY. So startY - clientY > 0.
                 // This matches: dragging up increases done section size.
-                
+
                 let newHeight = startMaxHeight + deltaY;
-                
+
                 // Constraints
                 if (newHeight < 24) newHeight = 24; // Minimum height (heading size)
                 if (newHeight > window.innerHeight - 150) newHeight = window.innerHeight - 150; // Max constraint
-                
+
                 doneMaxHeight = newHeight;
                 doneContainer.style.maxHeight = `${newHeight}px`;
             };
-            
+
             const handleMouseUp = () => {
                 document.removeEventListener('mousemove', handleMouseMove);
                 document.removeEventListener('mouseup', handleMouseUp);
@@ -2852,7 +2901,7 @@ function setupEventListeners() {
                 resizer.classList.remove('dragging');
                 saveData(); // Persist the new preference
             };
-            
+
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
         });
@@ -2863,7 +2912,7 @@ function setupEventListeners() {
 function updateFullscreenButtonState(isFullscreen) {
     const btn = document.getElementById('fullscreen-focus-btn');
     if (!btn) return;
-    
+
     const path = btn.querySelector('path');
     if (isFullscreen) {
         // Collapse icon (arrows pointing inwards)
@@ -2882,7 +2931,7 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
     stopFocusTimer();
     isFocusMode = true;
     focusDuration = duration; // Set the duration
-    
+
     console.log('Hiding normal mode, showing focus mode');
     normalMode.classList.add('hidden');
     focusMode.classList.remove('hidden');
@@ -2928,8 +2977,8 @@ function exitFocusMode() {
         const elapsed = Date.now() - focusStartTime;
         const task = tabs[currentTabId].tasks.find(t => t.id === focusedTaskId);
         if (task) {
-             task.timeSpent = elapsed;
-             saveData();
+            task.timeSpent = elapsed;
+            saveData();
         }
     }
 
@@ -2942,7 +2991,7 @@ function exitFocusMode() {
     }
     focusDuration = null; // Reset duration
     stopFocusTimer();
-    
+
     // Reset overtime style
     if (focusTimer) {
         focusTimer.classList.remove('overtime');
@@ -2992,7 +3041,7 @@ function updateFocusTimer() {
     const seconds = Math.floor((displayMs % (1000 * 60)) / 1000);
 
     let timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
+
     if (isOvertime && focusDuration) {
         timeString = `-${timeString}`;
         focusTimer.classList.add('overtime');
@@ -3007,7 +3056,20 @@ function updateFocusTimer() {
 function handleDragStart(e) {
     // Use currentTarget so we always refer to the .task-item (not a child)
     draggedTaskId = e.currentTarget?.dataset?.taskId;
-    dragSourceTabId = currentTabId; // Store the source tab for cross-tab moves
+
+    // For favourites view, find the actual tab containing this task
+    if (currentView === 'favourites' && draggedTaskId) {
+        dragSourceTabId = null; // Will be null for favourites reordering
+        for (const tabId in tabs) {
+            if (tabs[tabId].tasks.find(t => t.id === draggedTaskId)) {
+                dragSourceTabId = tabId;
+                break;
+            }
+        }
+    } else {
+        dragSourceTabId = currentTabId; // Store the source tab for cross-tab moves
+    }
+
     e.currentTarget.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.target.outerHTML);
@@ -3022,7 +3084,7 @@ function handleDragEnd(e) {
         // Get the placeholder position
         const container = tasksContainer;
         const placeholder = container.querySelector('.task-placeholder');
-        
+
         if (placeholder) {
             // Find where the placeholder is
             let insertPosition = 0;
@@ -3033,11 +3095,11 @@ function handleDragEnd(e) {
                     insertPosition++;
                 }
             }
-            
+
             // Move the task to the target tab at the specified position
             moveTaskToTabAtPosition(draggedTaskId, dragSourceTabId, dragTargetTabId, insertPosition);
         }
-        
+
         // Clean up placeholder state
         dragTargetTabId = null;
         dragPlaceholderPosition = 0;
@@ -3054,7 +3116,7 @@ function handleDragEnd(e) {
         clearTimeout(tabHoverTimeout);
         tabHoverTimeout = null;
     }
-    
+
     // Remove any tab hover indicators
     document.querySelectorAll('.tab').forEach(tab => {
         tab.classList.remove('task-drop-target', 'task-drop-incompatible');
@@ -3067,7 +3129,11 @@ function handleDragOver(e) {
 
     // Live reordering: move the dragged element in the DOM as we hover.
     // (This is the same UX as tab reordering.)
-    if (!draggedTaskId || currentView !== 'lists') return;
+    // Support both lists and favourites views
+    if (!draggedTaskId) return;
+    // In lists view, only allow when actually in lists view
+    // In favourites view, allow reordering of favourites
+    if (currentView === 'lists' && dragTargetTabId) return; // Cross-tab drag, handled differently
 
     const container = tasksContainer;
     const draggable = container.querySelector('.task-item.dragging');
@@ -3095,10 +3161,6 @@ function handleDrop(e) {
 }
 
 function persistTaskOrderFromDOM() {
-    if (currentView !== 'lists') return;
-    if (!currentTabId || !tabs[currentTabId]) return;
-
-    const currentTab = tabs[currentTabId];
     const domTaskIds = Array.from(tasksContainer.querySelectorAll('.task-item'))
         .map(el => el.dataset.taskId)
         .filter(Boolean);
@@ -3106,6 +3168,28 @@ function persistTaskOrderFromDOM() {
     // If there are no rendered tasks (e.g. empty state), don't mutate.
     if (domTaskIds.length === 0) return;
 
+    if (currentView === 'favourites') {
+        // For favourites view, update the favouritesOrder array
+        // Only track incomplete favourites in the DOM order
+        favouritesOrder = domTaskIds.filter(id => {
+            // Find the task and check if it's incomplete and a favourite
+            for (const tabId in tabs) {
+                const task = tabs[tabId].tasks.find(t => t.id === id);
+                if (task && task.isFavourite && !task.completed) {
+                    return true;
+                }
+            }
+            return false;
+        });
+        saveData();
+        renderTasks();
+        return;
+    }
+
+    // Lists view handling
+    if (!currentTabId || !tabs[currentTabId]) return;
+
+    const currentTab = tabs[currentTabId];
     const byId = new Map(currentTab.tasks.map(t => [t.id, t]));
     const incompletesInDomOrder = domTaskIds
         .map(id => byId.get(id))
@@ -3124,7 +3208,7 @@ function handleBottomDragOver(e) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
-    if (!draggedTaskId || currentView !== 'lists') return;
+    if (!draggedTaskId) return;
     const container = tasksContainer;
     const draggable = container.querySelector('.task-item.dragging');
     const bottomTarget = e.currentTarget;
@@ -3148,33 +3232,33 @@ let lastHoveredTabId = null; // Track which tab we're hovering to prevent flicke
 
 function handleTaskDragOverTab(e) {
     e.preventDefault();
-    
+
     // Only handle if a task is being dragged (not a tab)
     if (!draggedTaskId || draggedTabId) return;
-    
+
     const targetTab = e.currentTarget;
     const targetTabId = targetTab.dataset.tabId;
-    
+
     // Don't do anything if hovering over the current tab or already switched to target
     if (targetTabId === dragSourceTabId || targetTabId === dragTargetTabId) {
         targetTab.classList.remove('task-drop-target', 'task-drop-incompatible');
         return;
     }
-    
+
     // Check compatibility
     const isCompatible = areTabsCompatible(dragSourceTabId, targetTabId);
-    
+
     // Shrink the dragged task when over a compatible tab
     const draggedElement = document.querySelector('.task-item.dragging');
     if (draggedElement && isCompatible) {
         draggedElement.classList.add('drag-over-tab');
     }
-    
+
     if (isCompatible) {
         e.dataTransfer.dropEffect = 'move';
         targetTab.classList.add('task-drop-target');
         targetTab.classList.remove('task-drop-incompatible');
-        
+
         // Set up a timer to switch to this tab after hovering for 500ms
         // Only set up if we're hovering a new tab
         if (lastHoveredTabId !== targetTabId) {
@@ -3186,7 +3270,7 @@ function handleTaskDragOverTab(e) {
                 // Switch to the target tab (but don't move the task yet)
                 switchToTabForDrag(targetTabId);
                 tabHoverTimeout = null;
-                
+
                 // Remove tab highlight
                 targetTab.classList.remove('task-drop-target');
             }, 500);
@@ -3201,22 +3285,22 @@ function handleTaskDragOverTab(e) {
 function handleTaskDragLeaveTab(e) {
     const targetTab = e.currentTarget;
     const targetTabId = targetTab.dataset.tabId;
-    
+
     // Only clear if we're actually leaving this tab (not just moving within it)
     // Check if the related target is still within the tab
     const relatedTarget = e.relatedTarget;
     if (relatedTarget && targetTab.contains(relatedTarget)) {
         return; // Still within the tab, don't clear
     }
-    
+
     targetTab.classList.remove('task-drop-target', 'task-drop-incompatible');
-    
+
     // Restore the dragged task to full size when leaving a tab
     const draggedElement = document.querySelector('.task-item.dragging');
     if (draggedElement) {
         draggedElement.classList.remove('drag-over-tab');
     }
-    
+
     // Clear the tab switch timer and reset hover tracking
     if (lastHoveredTabId === targetTabId) {
         lastHoveredTabId = null;
@@ -3230,28 +3314,28 @@ function handleTaskDragLeaveTab(e) {
 function handleTaskDropOnTab(e) {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Only handle if a task is being dragged
     if (!draggedTaskId || draggedTabId) return;
-    
+
     const targetTab = e.currentTarget;
     const targetTabId = targetTab.dataset.tabId;
-    
+
     // Don't do anything if dropping on the same tab (might have already been moved by hover)
     if (targetTabId === dragSourceTabId) return;
-    
+
     // Check compatibility
     if (!areTabsCompatible(dragSourceTabId, targetTabId)) return;
-    
+
     // Clear any pending tab switch
     if (tabHoverTimeout) {
         clearTimeout(tabHoverTimeout);
         tabHoverTimeout = null;
     }
-    
+
     // Move the task to the new tab (at top since dropped directly on tab)
     moveTaskToTab(draggedTaskId, dragSourceTabId, targetTabId, true);
-    
+
     // Clean up
     targetTab.classList.remove('task-drop-target', 'task-drop-incompatible');
     const draggedElement = document.querySelector('.task-item.dragging');
@@ -3265,16 +3349,16 @@ function handleTaskDropOnTab(e) {
 function moveTaskToTab(taskId, sourceTabId, targetTabId, addToTop = true) {
     const sourceTab = tabs[sourceTabId];
     const targetTab = tabs[targetTabId];
-    
+
     if (!sourceTab || !targetTab) return;
-    
+
     // Find the task in the source tab
     const taskIndex = sourceTab.tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) return;
-    
+
     // Remove from source tab
     const [task] = sourceTab.tasks.splice(taskIndex, 1);
-    
+
     // Add to the target tab
     if (addToTop) {
         // Add to the very beginning (top of incomplete tasks)
@@ -3288,9 +3372,9 @@ function moveTaskToTab(taskId, sourceTabId, targetTabId, addToTop = true) {
             targetTab.tasks.splice(firstCompletedIndex, 0, task);
         }
     }
-    
+
     handleTaskSyncOnMove(task, sourceTab, targetTab);
-    
+
     // Switch to target tab and render
     switchToTab(targetTabId);
     saveData();
@@ -3300,31 +3384,31 @@ function moveTaskToTab(taskId, sourceTabId, targetTabId, addToTop = true) {
 function moveTaskToTabAtPosition(taskId, sourceTabId, targetTabId, position) {
     const sourceTab = tabs[sourceTabId];
     const targetTab = tabs[targetTabId];
-    
+
     if (!sourceTab || !targetTab) return;
-    
+
     // Find the task in the source tab
     const taskIndex = sourceTab.tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) return;
-    
+
     // Remove from source tab
     const [task] = sourceTab.tasks.splice(taskIndex, 1);
-    
+
     // Insert at the specified position (among incomplete tasks)
     const incompleteTasks = targetTab.tasks.filter(t => !t.completed);
     const completedTasks = targetTab.tasks.filter(t => t.completed);
-    
+
     // Clamp position to valid range
     const clampedPosition = Math.max(0, Math.min(position, incompleteTasks.length));
-    
+
     // Insert task at position
     incompleteTasks.splice(clampedPosition, 0, task);
-    
+
     // Rebuild the tasks array
     targetTab.tasks = [...incompleteTasks, ...completedTasks];
-    
+
     handleTaskSyncOnMove(task, sourceTab, targetTab);
-    
+
     // Already on target tab, just re-render
     saveData();
     renderTasks();
@@ -3351,7 +3435,7 @@ async function handleTaskSyncOnMove(task, sourceTab, targetTab) {
         }
         task.remindersId = null; // Clear until new ID is set
     }
-    
+
     // For Basecamp: move the todo to the new list (preserves the todo, no duplicates)
     if (sourceTab.basecampListId && task.basecampId && targetTab.basecampListId) {
         if (!basecampConfig.isConnected || !basecampConfig.accessToken) {
@@ -3384,7 +3468,7 @@ function moveTaskToBottom(taskId) {
 function editTaskText(taskId, textElement) {
     const context = getTaskContext(taskId);
     if (!context) return;
-    
+
     const { task, tabId, tab } = context;
 
     // Create textarea element (auto-sizes to content)
@@ -3392,13 +3476,13 @@ function editTaskText(taskId, textElement) {
     textarea.value = task.text;
     textarea.className = 'task-edit-input';
     textarea.rows = 1; // Start with 1 row, will auto-resize
-    
+
     // Auto-resize function
     function autoResize() {
         textarea.style.height = 'auto';
         textarea.style.height = textarea.scrollHeight + 'px';
     }
-    
+
     // Prevent drag start on textarea
     textarea.addEventListener('mousedown', (e) => {
         e.stopPropagation();
@@ -3419,17 +3503,17 @@ function editTaskText(taskId, textElement) {
         const newText = textarea.value.trim();
         if (newText) {
             task.text = newText;
-            
+
             // If connected to Basecamp and task has a remote ID, sync the change
             if (tab.basecampListId && basecampConfig.isConnected && task.basecampId) {
                 updateBasecampTodoText(tabId, task);
             }
-            
+
             // If connected to Reminders, sync text change
             if (tab.remindersListId && remindersConfig.isConnected && task.remindersId) {
                 updateRemindersTitle(task.remindersId, task.text);
             }
-            
+
             saveData();
 
             // Sync to other windows (e.g. macOS focus panel)
@@ -3451,7 +3535,7 @@ function editTaskText(taskId, textElement) {
 function editTaskDuration(taskId, metaElement) {
     const context = getTaskContext(taskId);
     if (!context) return;
-    
+
     const { task } = context;
     const isAddTimeClick = metaElement.classList && metaElement.classList.contains('add-time');
 
@@ -3578,17 +3662,17 @@ function showTabNameModal() {
     modalTitle.textContent = 'Enter list name';
     createTabBtn.textContent = 'Create';
     tabNameInput.value = '';
-    tabNameInput.placeholder = 'My to-do list'; 
+    tabNameInput.placeholder = 'My to-do list';
     tabNameModal.classList.remove('hidden');
     tabNameModal.dataset.mode = 'tab'; // Ensure default mode
-    
+
     // Handle Basecamp visibility
     if (basecampConfig.isConnected) {
         basecampSelection.classList.remove('hidden');
         bcProjectSelect.innerHTML = '<option value="">Select a project...</option>';
         bcListSelect.innerHTML = '<option value="">Select a list...</option>';
         bcListWrapper.classList.add('hidden');
-        
+
         fetchBasecampProjects().then(projects => {
             if (projects.length === 0) {
                 bcProjectSelect.innerHTML = '<option value="">No projects found</option>';
@@ -3609,7 +3693,7 @@ function showTabNameModal() {
     if (remindersConfig.isConnected) {
         remindersSelection.classList.remove('hidden');
         remindersListSelect.innerHTML = '<option value="">Select a list...</option>';
-        
+
         fetchRemindersLists().then(lists => {
             if (lists.length === 0) {
                 remindersListSelect.innerHTML = '<option value="">No lists found</option>';
@@ -3625,7 +3709,7 @@ function showTabNameModal() {
     } else {
         remindersSelection.classList.add('hidden');
     }
-    
+
     tabNameInput.focus();
 }
 
@@ -3727,20 +3811,20 @@ ipcRenderer.on('task-updated', (event, payload) => {
 // Basecamp Authentication Logic
 ipcRenderer.on('basecamp-auth-success', async (event, data) => {
     console.log('Auth success, tokens received');
-    
+
     basecampConfig.accessToken = data.access_token;
     basecampConfig.refreshToken = data.refresh_token;
     basecampConfig.clientId = data.client_id;
     basecampConfig.clientSecret = data.client_secret;
-    
+
     // Now we need to get the account ID (Identity)
     await fetchBasecampIdentity();
-    
+
     basecampConfig.isConnected = true;
     saveData();
     updateBasecampUI();
     updateSyncButtonState();
-    
+
     // Reset button
     if (oauthConnectBtn) {
         oauthConnectBtn.innerHTML = '<img src="images/basecamp_logo_icon_147315.png" width="16" height="16" style="filter: brightness(0) invert(1); margin-right: 8px;"> Connect with Basecamp';
@@ -3767,7 +3851,8 @@ function saveData() {
         doneMaxHeight: doneMaxHeight,
         groups: groups,
         currentGroupId: currentGroupId,
-        enableGroups: enableGroups
+        enableGroups: enableGroups,
+        favouritesOrder: favouritesOrder
     };
     localStorage.setItem('redd-todo-data', JSON.stringify(data));
 }
@@ -3776,7 +3861,7 @@ function loadData() {
     try {
         // Try loading new data key first
         let data = JSON.parse(localStorage.getItem('redd-todo-data'));
-        
+
         // Fallback to old key for migration (if we are in the same storage context)
         if (!data) {
             data = JSON.parse(localStorage.getItem('redd-task-data'));
@@ -3811,6 +3896,7 @@ function loadData() {
             groups = data.groups || {};
             currentGroupId = data.currentGroupId || null;
             enableGroups = data.enableGroups !== undefined ? data.enableGroups : (Object.keys(groups).length > 0); // Default to true if groups exist, else false
+            favouritesOrder = data.favouritesOrder || [];
         }
     } catch (e) {
         console.error('Failed to load data:', e);
@@ -3825,12 +3911,12 @@ async function fetchBasecampIdentity() {
                 'Authorization': `Bearer ${basecampConfig.accessToken}`
             }
         });
-        
+
         if (!response.ok) throw new Error('Failed to fetch identity');
-        
+
         const data = await response.json();
         const accounts = data.accounts;
-        
+
         if (accounts && accounts.length > 0) {
             // For now, default to the first account. 
             // Ideally we'd let the user choose if > 1, but this is a good start.
@@ -3853,12 +3939,12 @@ function updateBasecampUI() {
         bcConnectionStatus.classList.remove('hidden');
         bcLoginForm.classList.add('hidden');
         disconnectBcBtn.classList.remove('hidden');
-        
+
         // Show account info if available
         if (bcAccountInfo && basecampConfig.accountId) {
             bcAccountInfo.textContent = `Account ID: ${basecampConfig.accountId} ${basecampConfig.email ? `(${basecampConfig.email})` : ''}`;
         }
-        
+
         // Fill hidden inputs (legacy support)
         bcAccountIdInput.value = basecampConfig.accountId || '';
         bcAccessTokenInput.value = basecampConfig.accessToken || '';
@@ -3916,7 +4002,7 @@ async function refreshBasecampToken() {
 async function basecampFetch(url, options = {}) {
     // Ensure headers exist
     if (!options.headers) options.headers = {};
-    
+
     // Add Authorization header
     options.headers['Authorization'] = `Bearer ${basecampConfig.accessToken}`;
 
@@ -3927,7 +4013,7 @@ async function basecampFetch(url, options = {}) {
     if (response.status === 401) {
         console.log('Received 401 from Basecamp. Attempting to refresh token...');
         const refreshed = await refreshBasecampToken();
-        
+
         if (refreshed) {
             // Update header with new token
             options.headers['Authorization'] = `Bearer ${basecampConfig.accessToken}`;
@@ -3972,7 +4058,7 @@ async function fetchBasecampProjects() {
         // Filter by email if provided
         if (basecampConfig.email && basecampConfig.email.trim()) {
             const email = basecampConfig.email.trim();
-            
+
             // Check access for all projects in parallel
             // Note: This might hit rate limits if there are many projects
             const accessResults = await Promise.all(
@@ -3996,7 +4082,7 @@ async function getBasecampTodoLists(projectId) {
         // 1. Get the "todoset" (dock) for the project
         const projectResp = await basecampFetch(`https://3.basecampapi.com/${basecampConfig.accountId}/projects/${projectId}.json`);
         const projectData = await projectResp.json();
-        
+
         const todoset = projectData.dock.find(d => d.name === 'todoset');
         if (!todoset) return [];
 
@@ -4004,7 +4090,7 @@ async function getBasecampTodoLists(projectId) {
         // In BC3, we need to follow the url to get the set details which contains 'todolists_url'
         // Actually: GET /buckets/1/todosets/1/todolists.json is the pattern
         const realListsUrl = todoset.url.replace('.json', '/todolists.json');
-        
+
         const finalListsResp = await basecampFetch(realListsUrl);
         const finalLists = await finalListsResp.json();
 
@@ -4017,10 +4103,10 @@ async function getBasecampTodoLists(projectId) {
 
 async function fetchBasecampTodoLists(projectId) {
     const lists = await getBasecampTodoLists(projectId);
-    
+
     // Populate select
     bcListSelect.innerHTML = '<option value="">Select a list...</option>';
-    
+
     lists.forEach(list => {
         const opt = document.createElement('option');
         opt.value = list.id;
@@ -4036,7 +4122,7 @@ async function syncBasecampList(tabId) {
     try {
         // Fetch both active (default) and completed todos
         const baseUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todolists/${tab.basecampListId}/todos.json`;
-        
+
         const [activeResp, completedResp] = await Promise.all([
             basecampFetch(baseUrl),
             basecampFetch(`${baseUrl}?completed=true`)
@@ -4049,33 +4135,33 @@ async function syncBasecampList(tabId) {
         // Merge logic: 
         // 1. Add new remote todos to local
         // 2. Update status of linked todos
-        
+
         let changes = false;
         const remoteIds = new Set();
 
         remoteTodos.forEach(remote => {
             remoteIds.add(remote.id);
             const localTask = tab.tasks.find(t => t.basecampId === remote.id);
-            
+
             if (localTask) {
                 // Timestamp-based conflict resolution for completion status
                 if (localTask.completed !== remote.completed) {
                     // Use statusChangedAt for local (tracks any status change), fallback to completedAt
-                    const localTime = localTask.statusChangedAt ? new Date(localTask.statusChangedAt).getTime() : 
-                                     (localTask.completedAt ? new Date(localTask.completedAt).getTime() : 0);
+                    const localTime = localTask.statusChangedAt ? new Date(localTask.statusChangedAt).getTime() :
+                        (localTask.completedAt ? new Date(localTask.completedAt).getTime() : 0);
                     // Basecamp: use updated_at for any change, or completion.created_at for completion
                     const remoteCompletedAt = remote.completion?.created_at;
-                    const remoteTime = remote.updated_at ? new Date(remote.updated_at).getTime() : 
-                                      (remoteCompletedAt ? new Date(remoteCompletedAt).getTime() : 0);
-                    
+                    const remoteTime = remote.updated_at ? new Date(remote.updated_at).getTime() :
+                        (remoteCompletedAt ? new Date(remoteCompletedAt).getTime() : 0);
+
                     // Debug logging
                     console.log('Basecamp sync conflict for:', localTask.text);
                     console.log('  Local:', localTask.completed, 'statusChangedAt:', localTask.statusChangedAt, 'time:', localTime);
                     console.log('  Remote:', remote.completed, 'updated_at:', remote.updated_at, 'time:', remoteTime);
-                    
+
                     // Determine which one wins based on timestamps
                     let useRemote = false;
-                    
+
                     if (localTime > 0 && remoteTime > 0) {
                         // Both have timestamps - most recent wins
                         useRemote = remoteTime > localTime;
@@ -4090,9 +4176,9 @@ async function syncBasecampList(tabId) {
                         // Neither has timestamps - prefer completed state to avoid losing work
                         useRemote = remote.completed && !localTask.completed;
                     }
-                    
+
                     console.log('  Decision: useRemote =', useRemote);
-                    
+
                     if (useRemote) {
                         localTask.completed = remote.completed;
                         localTask.completedAt = remoteCompletedAt || null;
@@ -4127,7 +4213,7 @@ async function syncBasecampList(tabId) {
         // 3. Remove local tasks that are linked to Basecamp but no longer exist remotely
         const initialCount = tab.tasks.length;
         tab.tasks = tab.tasks.filter(t => !t.basecampId || remoteIds.has(t.basecampId));
-        
+
         if (tab.tasks.length !== initialCount) {
             changes = true;
         }
@@ -4160,9 +4246,9 @@ async function updateBasecampCompletion(tabId, task) {
 
     try {
         const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${task.basecampId}/completion.json`;
-        
+
         const method = task.completed ? 'POST' : 'DELETE';
-        
+
         await basecampFetch(url, {
             method: method
         });
@@ -4177,7 +4263,7 @@ async function updateBasecampTodoText(tabId, task) {
 
     try {
         const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${task.basecampId}.json`;
-        
+
         await basecampFetch(url, {
             method: 'PUT',
             headers: {
@@ -4196,7 +4282,7 @@ async function deleteBasecampTodo(tabId, basecampId) {
 
     try {
         const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${tab.basecampProjectId}/todos/${basecampId}.json`;
-        
+
         await basecampFetch(url, {
             method: 'DELETE'
         });
@@ -4219,7 +4305,7 @@ async function createBasecampTodo(tabId, task) {
             body: JSON.stringify({ content: task.text })
         });
         const data = await response.json();
-        
+
         // Link local task to remote ID
         task.basecampId = data.id;
         saveData();
@@ -4238,35 +4324,35 @@ async function moveBasecampTodo(task, sourceTab, targetTab) {
         console.warn('moveBasecampTodo: Not connected to Basecamp');
         return;
     }
-    
+
     try {
         // Basecamp 3 API: To move a recording to a different parent, use PUT on the recordings/parent endpoint
         // PUT /buckets/{bucket_id}/recordings/{recording_id}/parent.json
         // Body: { "parent": { "id": target_todolist_id, "type": "Todolist" } }
         // If moving to a different project, also include "bucket_id" in the parent object
-        
+
         const sourceBucketId = sourceTab.basecampProjectId;
         const targetBucketId = targetTab.basecampProjectId;
         const targetListId = targetTab.basecampListId;
-        
+
         console.log('Attempting Basecamp move via parent endpoint...');
         console.log('  Source bucket:', sourceBucketId, 'Target bucket:', targetBucketId);
         console.log('  Target list:', targetListId, 'Todo ID:', task.basecampId);
-        
+
         const url = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${sourceBucketId}/recordings/${task.basecampId}/parent.json`;
-        
+
         const parentData = {
             parent: {
                 id: parseInt(targetListId),
                 type: "Todolist"
             }
         };
-        
+
         // If moving to a different project, include bucket_id
         if (sourceBucketId !== targetBucketId) {
             parentData.parent.bucket_id = parseInt(targetBucketId);
         }
-        
+
         const response = await basecampFetch(url, {
             method: 'PUT',
             headers: {
@@ -4274,7 +4360,7 @@ async function moveBasecampTodo(task, sourceTab, targetTab) {
             },
             body: JSON.stringify(parentData)
         });
-        
+
         if (response.ok) {
             console.log('✓ Successfully moved Basecamp todo to new list');
         } else {
@@ -4297,7 +4383,7 @@ async function fallbackMoveBasecampTodo(task, sourceTab, targetTab) {
     try {
         const oldBasecampId = task.basecampId;
         console.log('Fallback move: Creating todo in target list...');
-        
+
         // Create in new list
         const createUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${targetTab.basecampProjectId}/todolists/${targetTab.basecampListId}/todos.json`;
         const createResponse = await basecampFetch(createUrl, {
@@ -4307,30 +4393,30 @@ async function fallbackMoveBasecampTodo(task, sourceTab, targetTab) {
             },
             body: JSON.stringify({ content: task.text })
         });
-        
+
         if (createResponse.ok) {
             const data = await createResponse.json();
             task.basecampId = data.id;
             console.log('✓ Created new todo with ID:', task.basecampId);
-            
+
             // If the task was completed, mark the new one as completed too
             if (task.completed) {
                 console.log('Marking new todo as completed...');
                 const completeUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${targetTab.basecampProjectId}/todos/${task.basecampId}/completion.json`;
                 await basecampFetch(completeUrl, { method: 'POST' });
             }
-            
+
             // Delete the old one (this will archive it in Basecamp)
             console.log('Deleting old todo:', oldBasecampId);
             const deleteUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${sourceTab.basecampProjectId}/todos/${oldBasecampId}.json`;
             const deleteResponse = await basecampFetch(deleteUrl, { method: 'DELETE' });
-            
+
             if (deleteResponse.ok) {
                 console.log('✓ Fallback move completed successfully');
             } else {
                 console.warn('Delete returned status:', deleteResponse.status);
             }
-            
+
             saveData();
         } else {
             const errorText = await createResponse.text();
@@ -4380,31 +4466,31 @@ async function syncRemindersList(tabId) {
         if (!remoteTasks) return;
 
         let changes = false;
-        
+
         // 1. Update/Add tasks from Reminders
         const remoteIds = new Set();
         remoteTasks.forEach(rTask => {
             remoteIds.add(rTask.id);
             const existingTask = tab.tasks.find(t => t.remindersId === rTask.id);
-            
+
             if (existingTask) {
                 // Timestamp-based conflict resolution for completion status
                 if (existingTask.completed !== rTask.completed) {
                     // Use statusChangedAt for local (tracks any status change)
                     // Use lastModifiedDate for remote (tracks any modification including un-completing)
-                    const localTime = existingTask.statusChangedAt ? new Date(existingTask.statusChangedAt).getTime() : 
-                                     (existingTask.completedAt ? new Date(existingTask.completedAt).getTime() : 0);
+                    const localTime = existingTask.statusChangedAt ? new Date(existingTask.statusChangedAt).getTime() :
+                        (existingTask.completedAt ? new Date(existingTask.completedAt).getTime() : 0);
                     // lastModifiedDate is Unix timestamp in seconds, convert to ms
                     const remoteTime = rTask.lastModifiedDate ? rTask.lastModifiedDate * 1000 : 0;
-                    
+
                     // Debug logging
                     console.log('Reminders sync conflict for:', existingTask.text);
                     console.log('  Local:', existingTask.completed, 'statusChangedAt:', existingTask.statusChangedAt, 'time:', localTime);
                     console.log('  Remote:', rTask.completed, 'lastModifiedDate:', rTask.lastModifiedDate, 'time:', remoteTime);
-                    
+
                     // Determine which one wins based on timestamps
                     let useRemote = false;
-                    
+
                     if (localTime > 0 && remoteTime > 0) {
                         // Both have timestamps - most recent wins
                         useRemote = remoteTime > localTime;
@@ -4418,9 +4504,9 @@ async function syncRemindersList(tabId) {
                         // Neither has timestamps - prefer completed state to avoid losing work
                         useRemote = rTask.completed && !existingTask.completed;
                     }
-                    
+
                     console.log('  Decision: useRemote =', useRemote);
-                    
+
                     if (useRemote) {
                         existingTask.completed = rTask.completed;
                         existingTask.completedAt = rTask.completionDate ? new Date(rTask.completionDate * 1000).toISOString() : null;
@@ -4432,8 +4518,8 @@ async function syncRemindersList(tabId) {
                 }
                 // Update text if changed remotely
                 if (existingTask.text !== rTask.name) {
-                     existingTask.text = rTask.name;
-                     changes = true;
+                    existingTask.text = rTask.name;
+                    changes = true;
                 }
             } else {
                 // Add new task
@@ -4458,7 +4544,7 @@ async function syncRemindersList(tabId) {
         // 2. Remove local tasks that are linked to Reminders but no longer exist remotely
         const initialCount = tab.tasks.length;
         tab.tasks = tab.tasks.filter(t => !t.remindersId || remoteIds.has(t.remindersId));
-        
+
         if (tab.tasks.length !== initialCount) {
             changes = true;
         }
@@ -4477,12 +4563,12 @@ async function syncRemindersList(tabId) {
                 }
             }
         }
-        
+
         if (changes) {
             renderTasks();
             saveData();
         }
-        
+
     } catch (e) {
         console.error('Sync Reminders Error:', e);
     }
