@@ -27,7 +27,7 @@ if (buildWin) targets.push(Platform.WINDOWS);
 if (buildLinux) targets.push(Platform.LINUX);
 
 if (targets.length === 0) {
-   console.log("No platform flags detected (--mac, --win, --linux, --mas). Building for current platform only.");
+  console.log("No platform flags detected (--mac, --win, --linux, --mas). Building for current platform only.");
 }
 
 // Determine Mac targets
@@ -62,6 +62,8 @@ builder.build({
     appId: 'com.redd.todo',
     productName: 'ReDD Do',
     copyright: 'Copyright © 2025 Reduce Digital Distraction Ltd',
+    // Skip rebuilding native modules for Linux/Windows since the macOS panel window module can't cross-compile
+    npmRebuild: !(buildWin || buildLinux || isImplicitWin || isImplicitLinux),
     directories: {
       output: 'dist',
       buildResources: 'assets'
@@ -141,14 +143,17 @@ builder.build({
     // packaging avoids electron-builder dependency graph errors on those platforms.
     extraMetadata: (buildWin || buildLinux || isImplicitWin || isImplicitLinux) ? {
       dependencies: Object.fromEntries(
-        Object.entries(pkg.dependencies || {}).filter(([name]) => name !== '@ashubashir/electron-panel-window')
+        Object.entries(pkg.dependencies || {}).filter(([name]) => !name.includes('electron-panel-window'))
+      ),
+      optionalDependencies: Object.fromEntries(
+        Object.entries(pkg.optionalDependencies || {}).filter(([name]) => !name.includes('electron-panel-window'))
       )
     } : undefined,
     defaultArch: 'x64'
   }
 }).then(() => {
   console.log('Build complete!');
-  
+
   // Rename linux files to enforce consistent 'x64' naming
   if (buildLinux) {
     const distDir = path.join(__dirname, 'dist');
