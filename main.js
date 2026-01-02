@@ -470,7 +470,19 @@ ipcMain.on('set-focus-window-size', (event, width) => {
     const [currentX, currentY] = targetWindow.getPosition();
     targetWindow.setSize(width, 48);
     targetWindow.setPosition(currentX, currentY);
-    // Removed mainWindow.center() to preserve position
+  }
+});
+
+// Dynamic height for notes panel
+ipcMain.on('set-focus-window-height', (event, height) => {
+  const targetWindow = (process.platform === 'darwin' && focusWindow) ? focusWindow : mainWindow;
+
+  if (targetWindow) {
+    targetWindow.setFullScreen(false);
+    const [currentX, currentY] = targetWindow.getPosition();
+    const [currentWidth] = targetWindow.getSize();
+    targetWindow.setSize(currentWidth, height);
+    targetWindow.setPosition(currentX, currentY);
   }
 });
 

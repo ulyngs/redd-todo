@@ -1,4 +1,6 @@
-const { ipcRenderer, shell } = require('electron');
+const { ipcRenderer, clipboard, shell } = require('electron');
+const path = require('path');
+const fs = require('fs');
 
 const isFocusPanelWindow = new URLSearchParams(window.location.search).get('focus') === '1';
 
@@ -1959,9 +1961,23 @@ function createTaskElement(task) {
 
     // Build action buttons based on task completion status
     let actionButtons = '';
+    // Notes button is now placed next to duration, not in action buttons
+    const notesBtnHtml = `
+        <button class="notes-btn ${task.notes ? 'has-notes' : ''}" data-task-id="${task.id}" title="Add/Edit Notes">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4" />
+                <path d="M2 6h4" />
+                <path d="M2 10h4" />
+                <path d="M2 14h4" />
+                <path d="M2 18h4" />
+                <path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+            </svg>
+        </button>
+    `;
+
     if (!task.completed) {
         const isActiveFocusTask = activeFocusTaskId === task.id;
-        // Incomplete tasks get both focus and delete buttons
+        // Incomplete tasks get focus, fav, and delete buttons
         actionButtons = `
             <button class="focus-btn ${isActiveFocusTask ? 'active-focus' : ''}" data-task-id="${task.id}" title="${isActiveFocusTask ? 'Exit focus mode' : 'Focus on this task'}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1974,17 +1990,16 @@ function createTaskElement(task) {
             <button class="delete-btn" data-task-id="${task.id}">×</button>
         `;
     } else {
-        // Completed tasks only get delete button
+        // Completed tasks only get fav and delete button
         actionButtons = `
             ${favBtnHtml}
             <button class="delete-btn" data-task-id="${task.id}">×</button>
         `;
     }
 
-    // Prepare duration display
+    // Prepare duration display (existing logic)
     let metaHtml = '';
     if (task.completed && task.actualDuration) {
-        // Convert ms to minutes
         let timeDisplay;
         if (task.actualDuration < 60000) {
             timeDisplay = '<1m';
@@ -1993,7 +2008,6 @@ function createTaskElement(task) {
         }
         metaHtml = `<span class="task-meta actual-time">${timeDisplay}</span>`;
     } else if (task.completed) {
-        // Completed but no duration set? Allow adding it.
         metaHtml = `<span class="task-meta add-time" title="Add actual duration">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;">
                 <path d="M12 6v6l3.644 1.822" />
@@ -2005,7 +2019,6 @@ function createTaskElement(task) {
     } else if (!task.completed && task.expectedDuration) {
         metaHtml = `<span class="task-meta" title="Click to edit duration">${task.expectedDuration}m</span>`;
     } else if (!task.completed) {
-        // Add a placeholder meta for adding duration
         metaHtml = `<span class="task-meta add-time" title="Add duration">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;">
                 <path d="M12 6v6l3.644 1.822" />
@@ -2016,16 +2029,24 @@ function createTaskElement(task) {
         </span>`;
     }
 
+    // Update innerHTML structure - notes button is now next to meta/duration
     taskElement.innerHTML = `
-        <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} data-task-id="${task.id}">
-        <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>${metaHtml}
-        <div class="task-actions">
-            ${actionButtons}
+        <div class="task-main-row">
+            <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} data-task-id="${task.id}">
+            <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>${metaHtml}${notesBtnHtml}
+            <div class="task-actions">
+                ${actionButtons}
+            </div>
+        </div>
+        <div class="notes-container" id="notes-${task.id}">
+            <div class="notes-editor-wrapper">
+                <div id="editor-${task.id}"></div>
+            </div>
         </div>
     `;
 
     // Prevent dragging when clicking on interactive elements
-    const interactiveElements = taskElement.querySelectorAll('input, button');
+    const interactiveElements = taskElement.querySelectorAll('input, button, .ql-container');
     interactiveElements.forEach(el => {
         el.addEventListener('mousedown', (e) => {
             e.stopPropagation();
@@ -2035,7 +2056,7 @@ function createTaskElement(task) {
     const taskTextSpan = taskElement.querySelector('.task-text');
     if (taskTextSpan) {
         taskTextSpan.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent triggering other click handlers on the task item
+            e.stopPropagation();
             editTaskText(task.id, taskTextSpan);
         });
     }
@@ -2053,6 +2074,119 @@ function createTaskElement(task) {
         favBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleTaskFavourite(task.id);
+        });
+    }
+
+    // Notes Logic
+    const notesBtn = taskElement.querySelector('.notes-btn');
+    const notesContainer = taskElement.querySelector(`#notes-${task.id}`);
+
+    if (notesBtn && notesContainer) {
+        notesBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const isOpen = notesContainer.classList.contains('open');
+
+            if (isOpen) {
+                notesContainer.classList.remove('open');
+                notesBtn.classList.remove('active');
+            } else {
+                notesContainer.classList.add('open');
+                notesBtn.classList.add('active');
+
+                // Initialize Quill if not already initialized
+                if (!taskElement.quillInstance) {
+                    const editorDiv = document.getElementById(`editor-${task.id}`);
+                    if (editorDiv) {
+                        taskElement.quillInstance = new Quill(editorDiv, {
+                            theme: 'snow',
+                            placeholder: 'Add notes...',
+                            modules: {
+                                toolbar: [
+                                    ['bold', 'italic', 'underline', 'strike'],
+                                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                    ['link']
+                                ]
+                            }
+                        });
+
+                        // Add Done button to wrapper (not toolbar - more reliable positioning)
+                        const wrapper = notesContainer.querySelector('.notes-editor-wrapper');
+                        const toolbar = notesContainer.querySelector('.ql-toolbar');
+
+                        if (wrapper) {
+                            const doneBtn = document.createElement('button');
+                            doneBtn.className = 'notes-done-btn';
+                            doneBtn.title = 'Done editing';
+                            doneBtn.innerHTML = `
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            `;
+                            doneBtn.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                taskElement.quillInstance.blur();
+                                wrapper.classList.remove('active');
+                            });
+                            doneBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+                            wrapper.appendChild(doneBtn);
+                        }
+
+                        if (toolbar) {
+                            // Prevent drag propagation from toolbar
+                            toolbar.addEventListener('mousedown', (e) => e.stopPropagation());
+                        }
+
+                        // Set initial content if any
+                        if (task.notes) {
+                            taskElement.quillInstance.root.innerHTML = task.notes;
+                        }
+
+                        // Handle focus/blur to show/hide toolbar
+                        taskElement.quillInstance.on('selection-change', (range) => {
+                            if (range) {
+                                // Focused
+                                wrapper.classList.add('active');
+                            } else {
+                                // Blurred - wait brief moment in case clicking toolbar
+                                // But done button handles explicit close. 
+                                // Actually, if we click outside, range becomes null.
+                                // We might want to keep it simple: only selection-change triggers active class?
+                                // If range is null, we typically want to hide, BUT specific clicks (like toolbar buttons) 
+                                // shouldn't hide it immediately or it breaks interaction.
+                                // The user requirement says: "checkmark that if clicked deselects ... and hides".
+                                // So we only hide on checkmark (or blur?)
+                                // "only appear when your cursor is in the notes field" -> implies focus.
+                                if (!range) {
+                                    wrapper.classList.remove('active');
+                                }
+                            }
+                        });
+
+                        // Save handler
+                        taskElement.quillInstance.on('text-change', () => {
+                            const content = taskElement.quillInstance.root.innerHTML;
+                            task.notes = content;
+                            if (content && content !== '<p><br></p>') {
+                                notesBtn.classList.add('has-notes');
+                            } else {
+                                notesBtn.classList.remove('has-notes');
+                            }
+
+                            // Debounce save
+                            if (taskElement.saveTimeout) clearTimeout(taskElement.saveTimeout);
+                            taskElement.saveTimeout = setTimeout(() => {
+                                saveData();
+                            }, 1000);
+                        });
+
+                        // Prevent drag propagation from editor
+                        taskElement.quillInstance.root.addEventListener('mousedown', (e) => e.stopPropagation());
+                    }
+                }
+            }
         });
     }
 
@@ -2911,6 +3045,130 @@ function setupEventListeners() {
                 focusContainer.classList.add('fullscreen');
                 updateFullscreenButtonState(true);
                 ipcRenderer.send('enter-fullscreen-focus');
+            }
+        });
+    }
+
+    // Focus mode notes button
+    const notesFocusBtn = document.getElementById('notes-focus-btn');
+    const focusNotesContainer = document.getElementById('focus-notes-container');
+    const focusNotesWrapper = document.querySelector('.focus-notes-editor-wrapper');
+    const focusNotesDoneBtn = document.getElementById('focus-notes-done-btn');
+    let focusQuillInstance = null;
+
+    if (notesFocusBtn && focusNotesContainer) {
+        notesFocusBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const isOpen = !focusNotesContainer.classList.contains('hidden');
+
+            if (isOpen) {
+                // Close notes
+                focusNotesContainer.classList.add('hidden');
+                notesFocusBtn.classList.remove('active');
+                if (focusNotesWrapper) focusNotesWrapper.classList.remove('active');
+
+                // Resize window back to normal height, preserving width
+                ipcRenderer.send('set-focus-window-height', 48);
+            } else {
+                // Open notes
+                focusNotesContainer.classList.remove('hidden');
+                notesFocusBtn.classList.add('active');
+
+                // Initialize Quill if not done
+                if (!focusQuillInstance) {
+                    const editorDiv = document.getElementById('focus-notes-editor');
+                    if (editorDiv) {
+                        focusQuillInstance = new Quill(editorDiv, {
+                            theme: 'snow',
+                            placeholder: 'Add notes...',
+                            modules: {
+                                toolbar: [
+                                    ['bold', 'italic', 'underline', 'strike'],
+                                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                    ['link']
+                                ]
+                            }
+                        });
+
+                        // Focus/blur handling
+                        focusQuillInstance.on('selection-change', (range) => {
+                            if (range) {
+                                focusNotesWrapper.classList.add('active');
+                            } else {
+                                focusNotesWrapper.classList.remove('active');
+                            }
+                            // Recalculate height as toolbar visibility changes
+                            setTimeout(() => {
+                                const focusBar = document.querySelector('.focus-bar');
+                                const barHeight = focusBar ? focusBar.offsetHeight : 48;
+                                const totalHeight = barHeight + focusNotesContainer.offsetHeight;
+                                ipcRenderer.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
+                            }, 50);
+                        });
+
+                        // Save handler
+                        focusQuillInstance.on('text-change', () => {
+                            const content = focusQuillInstance.root.innerHTML;
+                            // Find and update the actual task
+                            if (focusedTaskId) {
+                                const context = getTaskContext(focusedTaskId);
+                                if (context) {
+                                    context.task.notes = content;
+                                    if (content && content !== '<p><br></p>') {
+                                        notesFocusBtn.classList.add('has-notes');
+                                    } else {
+                                        notesFocusBtn.classList.remove('has-notes');
+                                    }
+                                    // Debounce save
+                                    if (focusQuillInstance.saveTimeout) clearTimeout(focusQuillInstance.saveTimeout);
+                                    focusQuillInstance.saveTimeout = setTimeout(() => {
+                                        saveData();
+                                    }, 1000);
+                                }
+                            }
+                        });
+
+                        focusQuillInstance.root.addEventListener('mousedown', (e) => e.stopPropagation());
+                        const toolbar = focusNotesContainer.querySelector('.ql-toolbar');
+                        if (toolbar) toolbar.addEventListener('mousedown', (e) => e.stopPropagation());
+                    }
+                }
+
+                // Load task notes if we have a focused task
+                if (focusedTaskId) {
+                    const context = getTaskContext(focusedTaskId);
+                    if (context && context.task.notes) {
+                        focusQuillInstance.root.innerHTML = context.task.notes;
+                        notesFocusBtn.classList.add('has-notes');
+                    } else {
+                        focusQuillInstance.root.innerHTML = '';
+                        notesFocusBtn.classList.remove('has-notes');
+                    }
+                }
+
+                // Resize window to fit notes
+                setTimeout(() => {
+                    const focusBar = document.querySelector('.focus-bar');
+                    const barHeight = focusBar ? focusBar.offsetHeight : 48;
+                    const totalHeight = barHeight + focusNotesContainer.offsetHeight;
+                    ipcRenderer.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
+                }, 50);
+            }
+        });
+    }
+
+    // Done button for focus notes
+    if (focusNotesDoneBtn) {
+        focusNotesDoneBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (focusQuillInstance) {
+                focusQuillInstance.blur();
+            }
+            if (focusNotesWrapper) {
+                focusNotesWrapper.classList.remove('active');
             }
         });
     }

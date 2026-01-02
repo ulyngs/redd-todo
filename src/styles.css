@@ -409,7 +409,8 @@ body {
 /* Task Item */
 .task-item {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     padding: 12px;
     margin-bottom: 8px;
     background: rgba(255, 255, 255, 0.8);
@@ -417,6 +418,145 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     transition: all 0.2s ease;
     cursor: default;
+}
+
+.task-main-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.notes-btn {
+    background: transparent;
+    border: none;
+    color: #cbd5e1;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    margin-right: 4px;
+    transition: all 0.2s ease;
+    opacity: 0;
+    /* Hidden by default, shown on hover or if has notes */
+}
+
+.task-item:hover .notes-btn {
+    opacity: 1;
+}
+
+.notes-btn:hover,
+.notes-btn.active {
+    background: rgba(0, 0, 0, 0.05);
+    color: #64748b;
+}
+
+.notes-btn.has-notes {
+    opacity: 1;
+    color: #64748b;
+    /* Always visible when notes exist */
+}
+
+.notes-btn.has-notes:hover {
+    color: #334155;
+}
+
+.notes-container {
+    margin-top: 0;
+    padding-top: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    opacity: 0;
+}
+
+.notes-container.open {
+    margin-top: 8px;
+    padding-top: 4px;
+    max-height: 500px;
+    /* Animate height */
+    overflow: visible;
+    opacity: 1;
+}
+
+.notes-editor-wrapper {
+    background: #f8fafc;
+    /* Subtle light gray background */
+    border: none;
+    border-radius: 6px;
+    overflow: visible;
+    /* Allow done button to be visible */
+    position: relative;
+    /* For positioning the done button */
+}
+
+/* Custom Quill Styles */
+.ql-toolbar.ql-snow {
+    border: none !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 4px 8px !important;
+    padding-right: 40px !important;
+    /* Make room for done button */
+    background: #f8fafc;
+    display: none;
+    /* Hidden by default */
+    position: relative;
+    /* For absolute positioning of done button */
+}
+
+.notes-editor-wrapper.active .ql-toolbar.ql-snow {
+    display: block;
+    /* Show when active */
+}
+
+/* Done button - positioned on wrapper, only visible when active */
+.notes-done-btn {
+    position: absolute;
+    right: 8px;
+    top: 6px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    /* Subtle dark grey */
+    border-radius: 4px;
+    cursor: pointer;
+    display: none;
+    /* Hidden by default */
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+}
+
+.notes-editor-wrapper.active .notes-done-btn {
+    display: flex;
+    /* Show when wrapper is active */
+}
+
+.notes-done-btn:hover {
+    color: #334155;
+    /* Darker on hover */
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.ql-container.ql-snow {
+    border: none !important;
+    font-size: 14px !important;
+    font-family: inherit !important;
+}
+
+.ql-editor {
+    min-height: 60px;
+    padding: 12px !important;
+    color: #334155;
+}
+
+.ql-editor.ql-blank::before {
+    color: #94a3b8 !important;
+    font-style: normal !important;
 }
 
 .task-item[draggable="true"] {
@@ -1176,24 +1316,41 @@ body {
 
 .focus-container {
     width: 100%;
+    /* height: 100%;  -- Remove fixed height to allow growth with notes? 
+       Actually, standard focus mode is fixed height window. 
+       But we rely on app.js resizing the window. 
+       So width 100% is fine. Height auto? 
+       The window has specific height set by Electron. 
+       If we set height: 100%, it fills the window. 
+       If content grows, window grows (via IPC). 
+       So height 100% is fine. */
     height: 100%;
     max-width: none;
     min-width: 0;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     border-radius: 0;
-    /* Remove border radius as it fills the window */
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+    position: relative;
+    cursor: grab;
+    transition: all 0.3s ease;
+}
+
+.focus-bar {
+    width: 100%;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 14px;
-    box-shadow: none;
-    /* Remove shadow as it fills the window */
-    border: none;
-    /* Remove border */
     position: relative;
-    cursor: grab;
-    transition: all 0.3s ease;
+    flex-shrink: 0;
 }
 
 /* Attention ring animation when focus mode opens */
@@ -1249,6 +1406,13 @@ body {
     flex-direction: column;
     justify-content: center;
     gap: 0;
+}
+
+.focus-container.fullscreen .focus-bar {
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0;
 }
 
 .focus-container.fullscreen .focus-task-name {
@@ -1324,7 +1488,7 @@ body {
     cursor: default;
 }
 
-.focus-container:hover .focus-timer {
+.focus-bar:hover .focus-timer {
     opacity: 0;
 }
 
@@ -1346,12 +1510,16 @@ body {
     -webkit-app-region: no-drag;
 }
 
-.focus-container:hover .focus-buttons-container {
+.focus-bar:hover .focus-buttons-container {
     opacity: 1;
     pointer-events: auto;
 }
 
 .complete-focus-btn,
+.fullscreen-focus-btn,
+.reset-focus-btn,
+.complete-focus-btn,
+.notes-focus-btn,
 .fullscreen-focus-btn,
 .reset-focus-btn,
 .exit-focus-btn {
@@ -1375,6 +1543,10 @@ body {
 .complete-focus-btn:focus,
 .fullscreen-focus-btn:focus,
 .reset-focus-btn:focus,
+.complete-focus-btn:focus,
+.notes-focus-btn:focus,
+.fullscreen-focus-btn:focus,
+.reset-focus-btn:focus,
 .exit-focus-btn:focus {
     outline: none;
 }
@@ -1392,6 +1564,7 @@ body {
 }
 
 .complete-focus-btn:hover,
+.notes-focus-btn:hover,
 .fullscreen-focus-btn:hover,
 .reset-focus-btn:hover,
 .exit-focus-btn:hover {
@@ -1474,6 +1647,77 @@ body {
     background: #f8fafc;
     color: #0f172a;
     border-color: #cbd5e1;
+}
+
+/* Focus Mode Notes Button */
+.notes-focus-btn {
+    color: #64748b;
+}
+
+.notes-focus-btn.has-notes {
+    color: #334155;
+}
+
+.notes-focus-btn.active {
+    background: rgba(0, 0, 0, 0.08);
+    color: #334155;
+}
+
+/* Focus Mode Notes Container */
+.focus-notes-container {
+    width: 100%;
+    padding: 0 14px 0 14px;
+    background: rgba(255, 255, 255, 0.95);
+    margin-bottom: 0;
+}
+
+.focus-notes-container.hidden {
+    display: none;
+}
+
+.focus-notes-editor-wrapper {
+    background: #f8fafc;
+    border-radius: 6px;
+    position: relative;
+    -webkit-app-region: no-drag;
+}
+
+
+
+.focus-notes-editor-wrapper .ql-toolbar.ql-snow {
+    display: none;
+    border: none !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 4px 8px !important;
+    padding-right: 40px !important;
+    background: #f1f5f9;
+    position: relative;
+}
+
+.focus-notes-editor-wrapper.active .ql-toolbar.ql-snow {
+    display: block;
+}
+
+.focus-notes-editor-wrapper .ql-container.ql-snow {
+    border: none !important;
+    font-size: 14px !important;
+}
+
+.focus-notes-editor-wrapper .ql-editor {
+    min-height: 20px;
+    padding-bottom: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 12px !important;
+    color: #334155;
+}
+
+.focus-notes-editor-wrapper .notes-done-btn {
+    display: none;
+}
+
+.focus-notes-editor-wrapper.active .notes-done-btn {
+    display: flex;
 }
 
 .focus-timer.overtime {

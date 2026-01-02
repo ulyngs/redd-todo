@@ -27,7 +27,8 @@
   "dependencies": {
     "electron-log": "^5.4.3",
     "electron-updater": "^6.6.2",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "quill": "^2.0.3"
   },
   "optionalDependencies": {
     "@redd/electron-panel-window-darwin": "file:vendor/electron-panel-window-darwin"
