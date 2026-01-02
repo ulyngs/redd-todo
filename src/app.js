@@ -1959,7 +1959,7 @@ function createTaskElement(task) {
     // Build action buttons based on task completion status
     let actionButtons = '';
     if (!task.completed) {
-        const isActiveFocusTask = currentView === 'lists' && activeFocusTaskId === task.id;
+        const isActiveFocusTask = activeFocusTaskId === task.id;
         // Incomplete tasks get both focus and delete buttons
         actionButtons = `
             <button class="focus-btn ${isActiveFocusTask ? 'active-focus' : ''}" data-task-id="${task.id}" title="${isActiveFocusTask ? 'Exit focus mode' : 'Focus on this task'}">
