@@ -105,6 +105,9 @@ redd-todo/
 └── README.md
 ```
 
+## Development
+You might need to trigger access for your IDE to Apple Reminders, by running `osascript -e 'tell application "Reminders" to get name of every list'`
+
 ## Terms of Use
 
 This code is licensed under the [CC BY-NC-ND 3.0](https://creativecommons.org/licenses/by-nc-nd/3.0/) licence.
