@@ -436,15 +436,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: 4px;
-    margin-right: 4px;
     transition: all 0.2s ease;
-    opacity: 0;
-    /* Hidden by default, shown on hover or if has notes */
-}
-
-.task-item:hover .notes-btn {
-    opacity: 1;
 }
 
 .notes-btn:hover,
@@ -454,9 +446,7 @@ body {
 }
 
 .notes-btn.has-notes {
-    opacity: 1;
     color: #64748b;
-    /* Always visible when notes exist */
 }
 
 .notes-btn.has-notes:hover {
@@ -695,25 +685,23 @@ body {
 .task-meta {
     font-size: 11px;
     color: #999;
-    margin-left: 8px;
     white-space: nowrap;
     flex-shrink: 0;
     cursor: pointer;
+    padding: 0 4px;
     /* Make it clear it's interactive */
 }
 
 .task-meta.add-time {
-    opacity: 0;
-    /* Hide by default */
-    transition: opacity 0.2s ease;
     color: #ccc;
     font-weight: bold;
     padding: 0 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
 
 .task-item:hover .task-meta.add-time {
     opacity: 1;
-    /* Show on hover */
 }
 
 .task-meta.add-time:hover {
@@ -762,9 +750,28 @@ body {
 
 .task-actions {
     display: flex;
-    gap: 8px;
-    margin-left: 12px;
+    gap: 2px;
+    margin-left: auto;
+    padding-left: 4px;
     flex-shrink: 0;
+    align-items: center;
+}
+
+.hover-actions {
+    display: none;
+    gap: 0;
+    align-items: center;
+    position: relative;
+}
+
+.task-item:hover .hover-actions {
+    display: flex;
+}
+
+.always-actions {
+    display: flex;
+    gap: 2px;
+    align-items: center;
 }
 
 .focus-btn,
@@ -787,7 +794,7 @@ body {
     background: hsl(222.2, 84%, 4.9%);
     border: 1px solid hsl(222.2, 84%, 4.9%);
     color: hsl(210, 40%, 98%);
-    padding: 4px;
+    padding: 4px 2px;
     transition: all 0.15s ease;
 }
 
@@ -814,19 +821,71 @@ body {
     display: block;
 }
 
-.delete-btn {
+.task-menu-btn {
     background: transparent;
     border: none;
     color: #999;
-    padding: 4px 6px;
+    padding: 4px;
     min-width: auto;
-    font-size: 18px;
-    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
-.delete-btn:hover {
+.task-menu-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #666;
+}
+
+/* Task context menu dropdown */
+.task-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    min-width: 140px;
+    padding: 4px;
+    margin-top: 4px;
+}
+
+.task-menu.hidden {
+    display: none;
+}
+
+.task-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    color: #374151;
+    border-radius: 4px;
+    text-align: left;
+    transition: background 0.15s ease;
+}
+
+.task-menu-item:hover {
+    background: #f3f4f6;
+}
+
+.task-menu-item.delete-task-item:hover {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
+}
+
+.task-menu-item svg {
+    flex-shrink: 0;
 }
 
 .fav-btn {

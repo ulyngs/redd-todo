@@ -732,6 +732,79 @@ function deleteTask(taskId) {
     }
 }
 
+function showMoveTaskModal(taskId) {
+    const context = getTaskContext(taskId);
+    if (!context) return;
+
+    const { task, tabId: sourceTabId } = context;
+
+    // Build list of available tabs to move to (excluding current tab)
+    const availableTabs = Object.entries(tabs)
+        .filter(([id]) => id !== sourceTabId)
+        .map(([id, tab]) => ({ id, name: tab.name }));
+
+    if (availableTabs.length === 0) {
+        alert('No other lists available to move to.');
+        return;
+    }
+
+    // Create a simple select modal using the existing modal system
+    const modalHtml = `
+        <div id="move-task-modal" class="modal-overlay">
+            <div class="modal-content">
+                <h3>Move task to...</h3>
+                <select id="move-task-select" class="bc-select" style="width: 100%; margin-bottom: 16px;">
+                    ${availableTabs.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+                </select>
+                <div class="modal-buttons">
+                    <button id="cancel-move-btn" class="modal-btn cancel-btn">Cancel</button>
+                    <button id="confirm-move-btn" class="modal-btn create-btn">Move</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Append modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modal = document.getElementById('move-task-modal');
+    const select = document.getElementById('move-task-select');
+    const cancelBtn = document.getElementById('cancel-move-btn');
+    const confirmBtn = document.getElementById('confirm-move-btn');
+
+    cancelBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+
+    confirmBtn.addEventListener('click', () => {
+        const targetTabId = select.value;
+        if (!targetTabId) return;
+
+        // Remove from source tab
+        const sourceTab = tabs[sourceTabId];
+        const taskIndex = sourceTab.tasks.findIndex(t => t.id === taskId);
+        if (taskIndex !== -1) {
+            sourceTab.tasks.splice(taskIndex, 1);
+        }
+
+        // Add to target tab
+        const targetTab = tabs[targetTabId];
+        targetTab.tasks.push(task);
+
+        modal.remove();
+        renderTasks();
+        saveData();
+        showUndoToast(`Task moved to "${targetTab.name}"`);
+    });
+
+    // Close on overlay click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
 function toggleTask(taskId) {
     console.log('=== TOGGLE TASK START ===');
     console.log('Task ID:', taskId);
@@ -1960,11 +2033,10 @@ function createTaskElement(task) {
     `;
 
     // Build action buttons based on task completion status
-    let actionButtons = '';
-    // Notes button is now placed next to duration, not in action buttons
+    // Notes button HTML
     const notesBtnHtml = `
         <button class="notes-btn ${task.notes ? 'has-notes' : ''}" data-task-id="${task.id}" title="Add/Edit Notes">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4" />
                 <path d="M2 6h4" />
                 <path d="M2 10h4" />
@@ -1975,29 +2047,18 @@ function createTaskElement(task) {
         </button>
     `;
 
-    if (!task.completed) {
-        const isActiveFocusTask = activeFocusTaskId === task.id;
-        // Incomplete tasks get focus, fav, and delete buttons
-        actionButtons = `
-            <button class="focus-btn ${isActiveFocusTask ? 'active-focus' : ''}" data-task-id="${task.id}" title="${isActiveFocusTask ? 'Exit focus mode' : 'Focus on this task'}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <circle cx="12" cy="12" r="6"/>
-                    <circle cx="12" cy="12" r="2"/>
-                </svg>
-            </button>
-            ${favBtnHtml}
-            <button class="delete-btn" data-task-id="${task.id}">×</button>
-        `;
-    } else {
-        // Completed tasks only get fav and delete button
-        actionButtons = `
-            ${favBtnHtml}
-            <button class="delete-btn" data-task-id="${task.id}">×</button>
-        `;
-    }
+    // Menu button HTML (replaces delete button)
+    const menuBtnHtml = `
+        <button class="task-menu-btn" data-task-id="${task.id}" title="Task options">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="12" cy="5" r="1"></circle>
+                <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+        </button>
+    `;
 
-    // Prepare duration display (existing logic)
+    // Prepare duration display (existing logic) - now as a button for hover behavior
     let metaHtml = '';
     if (task.completed && task.actualDuration) {
         let timeDisplay;
@@ -2009,7 +2070,7 @@ function createTaskElement(task) {
         metaHtml = `<span class="task-meta actual-time">${timeDisplay}</span>`;
     } else if (task.completed) {
         metaHtml = `<span class="task-meta add-time" title="Add actual duration">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;">
                 <path d="M12 6v6l3.644 1.822" />
                 <path d="M16 19h6" />
                 <path d="M19 16v6" />
@@ -2020,7 +2081,7 @@ function createTaskElement(task) {
         metaHtml = `<span class="task-meta" title="Click to edit duration">${task.expectedDuration}m</span>`;
     } else if (!task.completed) {
         metaHtml = `<span class="task-meta add-time" title="Add duration">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;">
                 <path d="M12 6v6l3.644 1.822" />
                 <path d="M16 19h6" />
                 <path d="M19 16v6" />
@@ -2029,13 +2090,70 @@ function createTaskElement(task) {
         </span>`;
     }
 
-    // Update innerHTML structure - notes button is now next to meta/duration
+    // Build always-visible buttons (favourite, focus, and duration if set)
+    // Duration only takes up space if it has a value
+    const hasDuration = task.completed ? task.actualDuration : task.expectedDuration;
+    const alwaysMeta = hasDuration ? metaHtml : '';
+    const hoverMeta = hasDuration ? '' : metaHtml;
+
+    let alwaysVisibleButtons = '';
+    if (!task.completed) {
+        const isActiveFocusTask = activeFocusTaskId === task.id;
+        alwaysVisibleButtons = `
+            ${alwaysMeta}
+            ${favBtnHtml}
+            <button class="focus-btn ${isActiveFocusTask ? 'active-focus' : ''}" data-task-id="${task.id}" title="${isActiveFocusTask ? 'Exit focus mode' : 'Focus on this task'}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="6"/>
+                    <circle cx="12" cy="12" r="2"/>
+                </svg>
+            </button>
+        `;
+    } else {
+        // Completed tasks only show fav button in always-visible section
+        alwaysVisibleButtons = `${alwaysMeta}${favBtnHtml}`;
+    }
+
+    // Build hover-only buttons (menu, notes if no notes exist, duration if not set)
+    // Notes button goes to always-actions if task has notes
+    const hoverNotes = task.notes ? '' : notesBtnHtml;
+    const alwaysNotes = task.notes ? notesBtnHtml : '';
+    const hoverButtons = `${menuBtnHtml}${hoverNotes}${hoverMeta}`;
+
+    // Add notes to always-visible if task has notes
+    alwaysVisibleButtons = `${alwaysNotes}${alwaysVisibleButtons}`;
+
+    // Build task menu HTML
+    const taskMenuHtml = `
+        <div class="task-menu hidden" data-task-id="${task.id}">
+            <button class="task-menu-item move-task-item" data-task-id="${task.id}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3v12"/>
+                    <path d="m8 11 4 4 4-4"/>
+                    <path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/>
+                </svg>
+                Move to...
+            </button>
+            <button class="task-menu-item delete-task-item" data-task-id="${task.id}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18"/>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                </svg>
+                Delete
+            </button>
+        </div>
+    `;
+
+    // Update innerHTML structure with new button groupings
     taskElement.innerHTML = `
         <div class="task-main-row">
             <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} data-task-id="${task.id}">
-            <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>${metaHtml}${notesBtnHtml}
+            <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>
             <div class="task-actions">
-                ${actionButtons}
+                <div class="hover-actions">${hoverButtons}${taskMenuHtml}</div>
+                <div class="always-actions">${alwaysVisibleButtons}</div>
             </div>
         </div>
         <div class="notes-container" id="notes-${task.id}">
@@ -2197,6 +2315,16 @@ function createTaskElement(task) {
         taskElement.addEventListener('dragover', handleDragOver);
         taskElement.addEventListener('drop', handleDrop);
     }
+
+    // Close any open menus when hovering over a different task
+    taskElement.addEventListener('mouseenter', () => {
+        document.querySelectorAll('.task-menu:not(.hidden)').forEach(menu => {
+            // Only close menus that are not part of this task
+            if (!taskElement.contains(menu)) {
+                menu.classList.add('hidden');
+            }
+        });
+    });
 
     return taskElement;
 }
@@ -2722,9 +2850,34 @@ function setupEventListeners() {
             return;
         }
 
-        if (e.target.classList.contains('delete-btn') || e.target.closest('.delete-btn')) {
+        // Task menu button - toggle menu
+        if (e.target.classList.contains('task-menu-btn') || e.target.closest('.task-menu-btn')) {
+            e.stopPropagation();
+            const taskItem = e.target.closest('.task-item');
+            const menu = taskItem?.querySelector('.task-menu');
+            if (menu) {
+                // Close all other menus first
+                document.querySelectorAll('.task-menu:not(.hidden)').forEach(m => {
+                    if (m !== menu) m.classList.add('hidden');
+                });
+                menu.classList.toggle('hidden');
+            }
+        }
+        // Delete action from menu
+        else if (e.target.classList.contains('delete-task-item') || e.target.closest('.delete-task-item')) {
             deleteTask(taskId);
-        } else if (e.target.classList.contains('focus-btn') || e.target.closest('.focus-btn')) {
+            // Close menu
+            const menu = e.target.closest('.task-menu');
+            if (menu) menu.classList.add('hidden');
+        }
+        // Move action from menu
+        else if (e.target.classList.contains('move-task-item') || e.target.closest('.move-task-item')) {
+            showMoveTaskModal(taskId);
+            // Close menu
+            const menu = e.target.closest('.task-menu');
+            if (menu) menu.classList.add('hidden');
+        }
+        else if (e.target.classList.contains('focus-btn') || e.target.closest('.focus-btn')) {
             focusTask(taskId);
         } else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
             toggleTask(taskId);
@@ -2785,9 +2938,32 @@ function setupEventListeners() {
         const taskId = e.target.dataset.taskId || e.target.closest('[data-task-id]')?.dataset.taskId;
         if (!taskId) return;
 
-        if (e.target.classList.contains('delete-btn') || e.target.closest('.delete-btn')) {
+        // Task menu button - toggle menu
+        if (e.target.classList.contains('task-menu-btn') || e.target.closest('.task-menu-btn')) {
+            e.stopPropagation();
+            const taskItem = e.target.closest('.task-item');
+            const menu = taskItem?.querySelector('.task-menu');
+            if (menu) {
+                // Close all other menus first
+                document.querySelectorAll('.task-menu:not(.hidden)').forEach(m => {
+                    if (m !== menu) m.classList.add('hidden');
+                });
+                menu.classList.toggle('hidden');
+            }
+        }
+        // Delete action from menu
+        else if (e.target.classList.contains('delete-task-item') || e.target.closest('.delete-task-item')) {
             deleteTask(taskId);
-        } else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
+            const menu = e.target.closest('.task-menu');
+            if (menu) menu.classList.add('hidden');
+        }
+        // Move action from menu
+        else if (e.target.classList.contains('move-task-item') || e.target.closest('.move-task-item')) {
+            showMoveTaskModal(taskId);
+            const menu = e.target.closest('.task-menu');
+            if (menu) menu.classList.add('hidden');
+        }
+        else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
             toggleTask(taskId);
         } else if (e.target.classList.contains('task-text')) {
             // Edit task text for completed tasks
@@ -4986,3 +5162,13 @@ async function deleteRemindersTask(remindersId) {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
+
+// Close task menus when clicking outside
+document.addEventListener('click', (e) => {
+    // If click is not on a menu button or inside a menu, close all menus
+    if (!e.target.closest('.task-menu-btn') && !e.target.closest('.task-menu')) {
+        document.querySelectorAll('.task-menu:not(.hidden)').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+});
