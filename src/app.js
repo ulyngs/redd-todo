@@ -1993,12 +1993,26 @@ function createTaskElement(task) {
         metaHtml = `<span class="task-meta actual-time">${timeDisplay}</span>`;
     } else if (task.completed) {
         // Completed but no duration set? Allow adding it.
-        metaHtml = `<span class="task-meta add-time" title="Add actual duration">+</span>`;
+        metaHtml = `<span class="task-meta add-time" title="Add actual duration">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;">
+                <path d="M12 6v6l3.644 1.822" />
+                <path d="M16 19h6" />
+                <path d="M19 16v6" />
+                <path d="M21.92 13.267a10 10 0 1 0-8.653 8.653" />
+            </svg>
+        </span>`;
     } else if (!task.completed && task.expectedDuration) {
         metaHtml = `<span class="task-meta" title="Click to edit duration">${task.expectedDuration}m</span>`;
     } else if (!task.completed) {
         // Add a placeholder meta for adding duration
-        metaHtml = `<span class="task-meta add-time" title="Add duration">+</span>`;
+        metaHtml = `<span class="task-meta add-time" title="Add duration">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;">
+                <path d="M12 6v6l3.644 1.822" />
+                <path d="M16 19h6" />
+                <path d="M19 16v6" />
+                <path d="M21.92 13.267a10 10 0 1 0-8.653 8.653" />
+            </svg>
+        </span>`;
     }
 
     taskElement.innerHTML = `
