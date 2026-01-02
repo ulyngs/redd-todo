@@ -355,7 +355,47 @@ function showConfirmModal(title, message, okText = 'OK', cancelText = 'Cancel') 
 
 // Helper function to update sync button visibility and state based on current tab and connection status
 function updateSyncButtonState() {
-    if (currentView === 'favourites' || !currentTabId || !tabs[currentTabId]) {
+    // Handle favourites view - show sync button if any favourited tasks belong to synced lists
+    if (currentView === 'favourites') {
+        const syncedTabsWithFavourites = getSyncedTabsWithFavourites();
+
+        if (syncedTabsWithFavourites.length === 0) {
+            syncBtn.classList.add('hidden');
+            return;
+        }
+
+        // Determine connection status for all relevant synced services
+        let hasBasecamp = false;
+        let hasReminders = false;
+        syncedTabsWithFavourites.forEach(tabId => {
+            const tab = tabs[tabId];
+            if (tab.basecampListId) hasBasecamp = true;
+            if (tab.remindersListId) hasReminders = true;
+        });
+
+        const basecampDisconnected = hasBasecamp && !basecampConfig.isConnected;
+        const remindersDisconnected = hasReminders && !remindersConfig.isConnected;
+
+        syncBtn.classList.remove('hidden');
+
+        if (basecampDisconnected || remindersDisconnected) {
+            syncBtn.classList.add('disconnected');
+            const services = [];
+            if (basecampDisconnected) services.push('Basecamp');
+            if (remindersDisconnected) services.push('Apple Reminders');
+            syncBtn.title = `${services.join(' & ')} disconnected - click to reconnect`;
+        } else {
+            syncBtn.classList.remove('disconnected');
+            const services = [];
+            if (hasBasecamp) services.push('Basecamp');
+            if (hasReminders) services.push('Apple Reminders');
+            syncBtn.title = 'Sync favourites with ' + services.join(' & ');
+        }
+        return;
+    }
+
+    // Handle lists view
+    if (!currentTabId || !tabs[currentTabId]) {
         syncBtn.classList.add('hidden');
         return;
     }
@@ -1703,6 +1743,25 @@ function getTabSyncType(tabId) {
     return 'local';
 }
 
+// Helper to get all synced tab IDs that contain favourited tasks
+function getSyncedTabsWithFavourites() {
+    const syncedTabIds = new Set();
+
+    Object.keys(tabs).forEach(tabId => {
+        const tab = tabs[tabId];
+        const isSynced = tab.basecampListId || tab.remindersListId;
+
+        if (isSynced) {
+            const hasFavourites = tab.tasks.some(task => task.isFavourite);
+            if (hasFavourites) {
+                syncedTabIds.add(tabId);
+            }
+        }
+    });
+
+    return Array.from(syncedTabIds);
+}
+
 // Check if two tabs are compatible for task transfer
 function areTabsCompatible(sourceTabId, targetTabId) {
     return getTabSyncType(sourceTabId) === getTabSyncType(targetTabId);
@@ -2652,6 +2711,80 @@ function setupEventListeners() {
     // Sync Button
     if (syncBtn) {
         syncBtn.addEventListener('click', async () => {
+            // Handle favourites view - sync all synced lists with favourited tasks
+            if (currentView === 'favourites') {
+                const syncedTabsWithFavs = getSyncedTabsWithFavourites();
+
+                if (syncedTabsWithFavs.length === 0) return;
+
+                // Check for disconnected services
+                let hasDisconnectedBasecamp = false;
+                let hasDisconnectedReminders = false;
+
+                syncedTabsWithFavs.forEach(tabId => {
+                    const tab = tabs[tabId];
+                    if (tab.basecampListId && !basecampConfig.isConnected) hasDisconnectedBasecamp = true;
+                    if (tab.remindersListId && !remindersConfig.isConnected) hasDisconnectedReminders = true;
+                });
+
+                if (hasDisconnectedBasecamp || hasDisconnectedReminders) {
+                    // Handle reconnection similar to single tab case
+                    const services = [];
+                    if (hasDisconnectedBasecamp) services.push('Basecamp');
+                    if (hasDisconnectedReminders) services.push('Apple Reminders');
+
+                    const message = `Some favourited tasks are synced with ${services.join(' & ')}, but the connection is not active.\n\nYour changes are saved locally and will sync when you reconnect.`;
+
+                    const reconnect = await showConfirmModal(
+                        'Connection Required',
+                        message,
+                        'Reconnect',
+                        'Cancel'
+                    );
+
+                    if (reconnect) {
+                        if (hasDisconnectedReminders && process.platform === 'darwin') {
+                            try {
+                                const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+                                if (Array.isArray(lists)) {
+                                    remindersConfig.isConnected = true;
+                                    saveData();
+                                    updateRemindersUI();
+                                    updateSyncButtonState();
+                                    syncBtn.click();
+                                }
+                            } catch (e) {
+                                console.error('Failed to reconnect to Reminders:', e);
+                            }
+                        } else if (hasDisconnectedBasecamp) {
+                            ipcRenderer.send('start-basecamp-auth');
+                        }
+                    }
+                    return;
+                }
+
+                // Sync all relevant lists
+                syncBtn.classList.add('spinning');
+
+                const promises = [];
+                syncedTabsWithFavs.forEach(tabId => {
+                    const tab = tabs[tabId];
+                    if (tab.basecampListId && basecampConfig.isConnected) {
+                        promises.push(syncBasecampList(tabId));
+                    }
+                    if (tab.remindersListId && remindersConfig.isConnected) {
+                        promises.push(syncRemindersList(tabId));
+                    }
+                });
+
+                Promise.all(promises).finally(() => {
+                    setTimeout(() => syncBtn.classList.remove('spinning'), 500);
+                });
+
+                return;
+            }
+
+            // Original logic for lists view
             if (!currentTabId) return;
 
             const tab = tabs[currentTabId];
