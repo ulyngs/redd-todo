@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ReDD Do</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="app-container">
         <!-- Normal Mode UI -->
@@ -14,23 +16,40 @@
             <div class="title-bar">
                 <div id="view-switcher" class="view-switcher">
                     <button id="view-lists-btn" class="view-btn active" title="Lists View">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        </svg>
                     </button>
                     <button id="view-fav-btn" class="view-btn" title="Favourites View">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+                            </path>
                         </svg>
                     </button>
                 </div>
                 <div id="window-controls" class="window-controls hidden">
                     <button id="min-btn" class="win-btn min-btn" title="Minimize">
-                        <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"></rect></svg>
+                        <svg width="10" height="1" viewBox="0 0 10 1">
+                            <rect width="10" height="1" fill="currentColor"></rect>
+                        </svg>
                     </button>
                     <button id="max-btn" class="win-btn max-btn" title="Maximize">
-                        <svg width="10" height="10" viewBox="0 0 10 10"><rect width="10" height="10" fill="none" stroke="black" stroke-width="1.2"></rect></svg>
+                        <svg width="10" height="10" viewBox="0 0 10 10">
+                            <rect width="10" height="10" fill="none" stroke="black" stroke-width="1.2"></rect>
+                        </svg>
                     </button>
                     <button id="close-btn" class="win-btn close-btn" title="Close">
-                        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M0,0 L10,10 M10,0 L0,10" stroke="currentColor" stroke-width="1.2"></path></svg>
+                        <svg width="10" height="10" viewBox="0 0 10 10">
+                            <path d="M0,0 L10,10 M10,0 L0,10" stroke="currentColor" stroke-width="1.2"></path>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -49,8 +68,11 @@
                 </div>
                 <button id="settings-btn" class="settings-btn" title="Settings">
                     <!-- Standard gear icon (lucide "settings") -->
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.16.1a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.2a2 2 0 0 1-1 1.73l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.16.09a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.16-.09a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.73v-.2a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.16-.1a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.16.1a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.2a2 2 0 0 1-1 1.73l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.16.09a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.16-.09a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.73v-.2a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.16-.1a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
+                        </path>
                         <circle cx="12" cy="12" r="3"></circle>
                     </svg>
                 </button>
@@ -67,22 +89,30 @@
                 <div class="input-wrapper">
                     <input type="text" id="new-task-input" placeholder="New task..." maxlength="100">
                     <div id="duration-input-container" class="duration-input-container">
-                        <input type="number" id="task-duration-input" class="task-duration-input" placeholder="e.g., 15 mins" min="1" max="999">
+                        <input type="number" id="task-duration-input" class="task-duration-input"
+                            placeholder="e.g., 15 mins" min="1" max="999">
                         <span class="duration-label">m</span>
                         <div class="duration-spinners">
                             <button type="button" class="duration-spinner-btn" id="duration-increment" tabindex="-1">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="18 15 12 9 6 15"></polyline>
+                                </svg>
                             </button>
                             <button type="button" class="duration-spinner-btn" id="duration-decrement" tabindex="-1">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
                             </button>
                         </div>
                     </div>
                 </div>
                 <button id="add-task-btn">Add</button>
                 <button id="sync-btn" class="sync-btn hidden" title="Sync with Basecamp">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
                     </svg>
                 </button>
             </div>
@@ -91,13 +121,15 @@
             <div class="done-container" id="done-container">
                 <div class="done-heading" id="done-heading">
                     <div class="done-toggle">
-                        <svg class="chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg class="chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                         <span>Done</span>
                     </div>
                     <span id="done-time-spent" class="done-time-spent"></span>
-                    <button id="delete-all-btn" class="delete-all-btn hidden" title="Delete all completed tasks">Delete all</button>
+                    <button id="delete-all-btn" class="delete-all-btn hidden" title="Delete all completed tasks">Delete
+                        all</button>
                 </div>
                 <div class="done-tasks">
                     <!-- Completed tasks will be dynamically added here -->
@@ -106,7 +138,8 @@
 
             <!-- Footer -->
             <div class="footer">
-                Made with <span class="heart">♥</span> by <a href="https://reddfocus.org" target="_blank">reddfocus.org</a>
+                Made with <span class="heart">♥</span> by <a href="https://reddfocus.org"
+                    target="_blank">reddfocus.org</a>
             </div>
         </div>
 
@@ -115,14 +148,14 @@
             <div class="modal-content">
                 <h3 id="modal-title">Enter list name</h3>
                 <input type="text" id="tab-name-input" placeholder="My to-do list" maxlength="50">
-                
+
                 <!-- Basecamp Selection (Hidden by default) -->
                 <div id="basecamp-selection" class="basecamp-selection hidden">
                     <div class="bc-label">Basecamp Project</div>
                     <select id="bc-project-select" class="bc-select">
                         <option value="">Select a project...</option>
                     </select>
-                    
+
                     <div id="bc-list-wrapper" class="hidden">
                         <div class="bc-label">To-do List</div>
                         <select id="bc-list-select" class="bc-select">
@@ -150,38 +183,55 @@
         <div id="settings-modal" class="modal-overlay hidden">
             <div class="modal-content">
                 <h3>Settings</h3>
-                
+
                 <div class="settings-section">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <label class="setting-toggle" style="display: flex; align-items: center; font-size: 13px; cursor: pointer; user-select: none;">
+                        <label class="setting-toggle"
+                            style="display: flex; align-items: center; font-size: 13px; cursor: pointer; user-select: none;">
                             <input type="checkbox" id="enable-groups-toggle" class="task-checkbox">
                             <span>Enable Tab Groups</span>
                         </label>
-                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="groups-info" title="More info">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="groups-info"
+                            title="More info">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
                             </svg>
                         </button>
                     </div>
-                    <p id="groups-info" class="settings-desc info-expandable hidden">Organize your to-do lists into groups (shown in a top bar).</p>
+                    <p id="groups-info" class="settings-desc info-expandable hidden">Organize your to-do lists into
+                        groups (shown in a top bar).</p>
                 </div>
 
                 <div class="settings-section">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <h4>Apple Reminders Integration</h4>
-                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info" title="More info">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info"
+                            title="More info">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
                             </svg>
                         </button>
                     </div>
-                    <p id="reminders-info" class="settings-desc info-expandable hidden">Import tasks from Apple Reminders.</p>
-                    <button id="reminders-connect-btn" class="modal-btn connect-btn" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg>
+                    <p id="reminders-info" class="settings-desc info-expandable hidden">Import tasks from Apple
+                        Reminders.</p>
+                    <button id="reminders-connect-btn" class="modal-btn connect-btn"
+                        style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 6h13"></path>
+                            <path d="M8 12h13"></path>
+                            <path d="M8 18h13"></path>
+                            <path d="M3 6h.01"></path>
+                            <path d="M3 12h.01"></path>
+                            <path d="M3 18h.01"></path>
+                        </svg>
                         Connect Reminders
                     </button>
                     <div id="reminders-status" class="connection-status hidden" style="margin-top: 10px;">
@@ -192,29 +242,34 @@
                 </div>
 
                 <div class="settings-section">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <h4>Basecamp Integration</h4>
-                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info" title="More info">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
+                            title="More info">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
                             </svg>
                         </button>
                     </div>
-                    <p id="basecamp-info" class="settings-desc info-expandable hidden">Sync your to-do lists with <a href="https://basecamp.com" target="_blank">Basecamp</a> project management software.</p>
-                    
+                    <p id="basecamp-info" class="settings-desc info-expandable hidden">Sync your to-do lists with <a
+                            href="https://basecamp.com" target="_blank">Basecamp</a> project management software.</p>
+
                     <div id="bc-auth-container">
                         <div class="connection-status hidden" id="bc-connection-status">
                             <span class="status-dot"></span>
                             <span>Connected to Basecamp</span>
                             <div id="bc-account-info" style="font-size: 0.9em; color: #666; margin-top: 5px;"></div>
                         </div>
-                        
+
                         <div id="bc-login-form">
                             <!-- New OAuth Button -->
-                            <button id="oauth-connect-btn" class="modal-btn connect-btn" style="width: 100%; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                                <img src="images/basecamp_logo_icon_147315.png" width="16" height="16"> 
+                            <button id="oauth-connect-btn" class="modal-btn connect-btn"
+                                style="width: 100%; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                                <img src="images/basecamp_logo_icon_147315.png" width="16" height="16">
                                 Connect with Basecamp
                             </button>
 
@@ -229,18 +284,25 @@
                             <!-- Old fields hidden by default -->
                             <div id="manual-auth-fields" class="hidden">
                                 <input type="text" id="bc-account-id" placeholder="Account ID" class="settings-input">
-                                <input type="email" id="bc-email" placeholder="Email Address (Optional)" class="settings-input">
-                                <input type="password" id="bc-access-token" placeholder="Access Token (OAuth)" class="settings-input">
-                                <input type="password" id="bc-refresh-token" placeholder="Refresh Token (Optional - for auto-renewal)" class="settings-input">
-                                <input type="text" id="bc-client-id" placeholder="Client ID (Optional - for auto-renewal)" class="settings-input">
-                                <input type="password" id="bc-client-secret" placeholder="Client Secret (Optional - for auto-renewal)" class="settings-input">
-                                <button id="connect-bc-btn" class="modal-btn connect-btn">Save Manual Credentials</button>
+                                <input type="email" id="bc-email" placeholder="Email Address (Optional)"
+                                    class="settings-input">
+                                <input type="password" id="bc-access-token" placeholder="Access Token (OAuth)"
+                                    class="settings-input">
+                                <input type="password" id="bc-refresh-token"
+                                    placeholder="Refresh Token (Optional - for auto-renewal)" class="settings-input">
+                                <input type="text" id="bc-client-id"
+                                    placeholder="Client ID (Optional - for auto-renewal)" class="settings-input">
+                                <input type="password" id="bc-client-secret"
+                                    placeholder="Client Secret (Optional - for auto-renewal)" class="settings-input">
+                                <button id="connect-bc-btn" class="modal-btn connect-btn">Save Manual
+                                    Credentials</button>
                                 <p class="help-text">
-                                    You can get a token from the <a href="#" id="bc-help-link">Basecamp Developer Launchpad</a>.
+                                    You can get a token from the <a href="#" id="bc-help-link">Basecamp Developer
+                                        Launchpad</a>.
                                 </p>
                             </div>
                         </div>
-                        
+
                         <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden">Disconnect</button>
                     </div>
                 </div>
@@ -271,7 +333,8 @@
         <div id="confirm-modal" class="modal-overlay hidden">
             <div class="modal-content">
                 <h3 id="confirm-modal-title">Confirm</h3>
-                <p id="confirm-modal-message" class="settings-desc" style="margin-bottom: 20px; line-height: 1.5; white-space: pre-line;"></p>
+                <p id="confirm-modal-message" class="settings-desc"
+                    style="margin-bottom: 20px; line-height: 1.5; white-space: pre-line;"></p>
                 <div class="modal-buttons">
                     <button id="confirm-modal-cancel" class="modal-btn cancel-btn">Cancel</button>
                     <button id="confirm-modal-ok" class="modal-btn create-btn">OK</button>
@@ -291,27 +354,37 @@
             <div class="focus-container">
                 <div class="focus-task-name" id="focus-task-name">Task Name</div>
                 <div class="focus-timer" id="focus-timer">00:00:00</div>
+                <div id="focus-toast" class="focus-toast hidden">
+                    <span>Timer reset</span>
+                    <button id="focus-undo-btn">Undo</button>
+                </div>
                 <div class="focus-buttons-container">
                     <button id="complete-focus-btn" class="complete-focus-btn" title="Mark task as complete">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
                     </button>
                     <button id="fullscreen-focus-btn" class="fullscreen-focus-btn" title="Enter fullscreen">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
                         </svg>
                     </button>
                     <button id="reset-focus-btn" class="reset-focus-btn" title="Reset timer">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M2.5 2v6h6M21.5 22v-6h-6"/>
-                            <path d="M22 11.5A10 10 0 0 0 3.2 7.2M2 12.5a10 10 0 0 0 18.8 4.3"/>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 2h4" />
+                            <path d="M12 14v-4" />
+                            <path d="M4 13a8 8 0 0 1 8-7 8 8 0 1 1-5.3 14L4 17.6" />
+                            <path d="M9 17H4v5" />
                         </svg>
                     </button>
                     <button id="exit-focus-btn" class="exit-focus-btn" title="Exit focus mode">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                            <polyline points="9,22 9,12 15,12 15,22"/>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <polyline points="9,22 9,12 15,12 15,22" />
                         </svg>
                     </button>
                 </div>
@@ -321,4 +394,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>

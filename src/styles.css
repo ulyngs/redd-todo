@@ -1431,6 +1431,51 @@ body {
     transition: opacity 0.2s ease;
 }
 
+/* Focus Mode Toast */
+.focus-toast {
+    position: absolute;
+    left: 14px;
+    /* Align with left padding */
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    pointer-events: auto;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.focus-toast.visible {
+    opacity: 1;
+}
+
+#focus-undo-btn {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #0f172a;
+    font-weight: 500;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+#focus-undo-btn:hover {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+
 .focus-timer.overtime {
     color: #ef4444;
 }

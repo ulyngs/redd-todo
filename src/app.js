@@ -13,6 +13,7 @@ let isDoneCollapsed = false; // New state for done section
 let doneMaxHeight = 140; // New state for done section resize
 let enableGroups = false; // Feature toggle for tab groups
 let focusStartTime = null;
+let previousFocusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
 // Track dragged items
@@ -2794,9 +2795,85 @@ function setupEventListeners() {
             e.preventDefault();
             e.stopPropagation();
 
+            // Save current state before reset
+            previousFocusStartTime = focusStartTime;
+
             // Reset timer to start from 0
             focusStartTime = Date.now();
             updateFocusTimer();
+
+            // Hide buttons immediately to show timer clearly
+            const buttonsContainer = document.querySelector('.focus-buttons-container');
+            const focusTimer = document.getElementById('focus-timer');
+
+            if (buttonsContainer) {
+                buttonsContainer.style.opacity = '0';
+                buttonsContainer.style.pointerEvents = 'none';
+
+                // Also force timer to be visible (overriding CSS hover state)
+                if (focusTimer) {
+                    focusTimer.style.opacity = '1';
+                }
+
+                // Allow them to reappear on hover after a short delay
+                setTimeout(() => {
+                    buttonsContainer.style.opacity = '';
+                    buttonsContainer.style.pointerEvents = '';
+
+                    if (focusTimer) {
+                        focusTimer.style.opacity = '';
+                    }
+                }, 500);
+            }
+
+            // Visual feedback via toast
+            const toast = document.getElementById('focus-toast');
+            if (toast) {
+                toast.classList.remove('hidden'); // Ensure it's in DOM layout
+
+                // Force reflow
+                void toast.offsetWidth;
+
+                toast.classList.add('visible');
+
+                // Clear any existing timeout to prevent early dismissal if clicking multiple times
+                if (toast.dataset.timeoutId) {
+                    clearTimeout(parseInt(toast.dataset.timeoutId));
+                }
+
+                const timeoutId = setTimeout(() => {
+                    toast.classList.remove('visible');
+                    // wait for transition to finish before hiding
+                    setTimeout(() => {
+                        toast.classList.add('hidden');
+                    }, 300);
+                }, 4000); // Increased to 4s to give time to undo
+
+                toast.dataset.timeoutId = timeoutId.toString();
+            }
+        });
+    }
+
+    // Undo button handler
+    const focusUndoBtn = document.getElementById('focus-undo-btn');
+    if (focusUndoBtn) {
+        focusUndoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (previousFocusStartTime) {
+                focusStartTime = previousFocusStartTime;
+                updateFocusTimer();
+
+                // Hide toast immediately
+                const toast = document.getElementById('focus-toast');
+                if (toast) {
+                    toast.classList.remove('visible');
+                    setTimeout(() => {
+                        toast.classList.add('hidden');
+                    }, 300);
+                }
+            }
         });
     }
 
