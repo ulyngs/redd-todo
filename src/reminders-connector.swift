@@ -146,6 +146,22 @@ func createTask(listId: String, title: String) {
     }
 }
 
+func updateTaskNotes(taskId: String, notes: String) {
+    guard let reminder = store.calendarItem(withIdentifier: taskId) as? EKReminder else {
+        outputError("Task not found")
+        return
+    }
+    
+    reminder.notes = notes
+    
+    do {
+        try store.save(reminder, commit: true)
+        output(["success": true])
+    } catch {
+        outputError("Failed to save: \(error.localizedDescription)")
+    }
+}
+
 // Main Logic
 checkAccess()
 
@@ -195,6 +211,13 @@ case "create-task":
     let listId = args[2]
     let title = args[3]
     createTask(listId: listId, title: title)
+case "update-notes":
+    if args.count < 4 {
+        outputError("Task ID and notes required")
+    }
+    let taskId = args[2]
+    let notes = args[3]
+    updateTaskNotes(taskId: taskId, notes: notes)
 default:
     outputError("Unknown command")
 }

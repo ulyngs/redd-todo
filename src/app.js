@@ -5169,15 +5169,23 @@ async function syncRemindersList(tabId) {
                 const localNotes = existingTask.notes || '';
                 const remoteNotes = rTask.notes || '';
 
-                if (localNotes !== remoteNotes) {
+                // Extract plain text from local notes for comparison (local may have HTML from Quill)
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = localNotes;
+                const localPlainText = (tempDiv.textContent || tempDiv.innerText || '').trim();
+                const remotePlainText = remoteNotes.trim();
+
+                // Only consider it a conflict if the plain text content actually differs
+                // This preserves local HTML formatting when we push to Reminders and it comes back as plain text
+                if (localPlainText !== remotePlainText) {
                     // Use notesChangedAt for local, lastModifiedDate for remote
                     const localNotesTime = existingTask.notesChangedAt ? new Date(existingTask.notesChangedAt).getTime() : 0;
                     const remoteTime = rTask.lastModifiedDate ? rTask.lastModifiedDate * 1000 : 0;
 
                     // Debug logging
                     console.log('Reminders notes sync conflict for:', existingTask.text);
-                    console.log('  Local notes:', localNotes.substring(0, 50), 'notesChangedAt:', existingTask.notesChangedAt, 'time:', localNotesTime);
-                    console.log('  Remote notes:', remoteNotes.substring(0, 50), 'lastModifiedDate:', rTask.lastModifiedDate, 'time:', remoteTime);
+                    console.log('  Local plain text:', localPlainText.substring(0, 50), 'notesChangedAt:', existingTask.notesChangedAt, 'time:', localNotesTime);
+                    console.log('  Remote plain text:', remotePlainText.substring(0, 50), 'lastModifiedDate:', rTask.lastModifiedDate, 'time:', remoteTime);
 
                     let useRemoteNotes = false;
 
@@ -5192,7 +5200,7 @@ async function syncRemindersList(tabId) {
                         useRemoteNotes = false;
                     } else {
                         // Neither has timestamps - prefer having content to avoid losing work
-                        useRemoteNotes = remoteNotes && !localNotes;
+                        useRemoteNotes = remotePlainText && !localPlainText;
                     }
 
                     console.log('  Decision: useRemoteNotes =', useRemoteNotes);
@@ -5283,10 +5291,55 @@ async function updateRemindersTitle(remindersId, title) {
 
 async function updateRemindersNotes(remindersId, notes) {
     try {
-        await ipcRenderer.invoke('update-reminders-notes', remindersId, notes);
+        // Convert HTML to readable plain text since Apple Reminders only supports plain text
+        const plainText = htmlToPlainText(notes || '');
+        await ipcRenderer.invoke('update-reminders-notes', remindersId, plainText);
     } catch (e) {
         console.error('Failed to update Reminder notes:', e);
     }
+}
+
+// Convert Quill HTML to readable plain text
+function htmlToPlainText(html) {
+    if (!html) return '';
+
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    // Process ordered lists - add numbers
+    temp.querySelectorAll('ol').forEach(ol => {
+        const items = ol.querySelectorAll('li');
+        items.forEach((li, index) => {
+            li.textContent = `${index + 1}. ${li.textContent}`;
+        });
+    });
+
+    // Process unordered lists - add bullets
+    temp.querySelectorAll('ul').forEach(ul => {
+        ul.querySelectorAll('li').forEach(li => {
+            li.textContent = `• ${li.textContent}`;
+        });
+    });
+
+    // Add line breaks after block elements
+    temp.querySelectorAll('p, li, div, br, h1, h2, h3, h4, h5, h6').forEach(el => {
+        if (el.tagName === 'BR') {
+            el.replaceWith('\n');
+        } else {
+            el.appendChild(document.createTextNode('\n'));
+        }
+    });
+
+    // Get text content and clean up
+    let text = temp.textContent || temp.innerText || '';
+
+    // Normalize multiple newlines to double newline (paragraph break)
+    text = text.replace(/\n{3,}/g, '\n\n');
+
+    // Trim whitespace
+    text = text.trim();
+
+    return text;
 }
 
 async function createRemindersTask(listId, title) {

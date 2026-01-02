@@ -380,6 +380,11 @@ ipcMain.handle('create-reminders-task', async (event, listId, title) => {
   return runRemindersConnector(['create-task', listId, title]);
 });
 
+ipcMain.handle('update-reminders-notes', async (event, taskId, notes) => {
+  if (process.platform !== 'darwin') return;
+  return runRemindersConnector(['update-notes', taskId, notes]);
+});
+
 // Update checker
 const { autoUpdater } = require('electron-updater');
 
