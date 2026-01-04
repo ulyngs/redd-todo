@@ -1245,7 +1245,21 @@ function renderGroups() {
 
     Object.values(groups).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(group => {
         const groupElement = document.createElement('div');
-        groupElement.className = `group-tab ${group.id === currentGroupId ? 'active' : ''}`;
+        let className = `group-tab ${group.id === currentGroupId ? 'active' : ''}`;
+
+        // Add color class if present (or inline style for custom hex colors)
+        if (group.color) {
+            if (group.color.startsWith('#')) {
+                // Custom hex color - apply as inline style
+                groupElement.style.backgroundColor = group.color;
+                groupElement.style.borderColor = group.color;
+            } else {
+                // Preset color class
+                className += ` tab-bg-${group.color}`;
+            }
+        }
+
+        groupElement.className = className;
         groupElement.dataset.groupId = group.id;
         groupElement.draggable = true; // Enable group reordering
 
@@ -1354,12 +1368,39 @@ function showGroupRenameModal(groupId) {
     renamingGroupId = groupId;
     const group = groups[groupId];
     if (group) {
-        modalTitle.textContent = 'Rename group';
-        createTabBtn.textContent = 'Rename';
+        modalTitle.textContent = 'Edit group';
+        createTabBtn.textContent = 'Save';
         tabNameInput.value = group.name;
         tabNameModal.classList.remove('hidden');
         basecampSelection.classList.add('hidden');
         tabNameModal.dataset.mode = 'group-rename';
+
+        // Select logic for color
+        const colorSwatches = document.querySelectorAll('.color-swatch');
+        const customColorInput = document.getElementById('custom-color-input');
+        const customSwatch = document.querySelector('.color-swatch-custom');
+
+        colorSwatches.forEach(swatch => {
+            swatch.classList.remove('selected');
+            if (swatch.dataset.color === (group.color || '')) {
+                swatch.classList.add('selected');
+            }
+        });
+
+        // Handle custom hex color
+        if (group.color && group.color.startsWith('#')) {
+            if (customColorInput) customColorInput.value = group.color;
+            if (customSwatch) {
+                customSwatch.style.background = group.color;
+                customSwatch.classList.add('selected');
+            }
+        } else {
+            // Reset custom swatch to rainbow gradient
+            if (customSwatch) {
+                customSwatch.style.background = 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)';
+            }
+        }
+
         tabNameInput.focus();
         tabNameInput.select();
     }
@@ -1371,6 +1412,18 @@ async function handleModalCreate() {
     let name = tabNameInput.value.trim();
 
     if (mode === 'group') {
+        // Get selected color
+        let selectedColor = '';
+        const activeSwatch = document.querySelector('.color-swatch.selected');
+        const customColorInput = document.getElementById('custom-color-input');
+        if (activeSwatch) {
+            if (activeSwatch.dataset.color === 'custom' && customColorInput) {
+                selectedColor = customColorInput.value;
+            } else {
+                selectedColor = activeSwatch.dataset.color || '';
+            }
+        }
+
         // Check if Basecamp project is selected
         const bcProjectId = bcProjectSelect.value;
         const isImporting = bcProjectId && basecampConfig.isConnected;
@@ -1381,6 +1434,13 @@ async function handleModalCreate() {
         }
 
         const groupId = createGroup(name);
+
+        // Apply color to the new group
+        if (groups[groupId]) {
+            groups[groupId].color = selectedColor;
+            saveData();
+            renderGroups();
+        }
 
         if (isImporting) {
             try {
@@ -1400,8 +1460,7 @@ async function handleModalCreate() {
                 // createNewTab already saves and renders.
                 // Maybe switch to the first imported tab?
                 // The last created tab will be active because createNewTab switches to it?
-                // Actually createNewTab calls switchToTab at the end if we want? 
-                // Wait, my createNewTab implementation DOES NOT call switchToTab automatically?
+                // Actually createNewTab implementation DOES NOT call switchToTab automatically?
                 // Let's check createNewTab...
                 // It returns tabId. It does renderTabs() and saveData().
                 // It calls syncBasecampList(tabId) if connected.
@@ -1428,6 +1487,23 @@ async function handleModalCreate() {
         tabNameModal.dataset.mode = ''; // Reset
         return;
     } else if (mode === 'group-rename') {
+        // Get selected color
+        let selectedColor = '';
+        const activeSwatch = document.querySelector('.color-swatch.selected');
+        const customColorInput = document.getElementById('custom-color-input');
+        if (activeSwatch) {
+            if (activeSwatch.dataset.color === 'custom' && customColorInput) {
+                selectedColor = customColorInput.value;
+            } else {
+                selectedColor = activeSwatch.dataset.color || '';
+            }
+        }
+
+        // Update group color
+        if (groups[renamingGroupId]) {
+            groups[renamingGroupId].color = selectedColor;
+        }
+
         renameGroup(renamingGroupId, name);
         hideTabNameModal();
         tabNameModal.dataset.mode = ''; // Reset
@@ -1611,9 +1687,39 @@ function renderTabs() {
         const tabElement = document.createElement('div');
         let className = `tab ${tab.id === currentTabId ? 'active' : ''}`;
 
-        // Add color class if present
+        // Add color class if present (or inline style for custom hex colors)
         if (tab.color) {
-            className += ` tab-bg-${tab.color}`;
+            const isActive = tab.id === currentTabId;
+
+            // When groups are enabled:
+            // - Active tab: show full background color
+            // - Non-active tabs: show color as bottom border only
+            if (enableGroups) {
+                if (isActive) {
+                    // Active tab - full background color
+                    if (tab.color.startsWith('#')) {
+                        tabElement.style.backgroundColor = tab.color;
+                        tabElement.style.borderColor = tab.color;
+                    } else {
+                        className += ` tab-bg-${tab.color}`;
+                    }
+                } else {
+                    // Non-active tab - bottom border only
+                    if (tab.color.startsWith('#')) {
+                        tabElement.style.borderBottomColor = tab.color;
+                    } else {
+                        className += ` tab-border-${tab.color}`;
+                    }
+                }
+            } else {
+                // Groups disabled - full background color for all
+                if (tab.color.startsWith('#')) {
+                    tabElement.style.backgroundColor = tab.color;
+                    tabElement.style.borderColor = tab.color;
+                } else {
+                    className += ` tab-bg-${tab.color}`;
+                }
+            }
         }
 
         tabElement.className = className;
@@ -2495,6 +2601,49 @@ function setupEventListeners() {
         });
     }
 
+    // Color swatch click event - using event delegation for reliability
+    const customColorInput = document.getElementById('custom-color-input');
+
+    document.body.addEventListener('click', (e) => {
+        const swatch = e.target.closest('.color-swatch');
+        if (swatch) {
+            console.log('[Color Swatch] Clicked:', swatch.dataset.color);
+            e.preventDefault();
+            e.stopPropagation();
+
+            // If custom color swatch, open color picker
+            if (swatch.dataset.color === 'custom') {
+                customColorInput.click();
+                return;
+            }
+
+            // Remove selected from all swatches
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+            // Add to clicked swatch
+            swatch.classList.add('selected');
+            console.log('[Color Swatch] Selected:', swatch.classList.contains('selected'));
+        }
+    });
+
+    // Custom color picker change event
+    if (customColorInput) {
+        customColorInput.addEventListener('input', (e) => {
+            const color = e.target.value;
+            const customSwatch = document.querySelector('.color-swatch-custom');
+
+            // Remove selected from all swatches
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+
+            // Update custom swatch appearance and select it
+            if (customSwatch) {
+                customSwatch.style.background = color;
+                customSwatch.classList.add('selected');
+            }
+
+            console.log('[Color Picker] Custom color selected:', color);
+        });
+    }
+
     if (createTabBtn) {
         createTabBtn.addEventListener('click', () => {
             // Check if we are creating a group
@@ -2531,8 +2680,16 @@ function setupEventListeners() {
             // Get selected color
             let selectedColor = '';
             const activeSwatch = document.querySelector('.color-swatch.selected');
+            const customColorInput = document.getElementById('custom-color-input');
+            console.log('[Color Save] Active swatch:', activeSwatch);
             if (activeSwatch) {
-                selectedColor = activeSwatch.dataset.color || '';
+                if (activeSwatch.dataset.color === 'custom' && customColorInput) {
+                    // Use the hex color value directly
+                    selectedColor = customColorInput.value;
+                } else {
+                    selectedColor = activeSwatch.dataset.color || '';
+                }
+                console.log('[Color Save] Selected color:', selectedColor);
             }
 
             if (renamingTabId) {
@@ -2541,6 +2698,7 @@ function setupEventListeners() {
                 // Let's update it directly here for simplicity and safety
                 if (tabs[renamingTabId]) {
                     tabs[renamingTabId].color = selectedColor;
+                    console.log('[Color Save] Tab color updated to:', tabs[renamingTabId].color);
                 }
                 renameTab(renamingTabId, tabName);
             } else {
@@ -2549,6 +2707,7 @@ function setupEventListeners() {
                 if (tabs[newTabId]) {
                     tabs[newTabId].color = selectedColor;
                     saveData(); // Save usually happens in createNewTab but we modified it
+                    console.log('[Color Save] New tab color set to:', tabs[newTabId].color);
                 }
                 switchToTab(newTabId);
             }
@@ -4583,8 +4742,8 @@ function showRenameModal(tabId) {
     renamingTabId = tabId;
     const tab = tabs[tabId];
     if (tab) {
-        modalTitle.textContent = 'Rename tab';
-        createTabBtn.textContent = 'Rename';
+        modalTitle.textContent = 'Edit list';
+        createTabBtn.textContent = 'Save';
         tabNameInput.value = tab.name;
         basecampSelection.classList.remove('hidden'); // allow moving connections
         remindersSelection.classList.remove('hidden'); // allow moving connections
@@ -4592,12 +4751,29 @@ function showRenameModal(tabId) {
 
         // Select logic for color
         const colorSwatches = document.querySelectorAll('.color-swatch');
+        const customColorInput = document.getElementById('custom-color-input');
+        const customSwatch = document.querySelector('.color-swatch-custom');
+
         colorSwatches.forEach(swatch => {
             swatch.classList.remove('selected');
             if (swatch.dataset.color === (tab.color || '')) {
                 swatch.classList.add('selected');
             }
         });
+
+        // Handle custom hex color
+        if (tab.color && tab.color.startsWith('#')) {
+            if (customColorInput) customColorInput.value = tab.color;
+            if (customSwatch) {
+                customSwatch.style.background = tab.color;
+                customSwatch.classList.add('selected');
+            }
+        } else {
+            // Reset custom swatch to rainbow gradient
+            if (customSwatch) {
+                customSwatch.style.background = 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)';
+            }
+        }
 
         tabNameInput.focus();
         tabNameInput.select();
@@ -4817,6 +4993,10 @@ function updateBasecampUI() {
         bcLoginForm.classList.add('hidden');
         disconnectBcBtn.classList.remove('hidden');
 
+        // Hide the main OAuth button row when connected
+        const bcConnectRow = document.getElementById('basecamp-connect-row');
+        if (bcConnectRow) bcConnectRow.classList.add('hidden');
+
         // Show account info if available
         if (bcAccountInfo && basecampConfig.accountId) {
             bcAccountInfo.textContent = `Account ID: ${basecampConfig.accountId} ${basecampConfig.email ? `(${basecampConfig.email})` : ''}`;
@@ -4833,6 +5013,11 @@ function updateBasecampUI() {
         bcConnectionStatus.classList.add('hidden');
         bcLoginForm.classList.remove('hidden');
         disconnectBcBtn.classList.add('hidden');
+
+        // Show the main OAuth button row when disconnected
+        const bcConnectRow = document.getElementById('basecamp-connect-row');
+        if (bcConnectRow) bcConnectRow.classList.remove('hidden');
+
         bcAccountIdInput.value = '';
         bcAccessTokenInput.value = '';
         bcRefreshTokenInput.value = '';
@@ -5388,13 +5573,15 @@ async function fallbackMoveBasecampTodo(task, sourceTab, targetTab) {
 // Reminders Logic
 
 function updateRemindersUI() {
+    const connectRow = document.getElementById('reminders-connect-row');
+
     if (remindersConfig.isConnected) {
         remindersStatus.classList.remove('hidden');
-        remindersConnectBtn.classList.add('hidden');
+        if (connectRow) connectRow.classList.add('hidden');
         if (disconnectRemindersBtn) disconnectRemindersBtn.classList.remove('hidden');
     } else {
         remindersStatus.classList.add('hidden');
-        remindersConnectBtn.classList.remove('hidden');
+        if (connectRow) connectRow.classList.remove('hidden');
         if (disconnectRemindersBtn) disconnectRemindersBtn.classList.add('hidden');
     }
 }
@@ -5674,8 +5861,104 @@ async function deleteRemindersTask(remindersId) {
     }
 }
 
+// Data Management
+function exportData() {
+    try {
+        const data = localStorage.getItem('redd-todo-data');
+        if (!data) {
+            alert('No data to export!');
+            return;
+        }
+
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        // Format date: YYYY-MM-DD
+        const date = new Date().toISOString().split('T')[0];
+        a.download = `redd-do-backup-${date}.json`;
+        a.href = url;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error('Export failed:', e);
+        alert('Failed to export data.');
+    }
+}
+
+function importData(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const content = e.target.result;
+            const data = JSON.parse(content);
+
+            // Simple validation: check if it looks like our data structure
+            // Just checking if 'tabs' exists is a decent heuristic for now
+            if (!data.tabs) {
+                throw new Error('Invalid backup file format.');
+            }
+
+            const confirmRestore = await showConfirmModal(
+                'Restore Backup',
+                'This will overwrite all your current data with the backup.\n\nAre you sure you want to proceed?',
+                'Restore',
+                'Cancel'
+            );
+
+            if (confirmRestore) {
+                // Save to localStorage
+                localStorage.setItem('redd-todo-data', JSON.stringify(data));
+
+                // Clear old key too just in case to avoid confusion
+                localStorage.removeItem('redd-task-data');
+
+                alert('Backup restored successfully! The app will now reload.');
+                window.location.reload();
+            } else {
+                // Reset file input so same file can be selected again if needed
+                document.getElementById('import-file-input').value = '';
+            }
+
+        } catch (err) {
+            console.error('Import failed:', err);
+            alert('Failed to import data: ' + err.message);
+            document.getElementById('import-file-input').value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
 // Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', initApp);
+document.addEventListener('DOMContentLoaded', () => {
+    initApp();
+
+    // Data Management Listeners
+    const exportBtn = document.getElementById('export-data-btn');
+    const importBtn = document.getElementById('import-data-btn');
+    const fileInput = document.getElementById('import-file-input');
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportData);
+    }
+
+    if (importBtn) {
+        importBtn.addEventListener('click', () => {
+            if (fileInput) fileInput.click();
+        });
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                importData(e.target.files[0]);
+            }
+        });
+    }
+});
 
 // Close task menus when clicking outside
 document.addEventListener('click', (e) => {

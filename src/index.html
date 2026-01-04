@@ -159,6 +159,40 @@
                 <h3 id="modal-title">Enter list name</h3>
                 <input type="text" id="tab-name-input" placeholder="My to-do list" maxlength="50">
 
+                <!-- Color Selection - right after name input -->
+                <div id="tab-color-selection" class="tab-color-selection">
+                    <div class="bc-label">Tab Color</div>
+                    <div class="color-swatches">
+                        <button type="button" class="color-swatch selected" data-color="" title="None"></button>
+                        <button type="button" class="color-swatch" data-color="red" title="Red"
+                            style="background-color: #fee2e2;"></button>
+                        <button type="button" class="color-swatch" data-color="orange" title="Orange"
+                            style="background-color: #ffedd5;"></button>
+                        <button type="button" class="color-swatch" data-color="yellow" title="Yellow"
+                            style="background-color: #fef9c3;"></button>
+                        <button type="button" class="color-swatch" data-color="green" title="Green"
+                            style="background-color: #dcfce7;"></button>
+                        <button type="button" class="color-swatch" data-color="blue" title="Blue"
+                            style="background-color: #dbeafe;"></button>
+                        <button type="button" class="color-swatch" data-color="purple" title="Purple"
+                            style="background-color: #f3e8ff;"></button>
+                        <button type="button" class="color-swatch" data-color="pink" title="Pink"
+                            style="background-color: #fce7f3;"></button>
+                        <button type="button" class="color-swatch" data-color="gray" title="Gray"
+                            style="background-color: #f3f4f6;"></button>
+                        <button type="button" class="color-swatch color-swatch-custom" data-color="custom"
+                            title="Custom color">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 8v8"></path>
+                                <path d="M8 12h8"></path>
+                            </svg>
+                        </button>
+                        <input type="color" id="custom-color-input" value="#667eea" style="display: none;">
+                    </div>
+                </div>
+
                 <!-- Basecamp Selection (Hidden by default) -->
                 <div id="basecamp-selection" class="basecamp-selection hidden">
                     <div class="bc-label">Basecamp Project</div>
@@ -180,30 +214,6 @@
                     <select id="reminders-list-select" class="bc-select">
                         <option value="">Select a list...</option>
                     </select>
-                </div>
-
-                <!-- Color Selection -->
-                <div id="tab-color-selection" class="tab-color-selection">
-                    <div class="bc-label">Tab Color</div>
-                    <div class="color-swatches">
-                        <button type="button" class="color-swatch selected" data-color="" title="None"></button>
-                        <button type="button" class="color-swatch" data-color="red" title="Red"
-                            style="background-color: #fee2e2;"></button>
-                        <button type="button" class="color-swatch" data-color="orange" title="Orange"
-                            style="background-color: #ffedd5;"></button>
-                        <button type="button" class="color-swatch" data-color="yellow" title="Yellow"
-                            style="background-color: #fef9c3;"></button>
-                        <button type="button" class="color-swatch" data-color="green" title="Green"
-                            style="background-color: #dcfce7;"></button>
-                        <button type="button" class="color-swatch" data-color="blue" title="Blue"
-                            style="background-color: #dbeafe;"></button>
-                        <button type="button" class="color-swatch" data-color="purple" title="Purple"
-                            style="background-color: #f3e8ff;"></button>
-                        <button type="button" class="color-swatch" data-color="pink" title="Pink"
-                            style="background-color: #fce7f3;"></button>
-                        <button type="button" class="color-swatch" data-color="gray" title="Gray"
-                            style="background-color: #f3f4f6;"></button>
-                    </div>
                 </div>
 
                 <div class="modal-buttons">
@@ -260,8 +270,8 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                <path d="M12 16v-4"></path>
+                                <path d="M12 8h.01"></path>
                             </svg>
                         </button>
                     </div>
@@ -270,52 +280,85 @@
                 </div>
 
                 <div class="settings-section">
-                    <div
-                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                        <h4>Apple Reminders Integration</h4>
+                    <h4>Data Management</h4>
+                    <p class="settings-desc" style="margin-bottom: 12px;">Backup or restore your data.</p>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="export-data-btn" class="modal-btn"
+                            style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color-medium); color: var(--text-primary);">
+                            Export Backup
+                        </button>
+                        <button id="import-data-btn" class="modal-btn"
+                            style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color-medium); color: var(--text-primary);">
+                            Import Backup
+                        </button>
+                        <input type="file" id="import-file-input" accept=".json" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4 style="margin-bottom: 12px;">Integrations</h4>
+
+                    <!-- Apple Reminders -->
+                    <div id="reminders-connect-row"
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <button id="reminders-connect-btn" class="modal-btn connect-btn"
+                            style="flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M8 6h13"></path>
+                                <path d="M8 12h13"></path>
+                                <path d="M8 18h13"></path>
+                                <path d="M3 6h.01"></path>
+                                <path d="M3 12h.01"></path>
+                                <path d="M3 18h.01"></path>
+                            </svg>
+                            Connect to Apple Reminders
+                        </button>
                         <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info"
-                            title="More info">
+                            title="More info" style="margin-left: 8px;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                <path d="M12 16v-4"></path>
+                                <path d="M12 8h.01"></path>
                             </svg>
                         </button>
                     </div>
                     <p id="reminders-info" class="settings-desc info-expandable hidden">Import tasks from Apple
                         Reminders.</p>
-                    <button id="reminders-connect-btn" class="modal-btn connect-btn"
-                        style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M8 6h13"></path>
-                            <path d="M8 12h13"></path>
-                            <path d="M8 18h13"></path>
-                            <path d="M3 6h.01"></path>
-                            <path d="M3 12h.01"></path>
-                            <path d="M3 18h.01"></path>
-                        </svg>
-                        Connect Reminders
-                    </button>
-                    <div id="reminders-status" class="connection-status hidden" style="margin-top: 10px;">
-                        <span class="status-dot"></span>
-                        <span>Connected to Reminders</span>
-                    </div>
-                    <button id="disconnect-reminders-btn" class="modal-btn disconnect-btn hidden">Disconnect</button>
-                </div>
-
-                <div class="settings-section">
-                    <div
-                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                        <h4>Basecamp Integration</h4>
-                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
-                            title="More info">
+                    <div id="reminders-status" class="connection-status hidden"
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center;">
+                            <span class="status-dot"></span>
+                            <span>Connected to Apple Reminders</span>
+                        </div>
+                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info"
+                            title="More info" style="margin-left: 8px;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                <path d="M12 16v-4"></path>
+                                <path d="M12 8h.01"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <button id="disconnect-reminders-btn" class="modal-btn disconnect-btn hidden">Disconnect</button>
+
+                    <!-- Basecamp -->
+                    <div id="basecamp-connect-row"
+                        style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px; margin-bottom: 10px;">
+                        <button id="oauth-connect-btn" class="modal-btn connect-btn"
+                            style="flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <img src="images/basecamp_logo_icon_147315.png" width="16" height="16">
+                            Connect to Basecamp
+                        </button>
+                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
+                            title="More info" style="margin-left: 8px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 16v-4"></path>
+                                <path d="M12 8h.01"></path>
                             </svg>
                         </button>
                     </div>
@@ -323,28 +366,28 @@
                             href="https://basecamp.com" target="_blank">Basecamp</a> project management software.</p>
 
                     <div id="bc-auth-container">
-                        <div class="connection-status hidden" id="bc-connection-status">
-                            <span class="status-dot"></span>
-                            <span>Connected to Basecamp</span>
-                            <div id="bc-account-info" style="font-size: 0.9em; color: #666; margin-top: 5px;"></div>
+                        <div class="connection-status hidden" id="bc-connection-status"
+                            style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px;">
+                            <div>
+                                <div style="display: flex; align-items: center;">
+                                    <span class="status-dot"></span>
+                                    <span>Connected to Basecamp</span>
+                                </div>
+                                <div id="bc-account-info"
+                                    style="font-size: 0.9em; color: #666; margin-top: 4px; margin-left: 16px;"></div>
+                            </div>
+                            <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
+                                title="More info" style="margin-left: 8px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M12 16v-4"></path>
+                                    <path d="M12 8h.01"></path>
+                                </svg>
+                            </button>
                         </div>
 
-                        <div id="bc-login-form">
-                            <!-- New OAuth Button -->
-                            <button id="oauth-connect-btn" class="modal-btn connect-btn"
-                                style="width: 100%; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                                <img src="images/basecamp_logo_icon_147315.png" width="16" height="16">
-                                Connect with Basecamp
-                            </button>
-
-                            <!--
-                            <div class="divider" style="text-align: center; margin: 15px 0; color: #999; font-size: 0.8em;">OR</div>
-
-                            <a href="#" id="toggle-manual-auth" style="font-size: 0.9em; color: #666; text-decoration: underline; display: block; text-align: center; margin-bottom: 10px;">
-                                Enter credentials manually (Advanced)
-                            </a>
-                            -->
-
+                        <div id="bc-login-form" class="hidden">
                             <!-- Old fields hidden by default -->
                             <div id="manual-auth-fields" class="hidden">
                                 <input type="text" id="bc-account-id" placeholder="Account ID" class="settings-input">

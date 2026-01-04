@@ -345,7 +345,7 @@ body {
     flex: 1;
     gap: 2px;
     overflow-x: auto;
-    align-items: center;
+    align-items: flex-end;
     margin-right: 16px;
     /* Space for settings button */
 }
@@ -1421,6 +1421,8 @@ body {
     padding: 24px;
     min-width: 300px;
     max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
@@ -2078,7 +2080,7 @@ body {
     align-items: center;
     font-size: 13px;
     color: var(--text-primary);
-    margin-bottom: 12px;
+    margin-bottom: 4px;
 }
 
 .status-dot {
@@ -2439,6 +2441,8 @@ input:checked+.slider:before {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     padding: 0;
     position: relative;
+    pointer-events: auto;
+    z-index: 10;
 }
 
 .color-swatch:hover {
@@ -2446,9 +2450,9 @@ input:checked+.slider:before {
 }
 
 .color-swatch.selected {
-    transform: scale(1.1);
-    box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
-    z-index: 1;
+    transform: scale(1.15);
+    box-shadow: 0 0 0 2px var(--app-bg-solid), 0 0 0 4px var(--accent-primary);
+    z-index: 11;
 }
 
 /* Default "None" swatch */
@@ -2462,6 +2466,53 @@ input:checked+.slider:before {
     background-color: var(--bg-secondary);
 }
 
+/* Custom color swatch */
+.color-swatch-custom {
+    background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.color-swatch-custom svg {
+    color: white;
+    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.5));
+}
+
+
+
+/* Tab Border Colors (for grouped mode - bottom border only) */
+.tab.tab-border-red {
+    border-bottom-color: #f87171 !important;
+}
+
+.tab.tab-border-orange {
+    border-bottom-color: #fb923c !important;
+}
+
+.tab.tab-border-yellow {
+    border-bottom-color: #facc15 !important;
+}
+
+.tab.tab-border-green {
+    border-bottom-color: #4ade80 !important;
+}
+
+.tab.tab-border-blue {
+    border-bottom-color: #60a5fa !important;
+}
+
+.tab.tab-border-purple {
+    border-bottom-color: #c084fc !important;
+}
+
+.tab.tab-border-pink {
+    border-bottom-color: #f472b6 !important;
+}
+
+.tab.tab-border-gray {
+    border-bottom-color: #9ca3af !important;
+}
 
 /* Tab Background Colors */
 .tab.tab-bg-red {
@@ -2582,5 +2633,115 @@ input:checked+.slider:before {
       For now let's just use the defined colors. */
     border-bottom-color: transparent;
     /* Match general active tab rule */
+    font-weight: 600;
+}
+
+/* Group Tab Background Colors - mirror the tab colors */
+.group-tab.tab-bg-red {
+    background-color: #fee2e2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.group-tab.tab-bg-orange {
+    background-color: #ffedd5;
+    border-color: #fed7aa;
+    color: #9a3412;
+}
+
+.group-tab.tab-bg-yellow {
+    background-color: #fef9c3;
+    border-color: #fde047;
+    color: #854d0e;
+}
+
+.group-tab.tab-bg-green {
+    background-color: #dcfce7;
+    border-color: #bbf7d0;
+    color: #166534;
+}
+
+.group-tab.tab-bg-blue {
+    background-color: #dbeafe;
+    border-color: #bfdbfe;
+    color: #1e40af;
+}
+
+.group-tab.tab-bg-purple {
+    background-color: #f3e8ff;
+    border-color: #e9d5ff;
+    color: #6b21a8;
+}
+
+.group-tab.tab-bg-pink {
+    background-color: #fce7f3;
+    border-color: #fbcfe8;
+    color: #9d174d;
+}
+
+.group-tab.tab-bg-gray {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #374151;
+}
+
+/* Dark Mode Overrides for Group Tabs */
+[data-theme="dark"] .group-tab.tab-bg-red {
+    background-color: #7f1d1d;
+    border-color: #991b1b;
+    color: #fecaca;
+}
+
+[data-theme="dark"] .group-tab.tab-bg-orange {
+    background-color: #7c2d12;
+    border-color: #9a3412;
+    color: #fed7aa;
+}
+
+[data-theme="dark"] .group-tab.tab-bg-yellow {
+    background-color: #713f12;
+    border-color: #854d0e;
+    color: #fde047;
+}
+
+[data-theme="dark"] .group-tab.tab-bg-green {
+    background-color: #14532d;
+    border-color: #166534;
+    color: #bbf7d0;
+}
+
+[data-theme="dark"] .group-tab.tab-bg-blue {
+    background-color: #1e3a8a;
+    border-color: #1e40af;
+    color: #bfdbfe;
+}
+
+[data-theme="dark"] .group-tab.tab-bg-purple {
+    background-color: #581c87;
+    border-color: #6b21a8;
+    color: #e9d5ff;
+}
+
+[data-theme="dark"] .group-tab.tab-bg-pink {
+    background-color: #831843;
+    border-color: #9d174d;
+    color: #fbcfe8;
+}
+
+[data-theme="dark"] .group-tab.tab-bg-gray {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+}
+
+/* Active group tabs with colors */
+.group-tab.active.tab-bg-red,
+.group-tab.active.tab-bg-orange,
+.group-tab.active.tab-bg-yellow,
+.group-tab.active.tab-bg-green,
+.group-tab.active.tab-bg-blue,
+.group-tab.active.tab-bg-purple,
+.group-tab.active.tab-bg-pink,
+.group-tab.active.tab-bg-gray {
     font-weight: 600;
 }
