@@ -204,8 +204,12 @@ function initApp() {
     }
 
     // Apply saved max height
-    if (doneMaxHeight) {
+    if (doneMaxHeight !== undefined && doneMaxHeight !== null) {
         doneContainer.style.maxHeight = `${doneMaxHeight}px`;
+        if (doneMaxHeight === 0) {
+            doneContainer.style.paddingTop = '0';
+            doneContainer.style.paddingBottom = '0';
+        }
     }
 
     // Migration: Create default group if none exists
@@ -3610,11 +3614,25 @@ function setupEventListeners() {
                 let newHeight = startMaxHeight + deltaY;
 
                 // Constraints
-                if (newHeight < 24) newHeight = 24; // Minimum height (heading size)
+                if (newHeight < 15) {
+                    newHeight = 0; // Snap to closed
+                } else if (newHeight < 32 && newHeight >= 15) {
+                    newHeight = 32; // Minimum visible height (heading + padding)
+                }
+
                 if (newHeight > window.innerHeight - 150) newHeight = window.innerHeight - 150; // Max constraint
 
                 doneMaxHeight = newHeight;
                 doneContainer.style.maxHeight = `${newHeight}px`;
+
+                // If fully hidden, we might want to ensure padding doesn't show
+                if (newHeight === 0) {
+                    doneContainer.style.paddingTop = '0';
+                    doneContainer.style.paddingBottom = '0';
+                } else {
+                    doneContainer.style.paddingTop = '8px';
+                    doneContainer.style.paddingBottom = '16px';
+                }
             };
 
             const handleMouseUp = () => {
