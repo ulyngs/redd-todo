@@ -5,10 +5,92 @@
     box-sizing: border-box;
 }
 
+:root {
+    /* Backgrounds */
+    --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --app-bg: rgba(255, 255, 255, 0.95);
+    --app-bg-solid: #ffffff;
+    --task-bg: rgba(255, 255, 255, 0.8);
+    --hover-bg: rgba(0, 0, 0, 0.05);
+    --active-bg: rgba(0, 0, 0, 0.08);
+    --input-bg: transparent;
+    --modal-bg: white;
+
+    /* Text */
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --text-inverse: #ffffff;
+
+    /* Borders */
+    --border-color: rgba(0, 0, 0, 0.05);
+    --border-color-medium: rgba(0, 0, 0, 0.1);
+    --border-color-strong: rgba(0, 0, 0, 0.2);
+
+    /* Accents */
+    --accent-primary: #667eea;
+    --accent-hover: #5a6fd6;
+    --focus-btn-bg: hsl(222.2, 84%, 4.9%);
+    --focus-btn-text: hsl(210, 40%, 98%);
+
+    /* Status */
+    --danger: #ef4444;
+    --success: #2ecc71;
+    --warning: #f59e0b;
+
+    /* Navigation */
+    --nav-item-text: rgba(0, 0, 0, 0.5);
+    --nav-item-hover-bg: rgba(255, 255, 255, 0.2);
+    --nav-item-hover-text: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="dark"] {
+    /* Backgrounds */
+    --bg-gradient: linear-gradient(135deg, #09090b 0%, #18181b 100%);
+    /* Zinc 950 -> 900 */
+    --app-bg: rgba(24, 24, 27, 0.95);
+    /* Zinc 900 */
+    --app-bg-solid: #18181b;
+    --task-bg: rgba(39, 39, 42, 0.6);
+    /* Zinc 800 */
+    --hover-bg: rgba(255, 255, 255, 0.05);
+    --active-bg: rgba(255, 255, 255, 0.1);
+    --input-bg: rgba(0, 0, 0, 0.2);
+    --modal-bg: #18181b;
+    /* Zinc 900 */
+
+    /* Text */
+    --text-primary: #fafafa;
+    /* Zinc 50 */
+    --text-secondary: #a1a1aa;
+    /* Zinc 400 */
+    --text-tertiary: #71717a;
+    /* Zinc 500 */
+    --text-inverse: #09090b;
+
+    /* Borders */
+    --border-color: rgba(255, 255, 255, 0.1);
+    --border-color-medium: rgba(255, 255, 255, 0.15);
+    --border-color-strong: rgba(255, 255, 255, 0.25);
+
+    /* Accents */
+    --accent-primary: #3b82f6;
+    /* Blue 500 - Professional blue, readable */
+    --accent-hover: #60a5fa;
+    --focus-btn-bg: #fafafa;
+    /* White focus button in dark mode for contrast */
+    --focus-btn-text: #18181b;
+
+    /* Navigation */
+    --nav-item-text: #a1a1aa;
+    --nav-item-hover-bg: rgba(255, 255, 255, 0.1);
+    --nav-item-hover-text: #ffffff;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #333;
+    background: var(--bg-gradient);
+    color: var(--text-primary);
     overflow: hidden;
 }
 
@@ -18,7 +100,7 @@ body {
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--app-bg);
     backdrop-filter: blur(10px);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -78,14 +160,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ccc;
+    color: var(--text-tertiary);
     /* Lighter gray for inactive state */
     transition: all 0.2s ease;
     padding: 0;
 }
 
 .view-btn:hover {
-    color: #666;
+    color: var(--text-secondary);
     background: transparent;
     /* Removed hover background */
 }
@@ -93,7 +175,7 @@ body {
 .view-btn.active {
     background: transparent;
     /* Removed active background */
-    color: #333;
+    color: var(--text-primary);
     box-shadow: none;
     /* Removed active shadow */
 }
@@ -125,14 +207,14 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #666;
+    color: var(--text-secondary);
     cursor: default;
     transition: background 0.1s;
 }
 
 .win-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #333;
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
 
 .win-btn.close-btn:hover {
@@ -167,7 +249,7 @@ body {
     font-weight: 600;
     white-space: nowrap;
     transition: all 0.15s ease;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--nav-item-text);
     -webkit-app-region: no-drag;
     display: flex;
     align-items: center;
@@ -176,19 +258,19 @@ body {
 }
 
 .group-tab:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: rgba(0, 0, 0, 0.8);
+    background: var(--nav-item-hover-bg);
+    color: var(--nav-item-hover-text);
 }
 
 .group-tab.active {
-    background: white;
-    color: #333;
+    background: var(--app-bg-solid);
+    color: var(--text-primary);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .group-tab.drag-over {
     background: rgba(102, 126, 234, 0.2);
-    border: 1px dashed #667eea;
+    border: 1px dashed var(--accent-primary);
 }
 
 .group-tab.dragging {
@@ -253,7 +335,7 @@ body {
     align-items: center;
     padding: 8px 16px 0 16px;
     background: transparent;
-    border-bottom: 1px solid hsl(214, 32%, 91%);
+    border-bottom: 1px solid var(--border-color);
     position: relative;
     /* For absolute positioning of settings button if needed */
 }
@@ -312,7 +394,7 @@ body {
     font-weight: 500;
     white-space: nowrap;
     transition: all 0.15s ease;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--nav-item-text);
     border-bottom: 2px solid transparent;
     position: relative;
     -webkit-app-region: no-drag;
@@ -340,13 +422,13 @@ body {
 
 .tab.active {
     background: transparent;
-    color: hsl(222.2, 84%, 4.9%);
-    border-bottom-color: hsl(222.2, 84%, 4.9%);
+    color: var(--text-primary);
+    border-bottom-color: var(--text-primary);
 }
 
 .tab:hover:not(.active) {
-    background: hsl(0, 0%, 96%);
-    color: rgba(0, 0, 0, 0.8);
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
 
 .tab-close {
@@ -413,7 +495,7 @@ body {
     align-items: stretch;
     padding: 12px;
     margin-bottom: 8px;
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--task-bg);
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     transition: all 0.2s ease;
@@ -429,7 +511,7 @@ body {
 .notes-btn {
     background: transparent;
     border: none;
-    color: #cbd5e1;
+    color: var(--text-tertiary);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -441,16 +523,16 @@ body {
 
 .notes-btn:hover,
 .notes-btn.active {
-    background: rgba(0, 0, 0, 0.05);
-    color: #64748b;
+    background: var(--hover-bg);
+    color: var(--text-secondary);
 }
 
 .notes-btn.has-notes {
-    color: #64748b;
+    color: var(--text-secondary);
 }
 
 .notes-btn.has-notes:hover {
-    color: #334155;
+    color: var(--text-primary);
 }
 
 .notes-container {
@@ -472,7 +554,7 @@ body {
 }
 
 .notes-editor-wrapper {
-    background: #f8fafc;
+    background: var(--active-bg);
     /* Subtle light gray background */
     border: none;
     border-radius: 6px;
@@ -485,11 +567,11 @@ body {
 /* Custom Quill Styles */
 .ql-toolbar.ql-snow {
     border: none !important;
-    border-bottom: 1px solid #e2e8f0 !important;
+    border-bottom: 1px solid var(--border-color-medium) !important;
     padding: 4px 8px !important;
     padding-right: 40px !important;
     /* Make room for done button */
-    background: #f8fafc;
+    background: var(--active-bg);
     display: none;
     /* Hidden by default */
     position: relative;
@@ -541,11 +623,11 @@ body {
 .ql-editor {
     min-height: 60px;
     padding: 12px !important;
-    color: #334155;
+    color: var(--text-primary);
 }
 
 .ql-editor.ql-blank::before {
-    color: #94a3b8 !important;
+    color: var(--text-tertiary) !important;
     font-style: normal !important;
 }
 
@@ -554,7 +636,7 @@ body {
 }
 
 .task-item.completed-task {
-    background: rgba(0, 0, 0, 0.03);
+    background: var(--hover-bg);
 }
 
 .task-item:hover {
@@ -626,17 +708,17 @@ body {
     margin-right: 12px;
     cursor: pointer;
     appearance: none;
-    border: 1px solid hsl(214, 32%, 91%);
+    border: 1px solid var(--border-color-medium);
     border-radius: 4px;
-    background: hsl(0, 0%, 100%);
+    background: var(--app-bg-solid);
     transition: all 0.15s ease;
     position: relative;
     flex-shrink: 0;
 }
 
 .task-checkbox:checked {
-    background: hsl(222.2, 84%, 4.9%);
-    border-color: hsl(222.2, 84%, 4.9%);
+    background: var(--focus-btn-bg);
+    border-color: var(--focus-btn-bg);
 }
 
 .task-checkbox:checked::after {
@@ -645,13 +727,13 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: white;
+    color: var(--focus-btn-text);
     font-size: 12px;
     font-weight: bold;
 }
 
 .task-checkbox:hover {
-    border-color: hsl(214, 32%, 85%);
+    border-color: var(--border-color-strong);
 }
 
 .task-checkbox:hover:not(:checked)::after {
@@ -660,7 +742,7 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: hsl(214, 32%, 80%);
+    color: var(--text-tertiary);
     font-size: 12px;
     font-weight: bold;
 }
@@ -924,7 +1006,7 @@ body {
     padding: 8px 16px;
     gap: 8px;
     flex-shrink: 0;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--app-bg);
     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.02);
     position: relative;
     z-index: 5;
@@ -934,15 +1016,15 @@ body {
     flex: 1;
     display: flex;
     align-items: center;
-    border: 2px solid rgba(0, 0, 0, 0.1);
+    border: 2px solid var(--border-color-medium);
     border-radius: 8px;
-    background: white;
+    background: var(--app-bg-solid);
     transition: border-color 0.2s ease;
     padding-right: 6px;
 }
 
 .input-wrapper:focus-within {
-    border-color: #667eea;
+    border-color: var(--accent-primary);
 }
 
 #new-task-input {
@@ -953,6 +1035,7 @@ body {
     font-size: 14px;
     outline: none;
     border-radius: 8px 0 0 8px;
+    color: var(--text-primary);
 }
 
 .duration-input-container {
@@ -979,7 +1062,7 @@ body {
     background: transparent;
     text-align: right;
     font-size: 13px;
-    color: #000;
+    color: var(--text-primary);
     /* User wants black text when typing */
     outline: none;
     -moz-appearance: textfield;
@@ -994,7 +1077,7 @@ body {
 
 .task-duration-input::placeholder,
 #task-duration-input::placeholder {
-    color: #999;
+    color: var(--text-tertiary);
     /* Lighter placeholder */
 }
 
@@ -1092,10 +1175,10 @@ body {
 
 #add-task-btn {
     padding: 10px 16px;
-    background: hsl(0, 0%, 96%);
-    border: 1px solid hsl(214, 32%, 91%);
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    color: hsl(222.2, 84%, 4.9%);
+    color: var(--focus-btn-bg);
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -1103,8 +1186,8 @@ body {
 }
 
 #add-task-btn:hover {
-    background: hsl(0, 0%, 90%);
-    border-color: hsl(214, 32%, 85%);
+    background: var(--active-bg);
+    border-color: var(--border-color-medium);
 }
 
 #add-task-btn:disabled {
@@ -1125,12 +1208,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--border-color-medium);
     border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--border-color-strong);
 }
 
 /* Tabs specific scrollbar */
@@ -1144,7 +1227,7 @@ body {
     margin-top: 0;
     padding-top: 8px;
     padding-bottom: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    border-top: 1px solid var(--border-color);
     flex-shrink: 0;
     max-height: 120px;
     overflow: hidden;
@@ -1156,7 +1239,7 @@ body {
 .done-heading {
     font-size: 14px;
     font-weight: 600;
-    color: #666;
+    color: var(--text-secondary);
     margin: 0;
     padding: 0 16px;
     text-transform: uppercase;
@@ -1171,7 +1254,7 @@ body {
 
 .done-time-spent {
     font-size: 11px;
-    color: #999;
+    color: var(--text-tertiary);
     font-weight: normal;
     text-transform: none;
     margin: 0 auto;
@@ -1187,7 +1270,7 @@ body {
 
 .chevron-icon {
     transition: transform 0.2s ease;
-    color: #999;
+    color: var(--text-tertiary);
 }
 
 .done-container.collapsed .chevron-icon {
@@ -1205,7 +1288,7 @@ body {
 
 .delete-all-btn {
     font-size: 12px;
-    color: #999;
+    color: var(--text-tertiary);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -1239,7 +1322,7 @@ body {
     text-align: center;
     padding: 8px 16px;
     font-size: 12px;
-    color: #888;
+    color: var(--text-tertiary);
     z-index: 100;
 }
 
@@ -1274,7 +1357,7 @@ body {
 }
 
 .modal-content {
-    background: white;
+    background: var(--modal-bg);
     border-radius: 12px;
     padding: 24px;
     min-width: 300px;
@@ -1286,21 +1369,23 @@ body {
     margin: 0 0 16px 0;
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
 }
 
 #tab-name-input {
     width: 100%;
     padding: 10px 12px;
-    border: 2px solid rgba(0, 0, 0, 0.1);
+    border: 2px solid var(--border-color-medium);
     border-radius: 8px;
     font-size: 14px;
     outline: none;
     box-sizing: border-box;
+    background: var(--input-bg);
+    color: var(--text-primary);
 }
 
 #tab-name-input:focus {
-    border-color: #667eea;
+    border-color: var(--accent-primary);
 }
 
 .modal-buttons {
@@ -1321,23 +1406,23 @@ body {
 }
 
 .cancel-btn {
-    background: rgba(0, 0, 0, 0.1);
-    color: #666;
+    background: var(--hover-bg);
+    color: var(--text-secondary);
 }
 
 .cancel-btn:hover {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--active-bg);
 }
 
 .create-btn {
-    background: hsl(222.2, 84%, 4.9%);
-    color: hsl(210, 40%, 98%);
-    border: 1px solid hsl(222.2, 84%, 4.9%);
+    background: var(--focus-btn-bg);
+    color: var(--focus-btn-text);
+    border: 1px solid var(--focus-btn-bg);
 }
 
 .create-btn:hover {
-    background: hsl(222.2, 84%, 9%);
-    border-color: hsl(222.2, 84%, 9%);
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
 }
 
 .delete-confirm-btn {
@@ -1386,7 +1471,7 @@ body {
     height: 100%;
     max-width: none;
     min-width: 0;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--app-bg);
     backdrop-filter: blur(10px);
     border-radius: 0;
     display: flex;
@@ -1560,7 +1645,7 @@ body {
     gap: 4px;
     padding: 4px;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--app-bg);
     backdrop-filter: blur(10px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     opacity: 0;
@@ -1587,7 +1672,7 @@ body {
     height: 32px;
     border: none;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--app-bg);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1632,7 +1717,7 @@ body {
 }
 
 .focus-task-name {
-    color: #333;
+    color: var(--text-primary);
     font-size: 18px;
     font-weight: 400;
     flex: 1;
@@ -1651,7 +1736,7 @@ body {
 .focus-timer {
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     text-align: right;
     -webkit-app-region: no-drag;
     flex-shrink: 0;
@@ -1689,9 +1774,9 @@ body {
 }
 
 #focus-undo-btn {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    color: #0f172a;
+    background: var(--app-bg-solid);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
     font-weight: 500;
     font-size: 12px;
     cursor: pointer;
@@ -1703,9 +1788,9 @@ body {
 }
 
 #focus-undo-btn:hover {
-    background: #f8fafc;
-    color: #0f172a;
-    border-color: #cbd5e1;
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color-medium);
 }
 
 /* Focus Mode Notes Button */
@@ -1726,7 +1811,7 @@ body {
 .focus-notes-container {
     width: 100%;
     padding: 0 14px 0 14px;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--app-bg);
     margin-bottom: 0;
 }
 
@@ -1735,7 +1820,7 @@ body {
 }
 
 .focus-notes-editor-wrapper {
-    background: #f8fafc;
+    background: var(--active-bg);
     border-radius: 6px;
     position: relative;
     -webkit-app-region: no-drag;
@@ -1746,10 +1831,10 @@ body {
 .focus-notes-editor-wrapper .ql-toolbar.ql-snow {
     display: none;
     border: none !important;
-    border-bottom: 1px solid #e2e8f0 !important;
+    border-bottom: 1px solid var(--border-color-medium) !important;
     padding: 4px 8px !important;
     padding-right: 40px !important;
-    background: #f1f5f9;
+    background: var(--active-bg);
     position: relative;
 }
 
@@ -1768,7 +1853,7 @@ body {
     max-height: 200px;
     overflow-y: auto;
     padding: 12px !important;
-    color: #334155;
+    color: var(--text-primary);
 }
 
 .focus-notes-editor-wrapper .notes-done-btn {
@@ -1791,14 +1876,14 @@ body {
 .settings-section h4 {
     font-size: 14px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 0;
     /* Removed default margin, controlled by parent layout */
 }
 
 .settings-desc {
     font-size: 13px;
-    color: #666;
+    color: var(--text-secondary);
     margin-bottom: 16px;
 }
 
@@ -1827,8 +1912,8 @@ body {
 }
 
 .info-toggle-btn:hover {
-    color: #666;
-    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+    background: var(--hover-bg);
 }
 
 .info-toggle-btn:focus {
@@ -1859,9 +1944,11 @@ body {
     width: 100%;
     padding: 8px;
     margin-bottom: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color-medium);
     border-radius: 6px;
     font-size: 13px;
+    background: var(--input-bg);
+    color: var(--text-primary);
 }
 
 .settings-input:focus {
@@ -1931,7 +2018,7 @@ body {
     display: flex;
     align-items: center;
     font-size: 13px;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 12px;
 }
 
@@ -1947,24 +2034,25 @@ body {
 .basecamp-selection {
     margin-top: 16px;
     padding-top: 16px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--border-color-medium);
 }
 
 .bc-label {
     font-size: 13px;
     font-weight: 500;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 8px;
 }
 
 .bc-select {
     width: 100%;
     padding: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color-medium);
     border-radius: 6px;
     font-size: 13px;
     margin-bottom: 8px;
-    background: white;
+    background: var(--input-bg);
+    color: var(--text-primary);
 }
 
 .bc-select:focus {
@@ -2060,7 +2148,7 @@ body {
     content: '';
     width: 32px;
     height: 4px;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--border-color-strong);
     border-radius: 2px;
 }
 
@@ -2070,14 +2158,15 @@ body {
     bottom: 32px;
     left: 50%;
     transform: translateX(-50%);
-    background: #333;
-    color: white;
+    background: var(--app-bg-solid);
+    color: var(--text-primary);
     padding: 12px 24px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 16px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color-medium);
     z-index: 2000;
     font-size: 14px;
     animation: slideUp 0.3s ease;
@@ -2131,7 +2220,7 @@ body {
 
 /* Connect/Disconnect Buttons */
 .connect-btn {
-    background: #4CAF50;
+    background: var(--success);
     color: white;
     border: none;
     padding: 10px;
@@ -2144,28 +2233,27 @@ body {
 }
 
 .connect-btn:hover {
-    background: #45a049;
+    filter: brightness(1.1);
 }
 
 /* Apple Reminders specific button style */
 #reminders-connect-btn {
-    background: white;
-    color: #09090b;
+    background: var(--app-bg-solid);
+    color: var(--text-primary);
     /* shadcn-like text color */
-    border: 1px solid #e4e4e7;
+    border: 1px solid var(--border-color-strong);
     /* shadcn-like border color */
 }
 
 #reminders-connect-btn:hover {
-    background: #f4f4f5;
+    background: var(--hover-bg);
     /* shadcn-like hover bg */
-    color: #18181b;
 }
 
 .disconnect-btn {
     background: transparent;
-    color: #ff4444;
-    border: 1px solid #ff4444;
+    color: var(--danger);
+    border: 1px solid var(--danger);
     padding: 8px;
     border-radius: 6px;
     cursor: pointer;
@@ -2176,55 +2264,23 @@ body {
 }
 
 .disconnect-btn:hover {
-    background: rgba(255, 68, 68, 0.1);
-}
-
-/* Apple Reminders specific button style */
-#reminders-connect-btn {
-    background: white;
-    color: #09090b;
-    /* shadcn-like text color */
-    border: 1px solid #e4e4e7;
-    /* shadcn-like border color */
-}
-
-#reminders-connect-btn:hover {
-    background: #f4f4f5;
-    /* shadcn-like hover bg */
-    color: #18181b;
-}
-
-.disconnect-btn {
-    background: transparent;
-    color: #ff4444;
-    border: 1px solid #ff4444;
-    padding: 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    margin-top: 10px;
-    transition: all 0.2s ease;
-    width: 100%;
-}
-
-.disconnect-btn:hover {
-    background: rgba(255, 68, 68, 0.1);
+    background: rgba(239, 68, 68, 0.1);
 }
 
 .manual-update-btn {
     position: relative;
     width: 36px;
     height: 36px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color-medium);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--app-bg-solid);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background 0.15s ease, transform 0.15s ease;
     padding: 0;
-    color: #666;
+    color: var(--text-tertiary);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
@@ -2242,4 +2298,9 @@ body {
 .focus-like-btn:hover {
     background: hsl(222.2, 84%, 9%);
     border-color: hsl(222.2, 84%, 9%);
+}
+
+/* Basecamp Icon Dark Mode Fix */
+[data-theme="dark"] .basecamp-icon {
+    filter: brightness(0) invert(1);
 }

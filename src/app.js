@@ -67,6 +67,7 @@ const durationInputContainer = document.getElementById('duration-input-container
 const taskDurationInput = document.getElementById('task-duration-input');
 const settingsBtn = document.getElementById('settings-btn');
 const syncBtn = document.getElementById('sync-btn');
+const darkModeToggle = document.getElementById('dark-mode-toggle');
 
 function snapDurationToStep(value, direction, step = 5) {
     const n = Number.isFinite(value) ? value : 0;
@@ -163,6 +164,33 @@ const completeFocusBtn = document.getElementById('complete-focus-btn');
 const resetFocusBtn = document.getElementById('reset-focus-btn');
 const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
 
+
+// Theme Management
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        if (darkModeToggle) darkModeToggle.checked = true;
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        if (darkModeToggle) darkModeToggle.checked = false;
+    }
+}
+
+if (darkModeToggle) {
+    darkModeToggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+        }
+    });
+}
+
 // Initialize app
 function initApp() {
     // Load saved data or create default tab
@@ -226,6 +254,7 @@ function initApp() {
         renderTabs();
         renderTasks();
     }
+    initTheme(); // Initialize theme
 
     // Check Basecamp connection status
     updateBasecampUI();
@@ -1598,6 +1627,7 @@ function renderTabs() {
         if (tab.basecampListId) {
             const img = document.createElement('img');
             img.src = './images/basecamp_logo_icon_147315.png';
+            img.className = 'basecamp-icon'; // Added class for styling
             img.style.width = '14px';
             img.style.height = '14px';
             img.style.marginRight = '6px';
