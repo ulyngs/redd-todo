@@ -90,8 +90,17 @@
                 <div class="input-wrapper">
                     <input type="text" id="new-task-input" placeholder="Add task..." maxlength="100">
                     <div id="duration-input-container" class="duration-input-container">
-                        <input type="number" id="task-duration-input" class="task-duration-input"
-                            placeholder="e.g., 15 mins" min="1" max="999">
+                        <button type="button" id="duration-trigger-btn" class="duration-trigger-btn" tabindex="0">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 6v6l3.644 1.822" />
+                                <path d="M16 19h6" />
+                                <path d="M19 16v6" />
+                                <path d="M21.92 13.267a10 10 0 1 0-8.653 8.653" />
+                            </svg>
+                        </button>
+                        <input type="number" id="task-duration-input" class="task-duration-input hidden" placeholder=""
+                            min="0" max="999">
                         <span class="duration-label">m</span>
                         <div class="duration-spinners">
                             <button type="button" class="duration-spinner-btn" id="duration-increment" tabindex="-1">

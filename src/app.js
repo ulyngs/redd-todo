@@ -767,6 +767,14 @@ function addTask(text) {
     taskDurationInput.value = '';
     durationInputContainer.classList.remove('visible');
     durationInputContainer.classList.remove('has-value'); // Reset this class
+
+    // Reset duration input state
+    const durationTriggerBtn = document.getElementById('duration-trigger-btn');
+    if (durationTriggerBtn) {
+        durationTriggerBtn.classList.remove('hidden');
+    }
+    taskDurationInput.classList.add('hidden');
+
     addTaskBtn.disabled = true;
     addTaskBtn.classList.add('hidden');
 }
@@ -3192,6 +3200,49 @@ function setupEventListeners() {
         }
     });
 
+    const durationTriggerBtn = document.getElementById('duration-trigger-btn');
+    if (durationTriggerBtn) {
+        // Click: Set default 5 mins, show input, focus
+        durationTriggerBtn.addEventListener('click', () => {
+            durationTriggerBtn.classList.add('hidden');
+            taskDurationInput.classList.remove('hidden');
+            taskDurationInput.value = 5;
+            durationInputContainer.classList.add('has-value');
+            taskDurationInput.focus();
+        });
+
+        // Focus (Tab): Just show input (default 5m), focus
+        durationTriggerBtn.addEventListener('focus', () => {
+            durationTriggerBtn.classList.add('hidden');
+            taskDurationInput.classList.remove('hidden');
+            if (!taskDurationInput.value) {
+                taskDurationInput.value = 5;
+            }
+            durationInputContainer.classList.add('has-value');
+            taskDurationInput.focus();
+        });
+    }
+
+    // Handle blur: if empty, hiding input and showing button again
+    taskDurationInput.addEventListener('blur', () => {
+        if (!taskDurationInput.value) {
+            taskDurationInput.classList.add('hidden');
+            if (durationTriggerBtn) {
+                durationTriggerBtn.classList.remove('hidden');
+            }
+            durationInputContainer.classList.remove('has-value');
+        }
+    });
+
+    // Handle Enter key in duration input: blur instead of adding task
+    taskDurationInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            taskDurationInput.blur();
+        }
+    });
+
     // Duration spinner buttons
     const durationIncrement = document.getElementById('duration-increment');
     const durationDecrement = document.getElementById('duration-decrement');
@@ -3200,8 +3251,24 @@ function setupEventListeners() {
         durationIncrement.addEventListener('click', () => {
             const currentVal = parseInt(taskDurationInput.value, 10);
             const snapped = snapDurationToStep(Number.isFinite(currentVal) ? currentVal : 0, 'up', 5);
-            const newVal = Math.min(Math.max(snapped, 1), 999);
+            const newVal = Math.min(Math.max(snapped, 0), 999);
             taskDurationInput.value = newVal;
+            durationInputContainer.classList.add('has-value');
+        });
+    }
+
+    if (durationDecrement) {
+        durationDecrement.addEventListener('click', () => {
+            const currentVal = parseInt(taskDurationInput.value, 10);
+            const snapped = snapDurationToStep(Number.isFinite(currentVal) ? currentVal : 0, 'down', 5);
+            const newVal = Math.min(Math.max(snapped, 0), 999); // Allow 0
+            taskDurationInput.value = newVal;
+
+            // Update container state based on value
+            if (newVal === 0 && document.activeElement !== taskDurationInput) {
+                // If it becomes 0 and is not focused (rare with click on spinner, but good check), maybe hide? 
+                // Actually, if clicked spinner, we want to see "0".
+            }
             durationInputContainer.classList.add('has-value');
         });
     }
