@@ -768,6 +768,7 @@ function addTask(text) {
     durationInputContainer.classList.remove('visible');
     durationInputContainer.classList.remove('has-value'); // Reset this class
     addTaskBtn.disabled = true;
+    addTaskBtn.classList.add('hidden');
 }
 
 function deleteTask(taskId) {
@@ -3168,10 +3169,11 @@ function setupEventListeners() {
         addTaskBtn.disabled = !hasText;
 
         if (hasText) {
+            addTaskBtn.classList.remove('hidden');
             durationInputContainer.classList.add('visible');
         } else {
+            addTaskBtn.classList.add('hidden');
             durationInputContainer.classList.remove('visible');
-            // Also clear duration if task input is cleared? Maybe not.
         }
     });
 
