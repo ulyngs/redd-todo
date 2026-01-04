@@ -1609,7 +1609,14 @@ function renderTabs() {
 
     tabsToRender.forEach(tab => {
         const tabElement = document.createElement('div');
-        tabElement.className = `tab ${tab.id === currentTabId ? 'active' : ''}`;
+        let className = `tab ${tab.id === currentTabId ? 'active' : ''}`;
+
+        // Add color class if present
+        if (tab.color) {
+            className += ` tab-bg-${tab.color}`;
+        }
+
+        tabElement.className = className;
         tabElement.dataset.tabId = tab.id;
         tabElement.draggable = true; // Enable dragging
 
@@ -2434,6 +2441,9 @@ function createTaskElement(task) {
             // Only close menus that are not part of this task
             if (!taskElement.contains(menu)) {
                 menu.classList.add('hidden');
+                // Remove active class from corresponding task item
+                const parentTask = menu.closest('.task-item');
+                if (parentTask) parentTask.classList.remove('has-open-menu');
             }
         });
     });
@@ -2518,12 +2528,28 @@ function setupEventListeners() {
                 }
             }
 
+            // Get selected color
+            let selectedColor = '';
+            const activeSwatch = document.querySelector('.color-swatch.selected');
+            if (activeSwatch) {
+                selectedColor = activeSwatch.dataset.color || '';
+            }
+
             if (renamingTabId) {
                 // Renaming existing tab
+                // Update color manually here since renameTab might not handle it (or we update renameTab)
+                // Let's update it directly here for simplicity and safety
+                if (tabs[renamingTabId]) {
+                    tabs[renamingTabId].color = selectedColor;
+                }
                 renameTab(renamingTabId, tabName);
             } else {
                 // Creating new tab
                 const newTabId = createNewTab(tabName, bcProjectId || null, bcListId || null, remindersListId || null);
+                if (tabs[newTabId]) {
+                    tabs[newTabId].color = selectedColor;
+                    saveData(); // Save usually happens in createNewTab but we modified it
+                }
                 switchToTab(newTabId);
             }
 
@@ -3044,9 +3070,18 @@ function setupEventListeners() {
             if (menu) {
                 // Close all other menus first
                 document.querySelectorAll('.task-menu:not(.hidden)').forEach(m => {
-                    if (m !== menu) m.classList.add('hidden');
+                    if (m !== menu) {
+                        m.classList.add('hidden');
+                        const p = m.closest('.task-item');
+                        if (p) p.classList.remove('has-open-menu');
+                    }
                 });
                 menu.classList.toggle('hidden');
+                if (menu.classList.contains('hidden')) {
+                    taskItem.classList.remove('has-open-menu');
+                } else {
+                    taskItem.classList.add('has-open-menu');
+                }
             }
         }
         // Delete action from menu
@@ -3132,9 +3167,18 @@ function setupEventListeners() {
             if (menu) {
                 // Close all other menus first
                 document.querySelectorAll('.task-menu:not(.hidden)').forEach(m => {
-                    if (m !== menu) m.classList.add('hidden');
+                    if (m !== menu) {
+                        m.classList.add('hidden');
+                        const p = m.closest('.task-item');
+                        if (p) p.classList.remove('has-open-menu');
+                    }
                 });
                 menu.classList.toggle('hidden');
+                if (menu.classList.contains('hidden')) {
+                    taskItem.classList.remove('has-open-menu');
+                } else {
+                    taskItem.classList.add('has-open-menu');
+                }
             }
         }
         // Delete action from menu
@@ -4523,6 +4567,15 @@ function showTabNameModal() {
         remindersSelection.classList.add('hidden');
     }
 
+    // Reset color picker
+    const colorSwatches = document.querySelectorAll('.color-swatch');
+    colorSwatches.forEach(swatch => {
+        swatch.classList.remove('selected');
+        if (swatch.dataset.color === '') {
+            swatch.classList.add('selected'); // Default to none
+        }
+    });
+
     tabNameInput.focus();
 }
 
@@ -4533,8 +4586,19 @@ function showRenameModal(tabId) {
         modalTitle.textContent = 'Rename tab';
         createTabBtn.textContent = 'Rename';
         tabNameInput.value = tab.name;
-        basecampSelection.classList.add('hidden'); // Don't show BC select on rename
+        basecampSelection.classList.remove('hidden'); // allow moving connections
+        remindersSelection.classList.remove('hidden'); // allow moving connections
         tabNameModal.classList.remove('hidden');
+
+        // Select logic for color
+        const colorSwatches = document.querySelectorAll('.color-swatch');
+        colorSwatches.forEach(swatch => {
+            swatch.classList.remove('selected');
+            if (swatch.dataset.color === (tab.color || '')) {
+                swatch.classList.add('selected');
+            }
+        });
+
         tabNameInput.focus();
         tabNameInput.select();
     }
@@ -5619,6 +5683,8 @@ document.addEventListener('click', (e) => {
     if (!e.target.closest('.task-menu-btn') && !e.target.closest('.task-menu')) {
         document.querySelectorAll('.task-menu:not(.hidden)').forEach(menu => {
             menu.classList.add('hidden');
+            const parentTask = menu.closest('.task-item');
+            if (parentTask) parentTask.classList.remove('has-open-menu');
         });
     }
 });

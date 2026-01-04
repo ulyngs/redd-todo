@@ -846,7 +846,8 @@ body {
     position: relative;
 }
 
-.task-item:hover .hover-actions {
+.task-item:hover .hover-actions,
+.task-item.has-open-menu .hover-actions {
     display: flex;
 }
 
@@ -2216,8 +2217,9 @@ body {
     bottom: 32px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--app-bg-solid);
-    color: var(--text-primary);
+    background: #1f2937;
+    /* Always dark for toast */
+    color: #fff;
     padding: 12px 24px;
     border-radius: 8px;
     display: flex;
@@ -2413,4 +2415,172 @@ input:focus+.slider {
 
 input:checked+.slider:before {
     transform: translateX(20px);
+}
+
+/* Tab Color Selection */
+.tab-color-selection {
+    margin-top: 16px;
+    margin-bottom: 24px;
+}
+
+.color-swatches {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    padding: 0;
+    position: relative;
+}
+
+.color-swatch:hover {
+    transform: scale(1.1);
+}
+
+.color-swatch.selected {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
+    z-index: 1;
+}
+
+/* Default "None" swatch */
+.color-swatch[data-color=""] {
+    background: linear-gradient(to bottom right, transparent 45%, #ccc 45%, #ccc 55%, transparent 55%);
+    background-color: var(--bg-secondary);
+}
+
+[data-theme="dark"] .color-swatch[data-color=""] {
+    background: linear-gradient(to bottom right, transparent 45%, #666 45%, #666 55%, transparent 55%);
+    background-color: var(--bg-secondary);
+}
+
+
+/* Tab Background Colors */
+.tab.tab-bg-red {
+    background-color: #fee2e2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.tab.tab-bg-orange {
+    background-color: #ffedd5;
+    border-color: #fed7aa;
+    color: #9a3412;
+}
+
+.tab.tab-bg-yellow {
+    background-color: #fef9c3;
+    border-color: #fde047;
+    color: #854d0e;
+}
+
+.tab.tab-bg-green {
+    background-color: #dcfce7;
+    border-color: #bbf7d0;
+    color: #166534;
+}
+
+.tab.tab-bg-blue {
+    background-color: #dbeafe;
+    border-color: #bfdbfe;
+    color: #1e40af;
+}
+
+.tab.tab-bg-purple {
+    background-color: #f3e8ff;
+    border-color: #e9d5ff;
+    color: #6b21a8;
+}
+
+.tab.tab-bg-pink {
+    background-color: #fce7f3;
+    border-color: #fbcfe8;
+    color: #9d174d;
+}
+
+.tab.tab-bg-gray {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #374151;
+}
+
+/* Dark Mode Overrides for Tabs */
+[data-theme="dark"] .tab.tab-bg-red {
+    background-color: #7f1d1d;
+    border-color: #991b1b;
+    color: #fecaca;
+}
+
+[data-theme="dark"] .tab.tab-bg-orange {
+    background-color: #7c2d12;
+    border-color: #9a3412;
+    color: #fed7aa;
+}
+
+[data-theme="dark"] .tab.tab-bg-yellow {
+    background-color: #713f12;
+    border-color: #854d0e;
+    color: #fde047;
+}
+
+[data-theme="dark"] .tab.tab-bg-green {
+    background-color: #14532d;
+    border-color: #166534;
+    color: #bbf7d0;
+}
+
+[data-theme="dark"] .tab.tab-bg-blue {
+    background-color: #1e3a8a;
+    border-color: #1e40af;
+    color: #bfdbfe;
+}
+
+[data-theme="dark"] .tab.tab-bg-purple {
+    background-color: #581c87;
+    border-color: #6b21a8;
+    color: #e9d5ff;
+}
+
+[data-theme="dark"] .tab.tab-bg-pink {
+    background-color: #831843;
+    border-color: #9d174d;
+    color: #fbcfe8;
+}
+
+[data-theme="dark"] .tab.tab-bg-gray {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+}
+
+/* Ensure active tab overrides still work/blend - but usually active tab has its own strong style. 
+   We probably want color tabs to KEEP their color even when active, maybe just bolder border? 
+   Or let active style (white/dark bg) take precedence? 
+   Let's let active style take precedence for consistency, but maybe keep the color hint? 
+   Actually user probably wants the whole tab colored.
+   
+   Let's try overriding active style for colored tabs.
+*/
+.tab.active.tab-bg-red,
+.tab.active.tab-bg-orange,
+.tab.active.tab-bg-yellow,
+.tab.active.tab-bg-green,
+.tab.active.tab-bg-blue,
+.tab.active.tab-bg-purple,
+.tab.active.tab-bg-pink,
+.tab.active.tab-bg-gray {
+    /* Keep default active border logic but add background? */
+    /* If we want them to feel "selected", maybe a slightly lighter/darker shade? 
+      For now let's just use the defined colors. */
+    border-bottom-color: transparent;
+    /* Match general active tab rule */
+    font-weight: 600;
 }
