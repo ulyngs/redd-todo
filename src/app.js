@@ -67,7 +67,6 @@ const durationInputContainer = document.getElementById('duration-input-container
 const taskDurationInput = document.getElementById('task-duration-input');
 const settingsBtn = document.getElementById('settings-btn');
 const syncBtn = document.getElementById('sync-btn');
-const darkModeToggle = document.getElementById('dark-mode-toggle');
 
 function snapDurationToStep(value, direction, step = 5) {
     const n = Number.isFinite(value) ? value : 0;
@@ -166,6 +165,8 @@ const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
 
 
 // Theme Management
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+
 function initTheme() {
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;

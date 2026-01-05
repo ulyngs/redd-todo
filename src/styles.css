@@ -1375,14 +1375,26 @@ body {
 /* Footer */
 .footer {
     position: fixed;
-    bottom: 3px;
+    bottom: 0;
     left: 0;
     right: 0;
-    text-align: center;
-    padding: 0 16px 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px 6px;
     font-size: 12px;
     color: var(--text-tertiary);
     z-index: 100;
+}
+
+.footer-text {
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+}
+
+.settings-footer {
+    flex-shrink: 0;
 }
 
 .footer .heart {
@@ -1398,6 +1410,25 @@ body {
 
 .footer a:hover {
     text-decoration: underline;
+}
+
+/* Theme Toggle Icon Button */
+.icon-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
 
 /* Modal Styles */
