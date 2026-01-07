@@ -198,9 +198,18 @@ function createMenu() {
         { role: 'zoom' },
         ...(isMac ? [
           { type: 'separator' },
-          { role: 'front' },
-          { type: 'separator' },
-          { role: 'window' }
+          {
+            label: 'ReDD Do',
+            accelerator: 'CmdOrCtrl+0',
+            click: () => {
+              if (mainWindow === null) {
+                createMainWindow();
+              } else {
+                mainWindow.show();
+                mainWindow.focus();
+              }
+            }
+          }
         ] : [
           { role: 'close' }
         ])
