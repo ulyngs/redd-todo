@@ -106,7 +106,7 @@ body {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     padding-top: 4px;
     /* Added some top padding */
-    padding-bottom: 42px;
+    padding-bottom: 30px;
     /* Space for fixed footer */
     overflow: hidden;
     /* Prevent app-wide scroll */
@@ -1008,6 +1008,7 @@ body {
     gap: 4px;
     flex-shrink: 0;
     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.02);
+    border-top: 1px solid var(--border-color);
     position: relative;
     z-index: 5;
 }
@@ -1284,15 +1285,14 @@ body {
 
 /* Done Container */
 .done-container {
-    margin-top: 5px;
-    padding-top: 8px;
-    padding-bottom: 16px;
+    padding-top: 7px;
+    padding-bottom: 8px;
     flex-shrink: 0;
     max-height: 120px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
 }
 
 .done-heading {
@@ -1304,45 +1304,43 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
     height: 24px;
     flex-shrink: 0;
     user-select: none;
 }
 
-.done-time-spent {
-    font-size: 11px;
+.done-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px 8px 16px;
+    font-size: 12px;
     color: var(--text-tertiary);
-    font-weight: normal;
-    text-transform: none;
-    margin: 0 auto;
+}
+
+.done-task-count {
+    flex-shrink: 0;
+}
+
+.done-time-spent {
+    flex: 1;
+    text-align: center;
 }
 
 .done-toggle {
     display: flex;
+    flex-direction: row-reverse;
     align-items: center;
     cursor: pointer;
     gap: 6px;
     padding: 4px 0;
 }
 
-.chevron-icon {
-    transition: transform 0.2s ease;
+.arrow-down-icon {
+    display: flex;
+    align-items: center;
     color: var(--text-tertiary);
-}
-
-.done-container.collapsed .chevron-icon {
-    transform: rotate(-90deg);
-}
-
-.done-container.collapsed {
-    height: auto;
-    padding-bottom: 8px;
-}
-
-.done-container.collapsed .done-tasks {
-    display: none;
 }
 
 .delete-all-btn {
@@ -1351,23 +1349,21 @@ body {
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 4px 8px;
+    padding: 4px 0;
     border-radius: 4px;
-    margin-right: 12px;
     transition: all 0.2s ease;
     font-weight: 500;
+    flex-shrink: 0;
 }
 
 .delete-all-btn:hover {
     color: #ff4757;
-    background: rgba(255, 71, 87, 0.1);
 }
 
 .done-tasks {
     padding: 0 16px;
     position: relative;
     overflow-y: auto;
-    flex: 1;
     min-height: 0;
     max-height: 100%;
 }
@@ -1381,10 +1377,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 16px 6px;
+    padding: 4px 16px 6px;
     font-size: 12px;
     color: var(--text-tertiary);
     z-index: 100;
+    background: transparent;
 }
 
 .footer-text {
@@ -1395,6 +1392,8 @@ body {
 
 .settings-footer {
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
 }
 
 .footer .heart {
@@ -1417,7 +1416,7 @@ body {
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 4px;
+    padding: 4px 4px 0px 4px;
     border-radius: 4px;
     display: flex;
     align-items: center;
@@ -1450,6 +1449,7 @@ body {
     background: var(--modal-bg);
     border-radius: 12px;
     padding: 24px;
+    width: 340px;
     min-width: 300px;
     max-width: 400px;
     max-height: 90vh;
@@ -2009,8 +2009,7 @@ body {
 }
 
 .info-toggle-btn:focus {
-    outline: 2px solid #999;
-    outline-offset: 2px;
+    outline: none;
 }
 
 .info-toggle-btn[aria-expanded="true"] {
@@ -2222,7 +2221,7 @@ body {
     left: 0;
     right: 0;
     height: 12px;
-    cursor: row-resize;
+    cursor: grab;
     z-index: 20;
     display: flex;
     justify-content: center;
@@ -2232,8 +2231,16 @@ body {
 }
 
 .add-task-resizer:hover,
-.add-task-resizer.dragging {
+.add-task-resizer.dragging,
+.add-task-container:hover .add-task-resizer,
+#normal-mode:has(.done-container:hover) .add-task-resizer,
+#normal-mode:has(.footer:hover) .add-task-resizer {
     opacity: 1;
+}
+
+/* Hide resizer when input is focused */
+.add-task-container:has(.input-wrapper:focus-within) .add-task-resizer {
+    opacity: 0 !important;
 }
 
 .add-task-resizer::after {
@@ -2253,7 +2260,7 @@ body {
     background: #1f2937;
     /* Always dark for toast */
     color: #fff;
-    padding: 12px 24px;
+    padding: 12px 32px;
     border-radius: 8px;
     display: flex;
     align-items: center;

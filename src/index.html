@@ -121,14 +121,18 @@
             <div class="done-container" id="done-container">
                 <div class="done-heading" id="done-heading">
                     <div class="done-toggle">
-                        <svg class="chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                        <svg class="arrow-down-icon" width="12" height="12" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
+                            <path d="M12 5v14"></path>
+                            <path d="m19 12-7 7-7-7"></path>
                         </svg>
                         <span>Done</span>
                     </div>
+                </div>
+                <div class="done-summary">
+                    <span id="done-task-count" class="done-task-count"></span>
                     <span id="done-time-spent" class="done-time-spent"></span>
-                    <button id="delete-all-btn" class="delete-all-btn hidden" title="Delete all completed tasks">Delete
+                    <button id="delete-all-btn" class="delete-all-btn hidden" title="Delete all completed tasks">Clear
                         all</button>
                 </div>
                 <div class="done-tasks">

@@ -2191,11 +2191,6 @@ function renderTasks() {
         // No drag target for Done section: completed tasks should not be reorderable.
 
         doneContainer.style.display = 'block';
-        if (isDoneCollapsed) {
-            doneContainer.classList.add('collapsed');
-        } else {
-            doneContainer.classList.remove('collapsed');
-        }
 
         // Show "Delete all" button if there's more than one completed task
         // Hide in favourites view to avoid ambiguity about which list is being cleared
@@ -2203,6 +2198,12 @@ function renderTasks() {
             deleteAllBtn.classList.remove('hidden');
         } else {
             deleteAllBtn.classList.add('hidden');
+        }
+
+        // Display task count
+        const doneTaskCount = document.getElementById('done-task-count');
+        if (doneTaskCount) {
+            doneTaskCount.textContent = `${completedTasks.length} task${completedTasks.length !== 1 ? 's' : ''}`;
         }
 
         // Calculate and display total time spent
@@ -3197,18 +3198,44 @@ function setupEventListeners() {
         });
     }
 
-    // Done section toggle
-    const doneHeading = document.getElementById('done-heading');
-    if (doneHeading) {
-        doneHeading.addEventListener('click', (e) => {
-            // Don't toggle if clicking the delete button
-            if (e.target.closest('.delete-all-btn')) return;
+    // Done section - click handler for expand/collapse functionality
+    const doneToggle = document.querySelector('.done-toggle');
+    if (doneToggle) {
+        doneToggle.addEventListener('click', () => {
+            // Calculate target height: 3.5 tasks or all completed tasks if fewer
+            const completedTasks = currentTabId && tabs[currentTabId]
+                ? tabs[currentTabId].tasks.filter(t => t.completed)
+                : [];
 
-            isDoneCollapsed = !isDoneCollapsed;
-            if (isDoneCollapsed) {
-                doneContainer.classList.add('collapsed');
+            const taskCount = completedTasks.length;
+            if (taskCount === 0) return;
+
+            // Approximate height per task item (including margins)
+            const taskItemHeight = 60; // ~48px content + 8px margin + padding
+            const headingHeight = 32; // height of the done heading only
+            const summaryHeight = 24; // height of summary line
+            const padding = 24; // top + bottom padding
+
+            // Calculate target height for 3.5 tasks or all tasks if fewer
+            const tasksToShow = Math.min(3.5, taskCount);
+            const expandedHeight = headingHeight + summaryHeight + padding + (tasksToShow * taskItemHeight);
+            const collapsedHeight = 24; // Minimal height, just showing the heading
+
+            const currentHeight = parseInt(window.getComputedStyle(doneContainer).maxHeight) || doneMaxHeight;
+
+            // Toggle: if already at or above expanded height, collapse; otherwise expand
+            if (currentHeight >= expandedHeight - 10) { // -10 for tolerance
+                // Collapse to just show heading
+                doneMaxHeight = collapsedHeight;
+                doneContainer.style.maxHeight = `${collapsedHeight}px`;
+                doneContainer.style.paddingTop = '0';
+                doneContainer.style.paddingBottom = '0';
             } else {
-                doneContainer.classList.remove('collapsed');
+                // Expand to show tasks
+                doneMaxHeight = Math.min(expandedHeight, window.innerHeight - 150);
+                doneContainer.style.maxHeight = `${doneMaxHeight}px`;
+                doneContainer.style.paddingTop = '8px';
+                doneContainer.style.paddingBottom = '16px';
             }
             saveData();
         });
@@ -3875,8 +3902,11 @@ function setupEventListeners() {
             // Ensure we have a number
             startMaxHeight = parseInt(window.getComputedStyle(doneContainer).maxHeight) || doneMaxHeight;
 
-            document.documentElement.style.cursor = 'row-resize';
+            document.documentElement.style.cursor = 'grabbing';
             resizer.classList.add('dragging');
+
+            // Disable interaction with tasks during resize
+            tasksContainer.style.pointerEvents = 'none';
 
             const handleMouseMove = (e) => {
                 const deltaY = startY - e.clientY; // Drag up = positive delta
@@ -3913,6 +3943,10 @@ function setupEventListeners() {
                 document.removeEventListener('mouseup', handleMouseUp);
                 document.documentElement.style.cursor = '';
                 resizer.classList.remove('dragging');
+
+                // Re-enable interaction with tasks
+                tasksContainer.style.pointerEvents = '';
+
                 saveData(); // Persist the new preference
             };
 
