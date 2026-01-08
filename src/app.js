@@ -4980,7 +4980,7 @@ function loadData() {
             };
 
             isDoneCollapsed = data.isDoneCollapsed || false;
-            doneMaxHeight = data.doneMaxHeight || 140;
+            doneMaxHeight = data.doneMaxHeight !== undefined && data.doneMaxHeight !== null ? data.doneMaxHeight : 140;
             groups = data.groups || {};
             currentGroupId = data.currentGroupId || null;
             enableGroups = data.enableGroups !== undefined ? data.enableGroups : (Object.keys(groups).length > 0); // Default to true if groups exist, else false

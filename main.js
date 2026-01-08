@@ -15,6 +15,41 @@ try {
   PanelWindow = null;
 }
 
+// Window state persistence
+const windowStateFile = path.join(app.getPath('userData'), 'window-state.json');
+
+function loadWindowState() {
+  try {
+    if (fs.existsSync(windowStateFile)) {
+      const data = fs.readFileSync(windowStateFile, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    log.warn('Failed to load window state:', e.message);
+  }
+  return null;
+}
+
+function saveWindowState(win) {
+  if (!win || win.isDestroyed()) return;
+
+  // Don't save state if window is minimized or maximized - we want the "normal" bounds
+  if (win.isMinimized() || win.isMaximized() || win.isFullScreen()) return;
+
+  try {
+    const bounds = win.getBounds();
+    const state = {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height
+    };
+    fs.writeFileSync(windowStateFile, JSON.stringify(state, null, 2));
+  } catch (e) {
+    log.warn('Failed to save window state:', e.message);
+  }
+}
+
 // Basecamp OAuth Configuration
 const BC_CLIENT_ID = 'd83392d7842f055157c3fef1f5464b2e15a013dc';
 const BC_REDIRECT_URI = 'http://localhost:3000/callback';
@@ -234,9 +269,16 @@ function createMenu() {
 }
 
 function createMainWindow() {
+  // Load saved window state or use defaults
+  const savedState = loadWindowState();
+  const defaultWidth = 400;
+  const defaultHeight = 600;
+
   mainWindow = new BrowserWindow({
-    width: 400,
-    height: 600,
+    width: savedState?.width || defaultWidth,
+    height: savedState?.height || defaultHeight,
+    x: savedState?.x,
+    y: savedState?.y,
     minWidth: 400,
     webPreferences: {
       nodeIntegration: true,
@@ -257,6 +299,11 @@ function createMainWindow() {
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools();
   }
+
+  // Save window state when resized or moved
+  mainWindow.on('resize', () => saveWindowState(mainWindow));
+  mainWindow.on('move', () => saveWindowState(mainWindow));
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -529,7 +576,14 @@ ipcMain.on('exit-focus-mode', () => {
 
   if (mainWindow) {
     mainWindow.setFullScreen(false);
-    mainWindow.setSize(400, 600);
+    // Restore to saved dimensions or defaults
+    const savedState = loadWindowState();
+    const width = savedState?.width || 400;
+    const height = savedState?.height || 600;
+    mainWindow.setSize(width, height);
+    if (savedState?.x !== undefined && savedState?.y !== undefined) {
+      mainWindow.setPosition(savedState.x, savedState.y);
+    }
     mainWindow.setResizable(true);
     mainWindow.setAlwaysOnTop(false);
     mainWindow.setMinimizable(true);
