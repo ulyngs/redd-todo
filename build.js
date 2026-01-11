@@ -125,6 +125,7 @@ builder.build({
       publisherDisplayName: process.env.WINDOWS_PUBLISHER_DISPLAY_NAME
     },
     linux: {
+      executableName: 'redd-todo',
       target: [
         {
           target: 'AppImage',
