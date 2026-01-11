@@ -5063,14 +5063,21 @@ function updateBasecampUI() {
 }
 
 async function refreshBasecampToken() {
-    if (!basecampConfig.refreshToken || !basecampConfig.clientId || !basecampConfig.clientSecret) {
-        console.warn('Cannot refresh token: Missing refresh token or client credentials.');
+    if (!basecampConfig.refreshToken) {
+        console.warn('Cannot refresh token: Missing refresh token.');
         return false;
     }
 
     try {
-        const response = await fetch(`https://launchpad.37signals.com/authorization/token?type=refresh&refresh_token=${encodeURIComponent(basecampConfig.refreshToken)}&client_id=${encodeURIComponent(basecampConfig.clientId)}&client_secret=${encodeURIComponent(basecampConfig.clientSecret)}`, {
-            method: 'POST'
+        // Use Netlify function to refresh token (keeps client_secret server-side)
+        const response = await fetch('https://redd-todo.netlify.app/.netlify/functions/auth', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                refresh_token: basecampConfig.refreshToken
+            })
         });
 
         if (!response.ok) {
@@ -5087,7 +5094,7 @@ async function refreshBasecampToken() {
             }
             saveData();
             updateBasecampUI();
-            console.log('Basecamp token refreshed successfully.');
+            console.log('Basecamp token refreshed successfully via Netlify.');
             return true;
         }
     } catch (e) {
