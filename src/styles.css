@@ -87,6 +87,40 @@
     --nav-item-hover-text: #ffffff;
 }
 
+/* Quill editor dark mode overrides */
+[data-theme="dark"] .ql-snow .ql-stroke {
+    stroke: #a1a1aa;
+}
+
+[data-theme="dark"] .ql-snow .ql-stroke-miter {
+    stroke: #a1a1aa;
+}
+
+[data-theme="dark"] .ql-snow .ql-fill,
+[data-theme="dark"] .ql-snow .ql-stroke.ql-fill {
+    fill: #a1a1aa;
+}
+
+[data-theme="dark"] .ql-snow .ql-picker {
+    color: #a1a1aa;
+}
+
+/* Hover/active states for dark mode */
+[data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-stroke,
+[data-theme="dark"] .ql-snow.ql-toolbar button:focus .ql-stroke,
+[data-theme="dark"] .ql-snow.ql-toolbar button.ql-active .ql-stroke {
+    stroke: #3b82f6;
+}
+
+[data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-fill,
+[data-theme="dark"] .ql-snow.ql-toolbar button:focus .ql-fill,
+[data-theme="dark"] .ql-snow.ql-toolbar button.ql-active .ql-fill,
+[data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-stroke.ql-fill,
+[data-theme="dark"] .ql-snow.ql-toolbar button:focus .ql-stroke.ql-fill,
+[data-theme="dark"] .ql-snow.ql-toolbar button.ql-active .ql-stroke.ql-fill {
+    fill: #3b82f6;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background: var(--bg-gradient);
