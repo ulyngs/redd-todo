@@ -34,7 +34,8 @@ function saveWindowState(win) {
   if (!win || win.isDestroyed()) return;
 
   // Don't save state if window is minimized or maximized - we want the "normal" bounds
-  if (win.isMinimized() || win.isMaximized() || win.isFullScreen()) return;
+  // Also don't save state while in focus mode - we want to preserve the pre-focus bounds
+  if (win.isMinimized() || win.isMaximized() || win.isFullScreen() || inFocusMode) return;
 
   try {
     const bounds = win.getBounds();
@@ -59,6 +60,8 @@ let mainWindow;
 let focusWindow;
 let pendingFocusPayload = null;
 let activeFocusTaskId = null;
+let inFocusMode = false;
+let preFocusBounds = null;
 
 // Ensure logs go to a file we can inspect in production (incl. Mac App Store builds)
 log.transports.file.level = 'info';
@@ -501,6 +504,12 @@ ipcMain.on('enter-focus-mode', (event, taskName) => {
   const targetWindow = (process.platform === 'darwin' && focusWindow) ? focusWindow : mainWindow;
 
   if (targetWindow) {
+    // Capture current bounds before entering focus mode (for restoration later)
+    if (!inFocusMode) {
+      preFocusBounds = targetWindow.getBounds();
+    }
+    inFocusMode = true;
+
     // Capture current position
     const [currentX, currentY] = targetWindow.getPosition();
 
@@ -576,13 +585,13 @@ ipcMain.on('exit-focus-mode', () => {
 
   if (mainWindow) {
     mainWindow.setFullScreen(false);
-    // Restore to saved dimensions or defaults
-    const savedState = loadWindowState();
-    const width = savedState?.width || 400;
-    const height = savedState?.height || 600;
+    // Restore to pre-focus bounds or fall back to saved dimensions or defaults
+    const bounds = preFocusBounds || loadWindowState();
+    const width = bounds?.width || 400;
+    const height = bounds?.height || 600;
     mainWindow.setSize(width, height);
-    if (savedState?.x !== undefined && savedState?.y !== undefined) {
-      mainWindow.setPosition(savedState.x, savedState.y);
+    if (bounds?.x !== undefined && bounds?.y !== undefined) {
+      mainWindow.setPosition(bounds.x, bounds.y);
     }
     mainWindow.setResizable(true);
     mainWindow.setAlwaysOnTop(false);
@@ -591,6 +600,9 @@ ipcMain.on('exit-focus-mode', () => {
     if (process.platform === 'darwin') {
       mainWindow.setWindowButtonVisibility(true);
     }
+    // Clear focus mode state
+    inFocusMode = false;
+    preFocusBounds = null;
   }
 });
 
