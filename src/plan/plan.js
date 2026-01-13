@@ -1,0 +1,1501 @@
+// Plan Module - Wraps redd-plan functionality for use in redd-do
+// This module can be initialized/destroyed and uses namespaced storage
+
+const PlanModule = (function () {
+    'use strict';
+
+    let isInitialized = false;
+    let container = null;
+
+    // Storage prefix to avoid conflicts with main redd-do storage
+    const STORAGE_PREFIX = 'redd-do-plan-';
+
+    // State variables (same as redd-plan but scoped to module)
+    let currentYear = new Date().getFullYear();
+    // Start month and year for the leftmost visible column
+    let startMonth = new Date().getMonth(); // 0-11
+    let startYear = currentYear;
+    const MONTHS_TO_RENDER = 12; // Render 12 months at a time
+    const COLUMN_WIDTH = 252; // 240px + 12px gap
+    let currentLanguage = 'en';
+    let freeformNotes = [];
+    let freeformLines = [];
+    let groups = [];
+    let activeGroup = 'personal';
+    let selectedElements = [];  // Array for multi-select support
+    let lastDeletedItem = null;
+    let undoStack = [];
+    let redoStack = [];
+    const MAX_HISTORY = 50;
+
+    // DOM references (will be set on init)
+    let calendarContainer = null;
+    let canvasLayer = null;
+
+    // Constants
+    const MONTHS_DA = ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
+        'Juli', 'August', 'September', 'Oktober', 'November', 'December'];
+    const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+    const WEEKDAYS_DA = ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø'];
+    const WEEKDAYS_EN = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+    // Calculate Easter Sunday using the Anonymous Gregorian algorithm
+    function getEasterSunday(year) {
+        const a = year % 19;
+        const b = Math.floor(year / 100);
+        const c = year % 100;
+        const d = Math.floor(b / 4);
+        const e = b % 4;
+        const f = Math.floor((b + 8) / 25);
+        const g = Math.floor((b - f + 1) / 3);
+        const h = (19 * a + b - d - g + 15) % 30;
+        const i = Math.floor(c / 4);
+        const k = c % 4;
+        const l = (32 + 2 * e + 2 * i - h - k) % 7;
+        const m = Math.floor((a + 11 * h + 22 * l) / 451);
+        const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+        const day = ((h + l - 7 * m + 114) % 31) + 1;
+        return new Date(year, month, day);
+    }
+
+    // Get holidays for a given year (cached per year/language)
+    let holidayCache = {};
+    function getHolidays(year) {
+        const cacheKey = `${year}-${currentLanguage}`;
+        if (holidayCache[cacheKey]) return holidayCache[cacheKey];
+
+        const easter = getEasterSunday(year);
+        const holidays = {};
+
+        const addDays = (date, days) => {
+            const result = new Date(date);
+            result.setDate(result.getDate() + days);
+            return result;
+        };
+
+        const formatKey = (date) => {
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${date.getFullYear()}-${m}-${d}`;
+        };
+
+        if (currentLanguage === 'da') {
+            // Danish holidays
+            holidays[formatKey(addDays(easter, -7))] = 'Palmesøndag';
+            holidays[formatKey(addDays(easter, -3))] = 'Skærtorsdag';
+            holidays[formatKey(addDays(easter, -2))] = 'Langfredag';
+            holidays[formatKey(easter)] = 'Påskedag';
+            holidays[formatKey(addDays(easter, 1))] = '2. påskedag';
+            holidays[formatKey(addDays(easter, 39))] = 'Kr. himmelfartsdag';
+            holidays[formatKey(addDays(easter, 49))] = 'Pinsedag';
+            holidays[formatKey(addDays(easter, 50))] = '2. pinsedag';
+            holidays[`${year}-01-01`] = 'Nytårsdag';
+            holidays[`${year}-06-05`] = 'Grundlovsdag';
+            holidays[`${year}-12-24`] = 'Juleaften';
+            holidays[`${year}-12-25`] = 'Juledag';
+            holidays[`${year}-12-26`] = '2. Juledag';
+        } else {
+            // English holidays (universal)
+            holidays[formatKey(addDays(easter, -7))] = 'Palm Sunday';
+            holidays[formatKey(addDays(easter, -3))] = 'Maundy Thursday';
+            holidays[formatKey(addDays(easter, -2))] = 'Good Friday';
+            holidays[formatKey(easter)] = 'Easter Sunday';
+            holidays[formatKey(addDays(easter, 1))] = 'Easter Monday';
+            holidays[`${year}-01-01`] = "New Year's Day";
+            holidays[`${year}-12-24`] = 'Christmas Eve';
+            holidays[`${year}-12-25`] = 'Christmas Day';
+        }
+
+        holidayCache[cacheKey] = holidays;
+        return holidays;
+    }
+
+    const UI_TEXT = {
+        da: {
+            settings: 'Indstillinger', theme: 'Tema', language: 'Sprog',
+            newItems: 'Nye elementer:', addGroup: 'Tilføj gruppe', personal: 'Personligt',
+            work: 'Arbejde', data: 'Data', exportData: 'Eksporter', importData: 'Importer'
+        },
+        en: {
+            settings: 'Settings', theme: 'Theme', language: 'Language',
+            newItems: 'New items:', addGroup: 'Add Group', personal: 'Personal',
+            work: 'Work', data: 'Data', exportData: 'Export', importData: 'Import'
+        }
+    };
+
+    const DEFAULT_GROUPS = [
+        { id: 'personal', translationKey: 'personal', color: '#667eea', visible: true },
+        { id: 'work', translationKey: 'work', color: '#f59e0b', visible: true }
+    ];
+
+    // Storage keys
+    const NOTES_KEY = STORAGE_PREFIX + 'freeform-notes';
+    const LINES_KEY = STORAGE_PREFIX + 'freeform-lines';
+    const GROUPS_KEY = STORAGE_PREFIX + 'groups';
+    const ACTIVE_GROUP_KEY = STORAGE_PREFIX + 'active-group';
+    // Use shared keys for theme and language (no prefix) so they sync with main app
+    const SHARED_LANGUAGE_KEY = 'language';
+
+    function init(containerElement) {
+        if (isInitialized) return;
+        container = containerElement;
+
+        // Create DOM structure
+        container.innerHTML = getPlanHTML();
+
+        // Get DOM references
+        calendarContainer = container.querySelector('.plan-calendar-container');
+        canvasLayer = container.querySelector('.plan-canvas-layer');
+
+        // Initialize
+        loadData();
+        loadLanguage();
+        setupEventListeners();
+        setupCanvasInteraction();
+        renderCalendar();
+        updatePeriodDisplay();
+        renderGroupsUI();
+        renderFreeformElements();
+        setupToolbarListeners();
+
+        isInitialized = true;
+    }
+
+    function destroy() {
+        if (!isInitialized) return;
+        container.innerHTML = '';
+        isInitialized = false;
+    }
+
+    function getPlanHTML() {
+        return `
+            <div class="plan-app-container">
+                <div class="plan-title-bar">
+                    <div class="plan-period-nav">
+                        <button class="plan-nav-btn plan-prev-period-btn" title="Previous Period">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </button>
+                        <span class="plan-period-display">Jan – Jun 2026</span>
+                        <button class="plan-nav-btn plan-today-btn hidden" title="Go to Today">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </button>
+                        <button class="plan-nav-btn plan-next-period-btn" title="Next Period">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </button>
+                    </div>
+                    <div class="plan-groups-panel">
+                        <div class="plan-groups-toggles"></div>
+                        <div class="plan-group-selector">
+                            <label>New items:</label>
+                            <select class="plan-active-group-select"></select>
+                        </div>
+                        <button class="plan-nav-btn plan-add-group-btn small" title="Add Group">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                        </button>
+                    </div>
+                    <div class="plan-undo-redo-nav">
+                        <button class="plan-nav-btn plan-undo-btn" title="Undo" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+                        </button>
+                        <button class="plan-nav-btn plan-redo-btn" title="Redo" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="plan-calendar-container">
+                    <div class="plan-calendar-grid"></div>
+                    <div class="plan-canvas-layer"></div>
+                </div>
+            </div>
+            <!-- Note Toolbar -->
+            <div class="plan-note-toolbar plan-inline-toolbar hidden">
+                <button class="plan-toolbar-btn" data-command="bold" title="Bold">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
+                </button>
+                <button class="plan-toolbar-btn" data-command="italic" title="Italic">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
+                </button>
+                <button class="plan-toolbar-btn" data-command="underline" title="Underline">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
+                </button>
+                <div class="plan-toolbar-divider"></div>
+                <label class="plan-toolbar-color" title="Font Color">
+                    <span class="plan-font-color-indicator" style="background: #333;"></span>
+                    <input type="color" class="plan-font-color-picker" value="#333333">
+                </label>
+                <div class="plan-toolbar-color-group" title="Background Color">
+                    <label class="plan-toolbar-color">
+                        <span class="plan-bg-color-indicator"></span>
+                        <input type="color" class="plan-bg-color-picker" value="#ffff00">
+                    </label>
+                    <button class="plan-toolbar-btn small plan-clear-bg-btn" title="Clear Background">×</button>
+                </div>
+                <div class="plan-toolbar-divider"></div>
+                <label class="plan-toolbar-snap" title="Snap to date row">
+                    <input type="checkbox" class="plan-note-snap-toggle" checked>
+                    <span>Snap</span>
+                </label>
+                <button class="plan-toolbar-btn plan-delete-btn plan-note-delete-btn" title="Delete note">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+            </div>
+            <!-- Line Toolbar -->
+            <div class="plan-line-toolbar plan-inline-toolbar hidden">
+                <select class="plan-line-width-select" title="Line Width">
+                    <option value="4">Thin</option>
+                    <option value="8" selected>Medium</option>
+                    <option value="14">Thick</option>
+                </select>
+                <label class="plan-toolbar-color" title="Line Color">
+                    <span class="plan-line-color-indicator" style="background: #333;"></span>
+                    <input type="color" class="plan-line-color-picker" value="#333333">
+                </label>
+                <button class="plan-toolbar-btn plan-delete-btn plan-line-delete-btn" title="Delete line">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+            </div>
+        `;
+    }
+
+    // Data functions
+    function loadData() {
+        try {
+            const storedNotes = localStorage.getItem(NOTES_KEY);
+            if (storedNotes) freeformNotes = JSON.parse(storedNotes);
+            const storedLines = localStorage.getItem(LINES_KEY);
+            if (storedLines) freeformLines = JSON.parse(storedLines);
+            const storedGroups = localStorage.getItem(GROUPS_KEY);
+            if (storedGroups) groups = JSON.parse(storedGroups);
+            else groups = JSON.parse(JSON.stringify(DEFAULT_GROUPS));
+            const storedActiveGroup = localStorage.getItem(ACTIVE_GROUP_KEY);
+            if (storedActiveGroup) activeGroup = storedActiveGroup;
+        } catch (e) {
+            console.error('Failed to load plan data:', e);
+            freeformNotes = []; freeformLines = [];
+            groups = JSON.parse(JSON.stringify(DEFAULT_GROUPS));
+        }
+    }
+
+    function saveData() {
+        try {
+            localStorage.setItem(NOTES_KEY, JSON.stringify(freeformNotes));
+            localStorage.setItem(LINES_KEY, JSON.stringify(freeformLines));
+            localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+            localStorage.setItem(ACTIVE_GROUP_KEY, activeGroup);
+        } catch (e) { console.error('Failed to save plan data:', e); }
+    }
+
+    function loadLanguage() {
+        // Read language from shared key (set by main app)
+        const saved = localStorage.getItem(SHARED_LANGUAGE_KEY);
+        if (saved) currentLanguage = saved;
+    }
+
+    function pushHistory() {
+        undoStack.push({ notes: JSON.parse(JSON.stringify(freeformNotes)), lines: JSON.parse(JSON.stringify(freeformLines)) });
+        if (undoStack.length > MAX_HISTORY) undoStack.shift();
+        redoStack = [];
+        updateUndoRedoButtons();
+    }
+
+    function updateUndoRedoButtons() {
+        const undoBtn = container.querySelector('.plan-undo-btn');
+        const redoBtn = container.querySelector('.plan-redo-btn');
+        if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+        if (redoBtn) redoBtn.disabled = redoStack.length === 0;
+    }
+
+    // Calendar functions
+    function updatePeriodDisplay() {
+        const display = container.querySelector('.plan-period-display');
+        const grid = container.querySelector('.plan-calendar-grid');
+        const columns = grid.querySelectorAll('.plan-month-column');
+
+        if (columns.length === 0) {
+            display.textContent = '';
+            return;
+        }
+
+        // Find visible columns based on scroll position
+        const scrollLeft = calendarContainer.scrollLeft;
+        const containerWidth = calendarContainer.clientWidth;
+        const scrollRight = scrollLeft + containerWidth;
+
+        let firstVisible = null;
+        let lastVisible = null;
+
+        columns.forEach(col => {
+            const colLeft = col.offsetLeft;
+            const colRight = colLeft + col.offsetWidth;
+
+            // Check if column is at least partially visible
+            if (colRight > scrollLeft && colLeft < scrollRight) {
+                if (!firstVisible) firstVisible = col;
+                lastVisible = col;
+            }
+        });
+
+        if (!firstVisible || !lastVisible) {
+            firstVisible = columns[0];
+            lastVisible = columns[columns.length - 1];
+        }
+
+        const firstMonth = parseInt(firstVisible.dataset.month);
+        const firstYear = parseInt(firstVisible.dataset.year);
+        const lastMonth = parseInt(lastVisible.dataset.month);
+        const lastYear = parseInt(lastVisible.dataset.year);
+
+        const months = currentLanguage === 'da' ? MONTHS_DA : MONTHS_EN;
+        const firstMonthShort = months[firstMonth].slice(0, 3);
+        const lastMonthShort = months[lastMonth].slice(0, 3);
+
+        // Format: "Jan - Jun 2026" or "Dec 2025 - Jan 2026" if spanning years
+        if (firstYear === lastYear) {
+            display.textContent = `${firstMonthShort} – ${lastMonthShort} ${firstYear}`;
+        } else {
+            display.textContent = `${firstMonthShort} ${firstYear} – ${lastMonthShort} ${lastYear}`;
+        }
+
+        // Show/hide "Go to Today" button based on whether today's month is visible
+        const todayBtn = container.querySelector('.plan-today-btn');
+        if (todayBtn) {
+            const today = new Date();
+            const todayMonth = today.getMonth();
+            const todayYear = today.getFullYear();
+
+            // Check if today's month is in the visible range
+            let isTodayVisible = false;
+            columns.forEach(col => {
+                const m = parseInt(col.dataset.month);
+                const y = parseInt(col.dataset.year);
+                const colLeft = col.offsetLeft;
+                const colRight = colLeft + col.offsetWidth;
+
+                if (m === todayMonth && y === todayYear && colRight > scrollLeft && colLeft < scrollRight) {
+                    isTodayVisible = true;
+                }
+            });
+
+            if (isTodayVisible) {
+                todayBtn.classList.add('hidden');
+            } else {
+                todayBtn.classList.remove('hidden');
+            }
+        }
+    }
+
+    function renderCalendar() {
+        const grid = container.querySelector('.plan-calendar-grid');
+        grid.innerHTML = '';
+
+        // Render MONTHS_TO_RENDER months starting from startMonth/startYear
+        let month = startMonth;
+        let year = startYear;
+
+        for (let i = 0; i < MONTHS_TO_RENDER; i++) {
+            grid.appendChild(createMonthColumn(month, year));
+            month++;
+            if (month > 11) {
+                month = 0;
+                year++;
+            }
+        }
+
+        // Update the grid template for the number of months
+        grid.style.gridTemplateColumns = `repeat(${MONTHS_TO_RENDER}, 240px)`;
+    }
+
+    function createMonthColumn(month, year) {
+        const col = document.createElement('div');
+        col.className = 'plan-month-column';
+        col.dataset.month = month;
+        col.dataset.year = year;
+
+        const header = document.createElement('div');
+        header.className = 'plan-month-header';
+        const monthName = currentLanguage === 'da' ? MONTHS_DA[month] : MONTHS_EN[month];
+        // Add year if different from today's year
+        const showYear = year !== new Date().getFullYear();
+        header.textContent = showYear ? `${monthName} ${year}` : monthName;
+        col.appendChild(header);
+
+        const days = document.createElement('div');
+        days.className = 'plan-days-container';
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d);
+            const weekday = date.getDay() === 0 ? 6 : date.getDay() - 1;
+            const isWeekend = weekday >= 5;
+            const isToday = date.toDateString() === new Date().toDateString();
+
+            const row = document.createElement('div');
+            row.className = 'plan-day-row' + (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '');
+            row.dataset.dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+            const dayName = document.createElement('span');
+            dayName.className = 'plan-day-name';
+            dayName.textContent = currentLanguage === 'da' ? WEEKDAYS_DA[weekday] : WEEKDAYS_EN[weekday];
+            row.appendChild(dayName);
+
+            const dayNum = document.createElement('span');
+            dayNum.className = 'plan-day-number';
+            dayNum.textContent = d;
+            row.appendChild(dayNum);
+
+            const noteArea = document.createElement('div');
+            noteArea.className = 'plan-note-area';
+
+            // Add holiday if applicable
+            const dateKey = row.dataset.dateKey;
+            const holidays = getHolidays(year);
+            if (holidays[dateKey]) {
+                const holidayEl = document.createElement('span');
+                holidayEl.className = 'plan-note-text holiday';
+                holidayEl.textContent = holidays[dateKey];
+                noteArea.appendChild(holidayEl);
+            }
+
+            row.appendChild(noteArea);
+
+            if (weekday === 6) {
+                const weekNum = document.createElement('span');
+                weekNum.className = 'plan-week-number';
+                weekNum.textContent = getWeekNumber(date);
+                row.appendChild(weekNum);
+            }
+
+            days.appendChild(row);
+        }
+        col.appendChild(days);
+        return col;
+    }
+
+    function getWeekNumber(date) {
+        const start = new Date(date.getFullYear(), 0, 1);
+        const diff = (date - start + ((start.getDay() + 6) % 7) * 86400000) / 86400000;
+        return Math.ceil(diff / 7);
+    }
+
+    function renderGroupsUI() {
+        const toggles = container.querySelector('.plan-groups-toggles');
+        const select = container.querySelector('.plan-active-group-select');
+        toggles.innerHTML = '';
+        select.innerHTML = '';
+
+        groups.forEach(g => {
+            const name = g.translationKey ? UI_TEXT[currentLanguage][g.translationKey] : g.name;
+
+            const toggle = document.createElement('div');
+            toggle.className = 'plan-group-toggle';
+            toggle.innerHTML = `<label><input type="checkbox" data-group-id="${g.id}" ${g.visible ? 'checked' : ''}><span>${name}</span></label>`;
+            toggle.querySelector('input').addEventListener('change', e => {
+                const grp = groups.find(x => x.id === g.id);
+                if (grp) { grp.visible = e.target.checked; saveData(); renderFreeformElements(); }
+            });
+            toggles.appendChild(toggle);
+
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = name;
+            select.appendChild(opt);
+        });
+
+        select.value = activeGroup;
+        select.addEventListener('change', e => { activeGroup = e.target.value; saveData(); });
+    }
+
+    function renderFreeformElements() {
+        // Clear canvas layer (for lines)
+        canvasLayer.innerHTML = '';
+
+        // Clear all note-areas
+        container.querySelectorAll('.plan-note-area').forEach(area => area.innerHTML = '');
+
+        // Re-add holidays to note-areas
+        container.querySelectorAll('.plan-day-row').forEach(row => {
+            const dateKey = row.dataset.dateKey;
+            if (!dateKey) return;
+
+            const year = parseInt(dateKey.split('-')[0]);
+            const holidays = getHolidays(year);
+
+            if (holidays[dateKey]) {
+                const noteArea = row.querySelector('.plan-note-area');
+                if (noteArea) {
+                    const holidayEl = document.createElement('span');
+                    holidayEl.className = 'plan-note-text holiday';
+                    holidayEl.textContent = holidays[dateKey];
+                    noteArea.appendChild(holidayEl);
+                }
+            }
+        });
+
+        const visible = groups.filter(g => g.visible).map(g => g.id);
+
+        // Render notes into their date row's note-area
+        freeformNotes.filter(n => !n.group || visible.includes(n.group)).forEach(note => {
+            if (!note.dateKey) return; // Skip legacy notes without dateKey
+
+            const row = container.querySelector(`.plan-day-row[data-date-key="${note.dateKey}"]`);
+            if (row) {
+                const noteArea = row.querySelector('.plan-note-area');
+                if (noteArea) noteArea.appendChild(createNote(note));
+            }
+        });
+
+        // Lines still use canvas layer with absolute positioning
+        freeformLines.filter(l => !l.group || visible.includes(l.group))
+            .forEach(l => canvasLayer.appendChild(createLine(l)));
+    }
+
+    function createNote(note) {
+        const el = document.createElement('span');
+        el.className = 'plan-note-text freeform';
+        el.innerHTML = note.html || note.text || 'Note';
+
+        // Absolute positioning within note-area using offsetX
+        el.style.position = 'absolute';
+        el.style.left = (note.offsetX || 0) + 'px';
+        el.style.top = '0';
+
+        if (note.fontColor) el.style.color = note.fontColor;
+        if (note.bgColor) el.style.backgroundColor = note.bgColor;
+        el.dataset.noteId = note.id;
+
+        // Track dragging to distinguish from click
+        let hasDragged = false;
+
+        el.addEventListener('mousedown', e => {
+            if (el.getAttribute('contenteditable') === 'true') return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            hasDragged = false;
+            const mouseStartX = e.clientX;
+            const mouseStartY = e.clientY;
+
+            // Create a temporary dragging clone on canvas
+            const rect = el.getBoundingClientRect();
+            const containerRect = calendarContainer.getBoundingClientRect();
+            let dragX = rect.left - containerRect.left;
+            let dragY = rect.top - containerRect.top + calendarContainer.scrollTop;
+
+            const dragClone = el.cloneNode(true);
+            dragClone.classList.add('dragging');
+            dragClone.style.position = 'absolute';
+            dragClone.style.left = dragX + 'px';
+            dragClone.style.top = dragY + 'px';
+            dragClone.style.pointerEvents = 'none';
+            dragClone.style.opacity = '0.9';
+            dragClone.style.zIndex = '9999';
+            canvasLayer.appendChild(dragClone);
+
+            // Hide original while dragging
+            el.style.opacity = '0.3';
+
+            const onMouseMove = moveEvent => {
+                const deltaX = moveEvent.clientX - mouseStartX;
+                const deltaY = moveEvent.clientY - mouseStartY;
+
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                    hasDragged = true;
+                }
+
+                dragClone.style.left = (dragX + deltaX) + 'px';
+                dragClone.style.top = (dragY + deltaY) + 'px';
+            };
+
+            const onMouseUp = moveEvent => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+
+                dragClone.remove();
+                el.style.opacity = '1';
+
+                if (hasDragged) {
+                    // Calculate final position and snap to date
+                    const finalX = dragX + (moveEvent.clientX - mouseStartX);
+                    const finalY = dragY + (moveEvent.clientY - mouseStartY);
+                    const snapped = findClosestDateRowPosition(finalX, finalY);
+
+                    if (snapped.dateKey) {
+                        // Update note data
+                        note.dateKey = snapped.dateKey;
+                        note.offsetX = snapped.offsetX;
+                        saveData();
+
+                        // Re-render to move note to new location
+                        renderFreeformElements();
+                    }
+                } else {
+                    // It was a click, show editor
+                    // Store click position for cursor placement
+                    window._lastClickEvent = { clientX: moveEvent.clientX, clientY: moveEvent.clientY };
+                    showNoteEditor(note.id, el, moveEvent.shiftKey);
+                }
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // Handle input for inline editing
+        el.addEventListener('input', () => {
+            note.html = el.innerHTML;
+            note.text = el.textContent.trim();
+            saveData();
+        });
+
+
+        return el;
+    }
+
+    function createLine(line) {
+        // Container for line and handles
+        const containerEl = document.createElement('div');
+        containerEl.className = 'plan-note-line-container';
+        containerEl.dataset.lineId = line.id;
+
+        const color = line.color || '#333333';
+        const width = line.width || 8;
+
+        let x1 = line.x1, y1 = line.y1 || line.y;
+        let x2 = line.x2, y2 = line.y2 || line.y;
+
+        // The line element
+        const lineEl = document.createElement('div');
+        lineEl.className = 'plan-note-line';
+        lineEl.style.transformOrigin = '0 50%';
+        lineEl.style.background = color;
+        lineEl.style.height = width + 'px';
+
+        // Endpoint handles (hidden by default, shown when selected)
+        const handle1 = document.createElement('div');
+        handle1.className = 'plan-line-handle';
+        handle1.dataset.endpoint = '1';
+
+        const handle2 = document.createElement('div');
+        handle2.className = 'plan-line-handle';
+        handle2.dataset.endpoint = '2';
+
+        function updateLineGeometry() {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+            lineEl.style.left = x1 + 'px';
+            lineEl.style.top = y1 + 'px';
+            lineEl.style.width = length + 'px';
+            lineEl.style.transform = `rotate(${angle}deg)`;
+
+            // Update handle positions
+            handle1.style.left = (x1 - 6) + 'px';
+            handle1.style.top = (y1 - 6) + 'px';
+            handle2.style.left = (x2 - 6) + 'px';
+            handle2.style.top = (y2 - 6) + 'px';
+        }
+
+        containerEl.appendChild(lineEl);
+        containerEl.appendChild(handle1);
+        containerEl.appendChild(handle2);
+        updateLineGeometry();
+
+        // Handle dragging for endpoints
+        function setupHandleDrag(handle, isEndpoint2) {
+            handle.addEventListener('mousedown', e => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const onMouseMove = moveEvent => {
+                    const rect = canvasLayer.getBoundingClientRect();
+                    const newX = moveEvent.clientX - rect.left;
+                    const newY = moveEvent.clientY - rect.top + calendarContainer.scrollTop;
+
+                    if (isEndpoint2) {
+                        x2 = newX;
+                        y2 = newY;
+                    } else {
+                        x1 = newX;
+                        y1 = newY;
+                    }
+                    updateLineGeometry();
+                };
+
+                const onMouseUp = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+
+                    line.x1 = x1; line.y1 = y1;
+                    line.x2 = x2; line.y2 = y2;
+                    saveData();
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
+
+        setupHandleDrag(handle1, false);
+        setupHandleDrag(handle2, true);
+
+        // Track dragging to distinguish from click
+        let hasDragged = false;
+
+        // Drag line to move
+        lineEl.addEventListener('mousedown', e => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            hasDragged = false;
+            const mouseStartX = e.clientX;
+            const mouseStartY = e.clientY;
+            const origX1 = x1, origY1 = y1, origX2 = x2, origY2 = y2;
+
+            lineEl.classList.add('dragging');
+
+            const onMouseMove = moveEvent => {
+                const deltaX = moveEvent.clientX - mouseStartX;
+                const deltaY = moveEvent.clientY - mouseStartY;
+
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                    hasDragged = true;
+                }
+
+                x1 = origX1 + deltaX;
+                y1 = origY1 + deltaY;
+                x2 = origX2 + deltaX;
+                y2 = origY2 + deltaY;
+                updateLineGeometry();
+            };
+
+            const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                lineEl.classList.remove('dragging');
+
+                line.x1 = x1; line.y1 = y1;
+                line.x2 = x2; line.y2 = y2;
+                saveData();
+
+                // If it was a click (not drag), show line editor and show handles
+                if (!hasDragged) {
+                    containerEl.classList.add('selected');
+                    showLineEditor(line.id, lineEl);
+                }
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        return containerEl;
+    }
+
+    // Create inline text input for new notes
+    function createFreeformInput(x, y, dateKey, offsetX) {
+        // Remove any existing input
+        const existingInput = canvasLayer.querySelector('.plan-note-input-inline');
+        if (existingInput) existingInput.remove();
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'plan-note-input-inline';
+        input.style.left = x + 'px';
+        input.style.top = y + 'px';
+
+        const finishEditing = () => {
+            const text = input.value.trim();
+            input.remove();
+
+            if (text && dateKey) {
+                pushHistory();
+                const noteId = Date.now().toString();
+                const note = {
+                    id: noteId,
+                    text: text,
+                    dateKey: dateKey,
+                    offsetX: offsetX || 0,
+                    group: activeGroup
+                };
+                freeformNotes.push(note);
+                saveData();
+
+                // Create and add note element to the date row's note-area
+                const el = createNote(note);
+                if (el) {
+                    const row = container.querySelector(`.plan-day-row[data-date-key="${dateKey}"]`);
+                    if (row) {
+                        const noteArea = row.querySelector('.plan-note-area');
+                        if (noteArea) noteArea.appendChild(el);
+                    }
+                }
+            }
+        };
+
+        input.addEventListener('blur', finishEditing);
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            } else if (e.key === 'Escape') {
+                input.value = '';
+                input.blur();
+            }
+        });
+
+        canvasLayer.appendChild(input);
+        input.focus();
+    }
+
+    // Find the closest date row position for snapping
+    function findClosestDateRowPosition(x, y) {
+        const dayRows = container.querySelectorAll('.plan-day-row');
+        let targetRow = null;
+        let closestDistance = Infinity;
+        const containerRect = calendarContainer.getBoundingClientRect();
+
+        // Click coords (x, y) are relative to canvasLayer which now equals calendarContainer
+        // y includes scrollTop, so convert to viewport-relative Y for comparison
+        const viewportY = y - calendarContainer.scrollTop;
+
+        // Find the row that contains this point
+        for (const row of dayRows) {
+            const rect = row.getBoundingClientRect();
+            // Convert row position to container-relative coordinates
+            const rowLeft = rect.left - containerRect.left;
+            const rowRight = rowLeft + rect.width;
+            const rowTop = rect.top - containerRect.top;
+            const rowBottom = rowTop + rect.height;
+
+            // Check if point is within this row
+            if (x >= rowLeft && x < rowRight && viewportY >= rowTop && viewportY < rowBottom) {
+                targetRow = row;
+                break; // Found exact match
+            }
+
+            // Track closest row as fallback
+            const xDist = x < rowLeft ? rowLeft - x : (x > rowRight ? x - rowRight : 0);
+            const yDist = viewportY < rowTop ? rowTop - viewportY : (viewportY > rowBottom ? viewportY - rowBottom : 0);
+            const distance = Math.sqrt(xDist * xDist + yDist * yDist);
+
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                targetRow = row;
+            }
+        }
+
+        if (targetRow) {
+            const rect = targetRow.getBoundingClientRect();
+            const noteArea = targetRow.querySelector('.plan-note-area');
+            const dateKey = targetRow.dataset.dateKey;
+
+            let snappedX = x;
+            let offsetX = 0;
+            if (noteArea) {
+                const noteAreaRect = noteArea.getBoundingClientRect();
+                snappedX = Math.max(noteAreaRect.left - containerRect.left, x);
+                // Calculate offset relative to note-area left edge
+                offsetX = x - (noteAreaRect.left - containerRect.left);
+                if (offsetX < 0) offsetX = 0;
+            }
+
+            // Return position, dateKey, and offsetX for date-relative storage
+            return {
+                x: snappedX,
+                y: rect.top - containerRect.top + calendarContainer.scrollTop,
+                dateKey: dateKey,
+                offsetX: offsetX
+            };
+        }
+
+        return { x, y, dateKey: null, offsetX: 0 };
+    }
+
+    // Show note editor toolbar
+    function showNoteEditor(noteId, noteElement, shiftKey = false) {
+        const note = freeformNotes.find(n => n.id === noteId);
+        if (!note) return;
+
+        // Check if this note is already selected
+        const existingIndex = selectedElements.findIndex(s => s.type === 'note' && s.id === noteId);
+
+        // If already selected and only one item selected - enter edit mode on second click
+        if (existingIndex >= 0 && selectedElements.length === 1 && !shiftKey) {
+            // Already selected, enter edit mode
+            noteElement.setAttribute('contenteditable', 'true');
+            noteElement.focus();
+
+            // Place cursor at click position (if we have click coordinates)
+            if (window._lastClickEvent) {
+                const range = document.caretRangeFromPoint(window._lastClickEvent.clientX, window._lastClickEvent.clientY);
+                if (range) {
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            }
+            return;
+        }
+
+        // Shift+click: add to selection (or remove if already selected)
+        if (shiftKey) {
+            if (existingIndex >= 0) {
+                // Already selected, remove from selection
+                selectedElements[existingIndex].element.classList.remove('selected');
+                selectedElements.splice(existingIndex, 1);
+                if (selectedElements.length === 0) {
+                    container.classList.remove('has-selection');
+                }
+            } else {
+                // Add to selection
+                selectedElements.push({ type: 'note', id: noteId, element: noteElement });
+                noteElement.classList.add('selected');
+                container.classList.add('has-selection');
+            }
+        } else {
+            // Normal click: deselect all and select just this one
+            deselectElement();
+            selectedElements.push({ type: 'note', id: noteId, element: noteElement });
+            noteElement.classList.add('selected');
+            container.classList.add('has-selection');
+        }
+
+        // Note is selected but NOT in edit mode yet
+        // User can click again to enter edit mode, or press delete to remove
+
+        // Exit editing on Enter (if in edit mode)
+        const enterHandler = e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                noteElement.blur();
+                noteElement.setAttribute('contenteditable', 'false');
+            }
+        };
+        noteElement.addEventListener('keydown', enterHandler);
+
+        const toolbar = container.querySelector('.plan-note-toolbar');
+
+        // Position toolbar above the element
+        const rect = noteElement.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        // Calculate left position, but ensure it doesn't overflow right edge
+        let leftPos = rect.left - containerRect.left;
+        const toolbarWidth = 280; // Approximate toolbar width
+        const maxLeft = containerRect.width - toolbarWidth - 8;
+        leftPos = Math.max(8, Math.min(leftPos, maxLeft));
+
+        toolbar.style.left = leftPos + 'px';
+        toolbar.style.top = Math.max(8, rect.top - containerRect.top - 40) + 'px';
+
+        toolbar.classList.remove('hidden');
+
+        // Update snap toggle state
+        const snapToggle = container.querySelector('.plan-note-snap-toggle');
+        if (snapToggle) snapToggle.checked = note.snapToDate !== false;
+
+        // Update color pickers
+        const fontColorPicker = container.querySelector('.plan-font-color-picker');
+        const fontColorIndicator = container.querySelector('.plan-font-color-indicator');
+        const bgColorPicker = container.querySelector('.plan-bg-color-picker');
+        const bgColorIndicator = container.querySelector('.plan-bg-color-indicator');
+
+        if (fontColorPicker) fontColorPicker.value = note.fontColor || '#333333';
+        if (fontColorIndicator) fontColorIndicator.style.background = note.fontColor || '#333333';
+        if (bgColorPicker) bgColorPicker.value = note.bgColor || '#ffff00';
+        if (bgColorIndicator) bgColorIndicator.style.background = note.bgColor || 'transparent';
+    }
+
+    // Show line editor toolbar
+    function showLineEditor(lineId, lineElement) {
+        const line = freeformLines.find(l => l.id === lineId);
+        if (!line) return;
+
+        deselectElement();
+        selectedElements.push({ type: 'line', id: lineId, element: lineElement });
+        lineElement.classList.add('selected');
+        container.classList.add('has-selection');
+
+        const toolbar = container.querySelector('.plan-line-toolbar');
+
+        // Position toolbar above the element
+        const rect = lineElement.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        // Calculate left position, but ensure it doesn't overflow right edge
+        let leftPos = rect.left - containerRect.left;
+        const toolbarWidth = 180; // Approximate line toolbar width
+        const maxLeft = containerRect.width - toolbarWidth - 8;
+        leftPos = Math.max(8, Math.min(leftPos, maxLeft));
+
+        toolbar.style.left = leftPos + 'px';
+        toolbar.style.top = Math.max(8, rect.top - containerRect.top - 40) + 'px';
+
+        toolbar.classList.remove('hidden');
+
+        // Update color picker
+        const colorPicker = container.querySelector('.plan-line-color-picker');
+        const colorIndicator = container.querySelector('.plan-line-color-indicator');
+        if (colorPicker) colorPicker.value = line.color || '#333333';
+        if (colorIndicator) colorIndicator.style.background = line.color || '#333333';
+
+        // Update width select
+        const widthSelect = container.querySelector('.plan-line-width-select');
+        if (widthSelect) widthSelect.value = line.width || 8;
+    }
+
+    // Deselect all selected elements and hide toolbars
+    function deselectElement() {
+        selectedElements.forEach(sel => {
+            sel.element.classList.remove('selected');
+
+            if (sel.type === 'note') {
+                sel.element.setAttribute('contenteditable', 'false');
+                const note = freeformNotes.find(n => n.id === sel.id);
+                if (note) {
+                    note.html = sel.element.innerHTML;
+                    note.text = sel.element.textContent.trim();
+                }
+            }
+
+            // Remove selected class from line containers (hides handles)
+            if (sel.type === 'line') {
+                const lineContainer = sel.element.closest('.plan-note-line-container');
+                if (lineContainer) lineContainer.classList.remove('selected');
+            }
+        });
+
+        if (selectedElements.length > 0) {
+            saveData();
+        }
+        selectedElements = [];
+
+        container.classList.remove('has-selection');
+        container.querySelector('.plan-note-toolbar')?.classList.add('hidden');
+        container.querySelector('.plan-line-toolbar')?.classList.add('hidden');
+    }
+
+    // Delete all selected elements
+    function deleteSelectedElement() {
+        if (selectedElements.length === 0) return;
+
+        pushHistory();
+
+        selectedElements.forEach(sel => {
+            if (sel.type === 'note') {
+                freeformNotes = freeformNotes.filter(n => n.id !== sel.id);
+                sel.element.remove();
+            } else if (sel.type === 'line') {
+                freeformLines = freeformLines.filter(l => l.id !== sel.id);
+                const containerEl = sel.element.closest('.plan-note-line-container');
+                if (containerEl) containerEl.remove();
+                else sel.element.remove();
+            }
+        });
+
+        saveData();
+        selectedElements = [];
+        container.classList.remove('has-selection');
+        container.querySelector('.plan-note-toolbar')?.classList.add('hidden');
+        container.querySelector('.plan-line-toolbar')?.classList.add('hidden');
+    }
+
+    function setupEventListeners() {
+        // Scroll 3 months to the left
+        container.querySelector('.plan-prev-period-btn').addEventListener('click', () => {
+            const scrollAmount = COLUMN_WIDTH * 3;
+            calendarContainer.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+        });
+
+        // Scroll 3 months to the right
+        container.querySelector('.plan-next-period-btn').addEventListener('click', () => {
+            const scrollAmount = COLUMN_WIDTH * 3;
+            calendarContainer.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        });
+
+        // Go to today button
+        container.querySelector('.plan-today-btn')?.addEventListener('click', () => {
+            const today = new Date();
+            const todayMonth = today.getMonth();
+            const todayYear = today.getFullYear();
+
+            // Find today's month column
+            const todayCol = container.querySelector(`.plan-month-column[data-month="${todayMonth}"][data-year="${todayYear}"]`);
+
+            if (todayCol) {
+                // Scroll to put today's column at far left (like app's opening position)
+                const colLeft = todayCol.offsetLeft;
+                calendarContainer.scrollTo({ left: colLeft, behavior: 'smooth' });
+            } else {
+                // Today's column not in DOM, re-render starting from today
+                startMonth = todayMonth;
+                startYear = todayYear;
+                renderCalendar();
+                renderFreeformElements();
+                updatePeriodDisplay();
+            }
+        });
+
+        // Update period display and handle infinite loading as user scrolls
+        let scrollTimeout;
+        calendarContainer.addEventListener('scroll', () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                updatePeriodDisplay();
+                checkAndLoadMoreMonths();
+            }, 100);
+        });
+    }
+
+    // Check scroll position and load more months if near edge
+    function checkAndLoadMoreMonths() {
+        const grid = container.querySelector('.plan-calendar-grid');
+        const scrollLeft = calendarContainer.scrollLeft;
+        const scrollRight = scrollLeft + calendarContainer.clientWidth;
+        const totalWidth = grid.scrollWidth;
+
+        const LOAD_THRESHOLD = COLUMN_WIDTH * 3; // Load more when within 3 columns of edge
+        const MONTHS_TO_ADD = 6;
+
+        // Near right edge - append more months
+        if (scrollRight > totalWidth - LOAD_THRESHOLD) {
+            appendMonths(MONTHS_TO_ADD);
+        }
+
+        // Near left edge - prepend more months
+        if (scrollLeft < LOAD_THRESHOLD) {
+            prependMonths(MONTHS_TO_ADD);
+        }
+    }
+
+    // Append months to the right
+    function appendMonths(count) {
+        const grid = container.querySelector('.plan-calendar-grid');
+        const lastCol = grid.querySelector('.plan-month-column:last-child');
+        if (!lastCol) return;
+
+        let month = parseInt(lastCol.dataset.month) + 1;
+        let year = parseInt(lastCol.dataset.year);
+
+        if (month > 11) { month = 0; year++; }
+
+        for (let i = 0; i < count; i++) {
+            grid.appendChild(createMonthColumn(month, year));
+            month++;
+            if (month > 11) { month = 0; year++; }
+        }
+
+        // Update grid template
+        const colCount = grid.querySelectorAll('.plan-month-column').length;
+        grid.style.gridTemplateColumns = `repeat(${colCount}, 240px)`;
+    }
+
+    // Prepend months to the left
+    function prependMonths(count) {
+        const grid = container.querySelector('.plan-calendar-grid');
+        const firstCol = grid.querySelector('.plan-month-column:first-child');
+        if (!firstCol) return;
+
+        let month = parseInt(firstCol.dataset.month) - 1;
+        let year = parseInt(firstCol.dataset.year);
+
+        if (month < 0) { month = 11; year--; }
+
+        // Save current scroll position
+        const oldScrollLeft = calendarContainer.scrollLeft;
+
+        for (let i = 0; i < count; i++) {
+            grid.insertBefore(createMonthColumn(month, year), grid.firstChild);
+            month--;
+            if (month < 0) { month = 11; year--; }
+        }
+
+        // Update grid template
+        const colCount = grid.querySelectorAll('.plan-month-column').length;
+        grid.style.gridTemplateColumns = `repeat(${colCount}, 240px)`;
+
+        // Adjust scroll position to maintain visual position
+        const addedWidth = COLUMN_WIDTH * count;
+        calendarContainer.scrollLeft = oldScrollLeft + addedWidth;
+
+        // Update start tracking
+        startMonth = month + 1;
+        if (startMonth > 11) { startMonth = 0; startYear = year + 1; }
+        else startYear = year;
+    }
+
+    function setupCanvasInteraction() {
+        calendarContainer.addEventListener('mousedown', e => {
+            if (e.target.closest('.plan-note-text') || e.target.closest('.plan-note-line') || e.target.closest('.plan-line-handle')) return;
+
+            // If something is selected, deselect it and don't create new content
+            if (selectedElements.length > 0) {
+                deselectElement();
+                return;
+            }
+
+            const rect = canvasLayer.getBoundingClientRect();
+            const startX = e.clientX - rect.left;
+            const startY = e.clientY - rect.top + calendarContainer.scrollTop;
+            let isDragging = false;
+
+            const tempLine = document.createElement('div');
+            tempLine.className = 'plan-note-line temp';
+            tempLine.style.left = startX + 'px';
+            tempLine.style.top = startY + 'px';
+            tempLine.style.width = '0';
+            canvasLayer.appendChild(tempLine);
+
+            const move = ev => {
+                const x = ev.clientX - rect.left, y = ev.clientY - rect.top + calendarContainer.scrollTop;
+                const dx = x - startX, dy = y - startY;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len > 5) {
+                    isDragging = true;
+                    tempLine.style.width = len + 'px';
+                    tempLine.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`;
+                    tempLine.style.transformOrigin = '0 50%';
+                }
+            };
+
+            const up = ev => {
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', up);
+                tempLine.remove();
+
+                const endX = ev.clientX - rect.left;
+                const endY = ev.clientY - rect.top + calendarContainer.scrollTop;
+
+                if (isDragging && Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2) > 10) {
+                    pushHistory();
+                    const line = {
+                        id: Date.now().toString(), x1: startX, y1: startY, x2: endX, y2: endY,
+                        color: '#333', width: 8, group: activeGroup
+                    };
+                    freeformLines.push(line);
+                    saveData();
+                    canvasLayer.appendChild(createLine(line));
+                } else {
+                    // Show input for new note
+                    const snapped = findClosestDateRowPosition(startX, startY);
+                    createFreeformInput(snapped.x, snapped.y, snapped.dateKey, snapped.offsetX);
+                }
+            };
+
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', up);
+        });
+    }
+
+    function setupToolbarListeners() {
+        // Undo/Redo
+        container.querySelector('.plan-undo-btn').addEventListener('click', () => {
+            if (undoStack.length === 0) return;
+            redoStack.push({ notes: JSON.parse(JSON.stringify(freeformNotes)), lines: JSON.parse(JSON.stringify(freeformLines)) });
+            const prev = undoStack.pop();
+            freeformNotes = prev.notes; freeformLines = prev.lines;
+            saveData(); renderFreeformElements(); updateUndoRedoButtons();
+        });
+
+        container.querySelector('.plan-redo-btn').addEventListener('click', () => {
+            if (redoStack.length === 0) return;
+            undoStack.push({ notes: JSON.parse(JSON.stringify(freeformNotes)), lines: JSON.parse(JSON.stringify(freeformLines)) });
+            const next = redoStack.pop();
+            freeformNotes = next.notes; freeformLines = next.lines;
+            saveData(); renderFreeformElements(); updateUndoRedoButtons();
+        });
+
+        // Formatting buttons (bold, italic, underline)
+        container.querySelectorAll('.plan-note-toolbar .plan-toolbar-btn[data-command]').forEach(btn => {
+            btn.addEventListener('mousedown', e => {
+                e.preventDefault(); // Prevent losing focus from note
+                const command = btn.dataset.command;
+                document.execCommand(command, false, null);
+            });
+        });
+
+        // Note toolbar handlers
+        container.querySelector('.plan-note-delete-btn')?.addEventListener('click', deleteSelectedElement);
+
+        container.querySelector('.plan-note-snap-toggle')?.addEventListener('change', e => {
+            const selectedNotes = selectedElements.filter(s => s.type === 'note');
+            if (selectedNotes.length > 0) {
+                selectedNotes.forEach(sel => {
+                    const note = freeformNotes.find(n => n.id === sel.id);
+                    if (note) {
+                        note.snapToDate = e.target.checked;
+                        // If turning snap on, immediately snap the note
+                        if (note.snapToDate) {
+                            const snapped = findClosestDateRowPosition(note.x, note.y);
+                            note.x = snapped.x;
+                            note.y = snapped.y;
+                            sel.element.style.left = snapped.x + 'px';
+                            sel.element.style.top = snapped.y + 'px';
+                        }
+                    }
+                });
+                saveData();
+            }
+        });
+
+        container.querySelector('.plan-font-color-picker')?.addEventListener('input', e => {
+            const color = e.target.value;
+            container.querySelector('.plan-font-color-indicator').style.background = color;
+
+            const selectedNotes = selectedElements.filter(s => s.type === 'note');
+            if (selectedNotes.length > 0) {
+                pushHistory();
+                selectedNotes.forEach(sel => {
+                    const note = freeformNotes.find(n => n.id === sel.id);
+                    if (note) {
+                        note.fontColor = color;
+                        sel.element.style.color = color;
+                    }
+                });
+                saveData();
+            }
+        });
+
+        container.querySelector('.plan-bg-color-picker')?.addEventListener('input', e => {
+            const color = e.target.value;
+            container.querySelector('.plan-bg-color-indicator').style.background = color;
+
+            const selectedNotes = selectedElements.filter(s => s.type === 'note');
+            if (selectedNotes.length > 0) {
+                pushHistory();
+                selectedNotes.forEach(sel => {
+                    const note = freeformNotes.find(n => n.id === sel.id);
+                    if (note) {
+                        note.bgColor = color;
+                        sel.element.style.backgroundColor = color;
+                    }
+                });
+                saveData();
+            }
+        });
+
+        container.querySelector('.plan-clear-bg-btn')?.addEventListener('click', () => {
+            const selectedNotes = selectedElements.filter(s => s.type === 'note');
+            if (selectedNotes.length > 0) {
+                pushHistory();
+                selectedNotes.forEach(sel => {
+                    const note = freeformNotes.find(n => n.id === sel.id);
+                    if (note) {
+                        note.bgColor = null;
+                        sel.element.style.backgroundColor = 'transparent';
+                    }
+                });
+                container.querySelector('.plan-bg-color-indicator').style.background = 'transparent';
+                saveData();
+            }
+        });
+
+        // Line toolbar handlers
+        container.querySelector('.plan-line-delete-btn')?.addEventListener('click', deleteSelectedElement);
+
+        container.querySelector('.plan-line-color-picker')?.addEventListener('input', e => {
+            const color = e.target.value;
+            container.querySelector('.plan-line-color-indicator').style.background = color;
+
+            const selectedLines = selectedElements.filter(s => s.type === 'line');
+            if (selectedLines.length > 0) {
+                pushHistory();
+                selectedLines.forEach(sel => {
+                    const line = freeformLines.find(l => l.id === sel.id);
+                    if (line) {
+                        line.color = color;
+                        const lineEl = sel.element.closest('.plan-note-line-container')?.querySelector('.plan-note-line') || sel.element;
+                        lineEl.style.background = color;
+                    }
+                });
+                saveData();
+            }
+        });
+
+        container.querySelector('.plan-line-width-select')?.addEventListener('change', e => {
+            const width = parseInt(e.target.value);
+
+            const selectedLines = selectedElements.filter(s => s.type === 'line');
+            if (selectedLines.length > 0) {
+                pushHistory();
+                selectedLines.forEach(sel => {
+                    const line = freeformLines.find(l => l.id === sel.id);
+                    if (line) {
+                        line.width = width;
+                        const lineEl = sel.element.closest('.plan-note-line-container')?.querySelector('.plan-note-line') || sel.element;
+                        lineEl.style.height = width + 'px';
+                    }
+                });
+                saveData();
+            }
+        });
+
+        // Click outside to deselect
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.plan-inline-toolbar') &&
+                !e.target.closest('.plan-note-text') &&
+                !e.target.closest('.plan-note-line') &&
+                selectedElements.length > 0) {
+                deselectElement();
+            }
+        });
+
+        // Keyboard delete (Backspace/Delete key)
+        document.addEventListener('keydown', e => {
+            // Undo: Cmd/Ctrl + Z
+            if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                if (undoStack.length > 0) {
+                    redoStack.push({ notes: JSON.parse(JSON.stringify(freeformNotes)), lines: JSON.parse(JSON.stringify(freeformLines)) });
+                    const prev = undoStack.pop();
+                    freeformNotes = prev.notes; freeformLines = prev.lines;
+                    saveData(); renderFreeformElements(); updateUndoRedoButtons();
+                }
+                return;
+            }
+
+            // Redo: Cmd/Ctrl + Shift + Z
+            if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+                e.preventDefault();
+                if (redoStack.length > 0) {
+                    undoStack.push({ notes: JSON.parse(JSON.stringify(freeformNotes)), lines: JSON.parse(JSON.stringify(freeformLines)) });
+                    const next = redoStack.pop();
+                    freeformNotes = next.notes; freeformLines = next.lines;
+                    saveData(); renderFreeformElements(); updateUndoRedoButtons();
+                }
+                return;
+            }
+
+            // Delete selected elements
+            if ((e.key === 'Backspace' || e.key === 'Delete') && selectedElements.length > 0) {
+                // Don't delete if we're editing text (contenteditable) - only check if single note is being edited
+                const editingNote = selectedElements.find(s =>
+                    s.type === 'note' && s.element.getAttribute('contenteditable') === 'true'
+                );
+                if (editingNote) {
+                    return; // Let normal text editing happen
+                }
+                e.preventDefault();
+                deleteSelectedElement();
+            }
+        });
+    }
+
+    function refresh() {
+        // Re-read language setting and re-render
+        loadLanguage();
+        renderCalendar();
+        renderGroupsUI();
+    }
+
+    return { init, destroy, refresh };
+})();
+
+// Export for Node/Electron
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = PlanModule;
+}

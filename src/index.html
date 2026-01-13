@@ -7,6 +7,7 @@
     <title>ReDD Do</title>
     <link rel="stylesheet" href="quill.snow.css">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="plan/plan.css">
 </head>
 
 <body>
@@ -35,6 +36,14 @@
                             </path>
                         </svg>
                     </button>
+                    <button id="view-plan-btn" class="view-btn" title="Plan View">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                            <line x1="8" y1="2" x2="8" y2="18" />
+                            <line x1="16" y1="6" x2="16" y2="22" />
+                        </svg>
+                    </button>
                 </div>
                 <div id="window-controls" class="window-controls hidden">
                     <button id="min-btn" class="win-btn min-btn" title="Minimize">
@@ -54,6 +63,9 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Plan Mode Container (inside normal-mode, below title-bar) -->
+            <div id="plan-mode" class="hidden"></div>
 
             <!-- Groups -->
             <div class="groups-container">
@@ -229,7 +241,7 @@
         <!-- Settings Modal -->
         <div id="settings-modal" class="modal-overlay hidden">
             <div class="modal-content">
-                <h3>Settings</h3>
+                <h3 data-i18n="settings">Settings</h3>
 
                 <div class="settings-section">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -263,10 +275,21 @@
 
                 <div class="settings-section">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span data-i18n="language" style="font-size: 13px;">Language</span>
+                        <select id="language-select"
+                            style="padding: 6px 10px; border: 1px solid var(--border-color-medium); border-radius: 4px; background: var(--modal-bg); color: var(--text-primary); font-size: 13px; cursor: pointer;">
+                            <option value="en">English</option>
+                            <option value="da">Dansk</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
                         <label class="setting-toggle"
                             style="display: flex; align-items: center; font-size: 13px; cursor: pointer; user-select: none;">
                             <input type="checkbox" id="enable-groups-toggle" class="task-checkbox">
-                            <span>Enable Tab Groups</span>
+                            <span data-i18n="enableTabGroups">Enable Tab Groups</span>
                         </label>
                         <button class="info-toggle-btn" aria-expanded="false" aria-controls="groups-info"
                             title="More info">
@@ -278,13 +301,14 @@
                             </svg>
                         </button>
                     </div>
-                    <p id="groups-info" class="settings-desc info-expandable hidden">Organize your to-do lists into
-                        groups (shown in a top bar).</p>
+                    <p id="groups-info" data-i18n="tabGroupsInfo" class="settings-desc info-expandable hidden">Organize
+                        your to-do lists into groups (shown in a top bar).</p>
                 </div>
 
                 <div class="settings-section">
-                    <h4>Data Management</h4>
-                    <p class="settings-desc" style="margin-bottom: 12px;">Backup or restore your data.</p>
+                    <h4 data-i18n="dataManagement">Data Management</h4>
+                    <p data-i18n="dataManagementDesc" class="settings-desc" style="margin-bottom: 12px;">Backup or
+                        restore your data.</p>
                     <div style="display: flex; gap: 10px;">
                         <button id="export-data-btn" class="modal-btn"
                             style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color-medium); color: var(--text-primary);">
@@ -299,7 +323,7 @@
                 </div>
 
                 <div class="settings-section">
-                    <h4 style="margin-bottom: 12px;">Integrations</h4>
+                    <h4 data-i18n="integrations" style="margin-bottom: 12px;">Integrations</h4>
 
                     <!-- Apple Reminders -->
                     <div id="reminders-connect-row"
@@ -315,7 +339,7 @@
                                 <path d="M3 12h.01"></path>
                                 <path d="M3 18h.01"></path>
                             </svg>
-                            Connect to Apple Reminders
+                            <span data-i18n="connectAppleReminders">Connect to Apple Reminders</span>
                         </button>
                         <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info"
                             title="More info" style="margin-left: 8px;">
@@ -327,13 +351,13 @@
                             </svg>
                         </button>
                     </div>
-                    <p id="reminders-info" class="settings-desc info-expandable hidden">Import tasks from Apple
-                        Reminders.</p>
+                    <p id="reminders-info" data-i18n="remindersInfo" class="settings-desc info-expandable hidden">Import
+                        tasks from Apple Reminders.</p>
                     <div id="reminders-status" class="connection-status hidden"
                         style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                         <div style="display: flex; align-items: center;">
                             <span class="status-dot"></span>
-                            <span>Connected to Apple Reminders</span>
+                            <span data-i18n="connectedAppleReminders">Connected to Apple Reminders</span>
                         </div>
                         <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info"
                             title="More info" style="margin-left: 8px;">
@@ -345,7 +369,8 @@
                             </svg>
                         </button>
                     </div>
-                    <button id="disconnect-reminders-btn" class="modal-btn disconnect-btn hidden">Disconnect</button>
+                    <button id="disconnect-reminders-btn" class="modal-btn disconnect-btn hidden"
+                        data-i18n="disconnect">Disconnect</button>
 
                     <!-- Basecamp -->
                     <div id="basecamp-connect-row"
@@ -353,7 +378,7 @@
                         <button id="oauth-connect-btn" class="modal-btn connect-btn"
                             style="flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px;">
                             <img src="images/basecamp_logo_icon_147315.png" width="16" height="16">
-                            Connect to Basecamp
+                            <span data-i18n="connectBasecamp">Connect to Basecamp</span>
                         </button>
                         <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
                             title="More info" style="margin-left: 8px;">
@@ -374,7 +399,7 @@
                             <div>
                                 <div style="display: flex; align-items: center;">
                                     <span class="status-dot"></span>
-                                    <span>Connected to Basecamp</span>
+                                    <span data-i18n="connectedBasecamp">Connected to Basecamp</span>
                                 </div>
                                 <div id="bc-account-info"
                                     style="font-size: 0.9em; color: #666; margin-top: 4px; margin-left: 16px;"></div>
@@ -413,7 +438,8 @@
                             </div>
                         </div>
 
-                        <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden">Disconnect</button>
+                        <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden"
+                            data-i18n="disconnect">Disconnect</button>
                     </div>
                 </div>
 
@@ -422,7 +448,7 @@
                 </div>
 
                 <div class="modal-buttons">
-                    <button id="close-settings-btn" class="modal-btn cancel-btn">Close</button>
+                    <button id="close-settings-btn" class="modal-btn cancel-btn" data-i18n="close">Close</button>
                 </div>
             </div>
         </div>
@@ -529,6 +555,7 @@
     </div>
 
     <script src="quill.js"></script>
+    <script src="plan/plan.js"></script>
     <script src="app.js"></script>
 </body>
 

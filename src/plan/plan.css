@@ -1,0 +1,750 @@
+/* Plan View Styles - Scoped to #plan-mode */
+
+/* Plan mode container - fills available space below title bar */
+#plan-mode {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#plan-mode.hidden {
+    display: none !important;
+}
+
+/* Plan-specific theme variables */
+#plan-mode {
+    --plan-app-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --plan-container-bg: transparent;
+    --plan-panel-bg: rgba(255, 255, 255, 0.8);
+    --plan-text-primary: #333;
+    --plan-text-secondary: hsl(222.2, 84%, 4.9%);
+    --plan-text-muted: #999;
+    --plan-border-color: hsl(214, 32%, 91%);
+    --plan-accent-color: #667eea;
+    --plan-row-hover-bg: rgba(102, 126, 234, 0.08);
+    --plan-today-bg: rgba(102, 126, 234, 0.15);
+    --plan-today-border: #667eea;
+}
+
+[data-theme="dark"] #plan-mode {
+    --plan-app-bg: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    --plan-container-bg: transparent;
+    --plan-panel-bg: rgba(30, 41, 59, 0.4);
+    --plan-text-primary: #e2e8f0;
+    --plan-text-secondary: #f8fafc;
+    --plan-text-muted: #94a3b8;
+    --plan-border-color: rgba(255, 255, 255, 0.1);
+    --plan-accent-color: #818cf8;
+    --plan-row-hover-bg: rgba(129, 140, 248, 0.1);
+    --plan-today-bg: rgba(129, 140, 248, 0.2);
+    --plan-today-border: #818cf8;
+}
+
+/* App Container */
+#plan-mode .plan-app-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    overflow: hidden;
+}
+
+/* Title Bar */
+#plan-mode .plan-title-bar {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 12px 24px;
+    background: transparent;
+    -webkit-app-region: drag;
+    gap: 12px 24px;
+    flex-shrink: 0;
+}
+
+/* View Switcher in Plan Mode */
+#plan-mode .plan-view-switcher {
+    display: flex;
+    align-items: center;
+    padding: 2px;
+    -webkit-app-region: no-drag;
+}
+
+#plan-mode .plan-view-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--plan-text-muted);
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+#plan-mode .plan-view-btn:hover {
+    color: var(--plan-text-secondary);
+}
+
+#plan-mode .plan-view-btn.active {
+    color: var(--plan-text-primary);
+}
+
+#plan-mode .plan-view-fav-btn svg {
+    fill: currentColor;
+}
+
+/* Period Navigation */
+#plan-mode .plan-period-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    -webkit-app-region: no-drag;
+}
+
+#plan-mode .plan-period-display {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--plan-text-secondary);
+    min-width: 160px;
+    text-align: center;
+}
+
+#plan-mode .plan-nav-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--plan-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+#plan-mode .plan-nav-btn:hover:not(:disabled) {
+    background: var(--plan-accent-color);
+    color: white;
+}
+
+#plan-mode .plan-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#plan-mode .plan-nav-btn.small {
+    width: 24px;
+    height: 24px;
+}
+
+/* Undo/Redo */
+#plan-mode .plan-undo-redo-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    -webkit-app-region: no-drag;
+}
+
+/* Groups Panel */
+#plan-mode .plan-groups-panel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+    padding-right: 12px;
+    -webkit-app-region: no-drag;
+}
+
+#plan-mode .plan-groups-toggles {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#plan-mode .plan-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--plan-text-secondary);
+}
+
+#plan-mode .plan-group-toggle label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+#plan-mode .plan-group-selector {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--plan-text-muted);
+}
+
+#plan-mode .plan-group-selector select,
+#plan-mode .plan-active-group-select {
+    padding: 4px 8px;
+    border: 1px solid var(--plan-border-color);
+    border-radius: 4px;
+    background: var(--plan-panel-bg);
+    color: var(--plan-text-primary);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+/* Calendar Container */
+#plan-mode .plan-calendar-container {
+    flex: 1;
+    overflow: auto;
+    padding: 0 24px 24px 24px;
+    position: relative;
+    min-width: 800px;
+}
+
+/* Canvas Layer */
+#plan-mode .plan-canvas-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 100;
+}
+
+#plan-mode .plan-canvas-layer>* {
+    pointer-events: auto;
+}
+
+/* Calendar Grid */
+#plan-mode .plan-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 240px);
+    gap: 12px;
+    min-height: 100%;
+    width: max-content;
+}
+
+/* Month Column */
+#plan-mode .plan-month-column {
+    display: flex;
+    flex-direction: column;
+    background: var(--plan-panel-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+#plan-mode .plan-month-header {
+    padding: 8px 6px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--plan-text-secondary);
+    text-align: left;
+    border-bottom: 1px solid var(--plan-border-color);
+}
+
+#plan-mode .plan-days-container {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Day Row */
+#plan-mode .plan-day-row {
+    display: flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--plan-border-color);
+    min-height: 28px;
+    font-size: 13px;
+}
+
+#plan-mode .plan-day-row.weekend {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] #plan-mode .plan-day-row.weekend {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+#plan-mode .plan-day-row.weekend .plan-day-name {
+    color: var(--plan-text-muted);
+}
+
+#plan-mode .plan-day-row:hover {
+    background: var(--plan-row-hover-bg);
+}
+
+#plan-mode .plan-day-row.today {
+    background: var(--plan-today-bg);
+    border-left: 3px solid var(--plan-today-border);
+}
+
+#plan-mode .plan-day-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--plan-text-muted);
+    width: 14px;
+    flex-shrink: 0;
+}
+
+#plan-mode .plan-day-number {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--plan-text-primary);
+    width: 24px;
+    text-align: right;
+    margin-right: 8px;
+}
+
+#plan-mode .plan-note-area {
+    flex: 1;
+    position: relative;
+    min-height: 20px;
+    cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>') 0 16, crosshair;
+}
+
+/* Override pencil cursor when something is selected */
+#plan-mode.has-selection .plan-note-area {
+    cursor: default;
+}
+
+#plan-mode .plan-week-number {
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.3);
+    min-width: 20px;
+    text-align: right;
+}
+
+[data-theme="dark"] #plan-mode .plan-week-number {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* Notes and Lines */
+#plan-mode .plan-note-text {
+    position: absolute;
+    font-family: 'Caveat', cursive;
+    font-size: 18px;
+    color: var(--plan-text-primary);
+    cursor: grab;
+    user-select: none;
+}
+
+#plan-mode .plan-note-text.freeform {
+    white-space: nowrap;
+    top: -4px;
+}
+
+#plan-mode .plan-note-text.holiday {
+    font-size: 11px;
+    font-weight: 500;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--plan-text-muted);
+    pointer-events: none;
+    user-select: none;
+    top: 4px;
+    margin-left: 2px;
+}
+
+#plan-mode .plan-note-line {
+    position: absolute;
+    background: var(--plan-accent-color);
+    opacity: 0.4;
+    border-radius: 4px;
+    cursor: grab;
+}
+
+/* Line endpoint handles */
+#plan-mode .plan-line-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--plan-accent-color);
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: grab;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 110;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+#plan-mode .plan-note-line-container.selected .plan-line-handle {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#plan-mode .plan-line-handle:hover {
+    transform: scale(1.2);
+}
+
+/* Inline text input for new notes */
+#plan-mode .plan-note-input-inline {
+    position: absolute;
+    font-family: 'Caveat', cursive;
+    font-size: 18px;
+    color: var(--plan-text-primary);
+    background: transparent;
+    border: none;
+    outline: none;
+    min-width: 80px;
+    padding: 2px 4px;
+    z-index: 1001;
+}
+
+#plan-mode .plan-note-line.temp {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Footer */
+#plan-mode .plan-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 6px 24px 12px 24px;
+    flex-shrink: 0;
+}
+
+#plan-mode .plan-footer-text {
+    font-size: 12px;
+    color: var(--plan-text-muted);
+}
+
+#plan-mode .plan-footer-text a {
+    color: var(--plan-accent-color);
+    text-decoration: none;
+}
+
+#plan-mode .plan-footer-text .heart {
+    color: #e74c3c;
+}
+
+/* Settings Modal */
+#plan-mode .plan-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+#plan-mode .plan-modal-overlay.hidden {
+    display: none;
+}
+
+#plan-mode .plan-modal-dialog {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    min-width: 280px;
+}
+
+#plan-mode.dark-mode .plan-modal-dialog,
+body.dark-mode #plan-mode .plan-modal-dialog {
+    background: #1e293b;
+}
+
+#plan-mode .plan-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+}
+
+#plan-mode .plan-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+#plan-mode .plan-modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--plan-text-muted);
+    cursor: pointer;
+}
+
+#plan-mode .plan-modal-body {
+    padding: 20px;
+}
+
+#plan-mode .plan-settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+}
+
+#plan-mode .plan-toggle-switch {
+    display: flex;
+    gap: 4px;
+}
+
+#plan-mode .plan-toggle-option {
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#plan-mode .plan-toggle-option.active {
+    background: var(--plan-panel-bg);
+}
+
+#plan-mode .plan-language-select {
+    padding: 8px 12px;
+    border: 1px solid var(--plan-border-color);
+    border-radius: 6px;
+    background: var(--plan-panel-bg);
+    color: var(--plan-text-primary);
+}
+
+/* Icon button */
+#plan-mode .icon-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--plan-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#plan-mode .icon-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Inline Toolbar */
+#plan-mode .plan-inline-toolbar {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    background: white;
+    border: 1px solid var(--plan-border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 2000;
+}
+
+[data-theme="dark"] #plan-mode .plan-inline-toolbar {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+#plan-mode .plan-inline-toolbar.hidden {
+    display: none;
+}
+
+#plan-mode .plan-toolbar-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--plan-text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#plan-mode .plan-toolbar-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] #plan-mode .plan-toolbar-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#plan-mode .plan-toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--plan-border-color);
+    margin: 0 4px;
+}
+
+#plan-mode .plan-toolbar-snap,
+#plan-mode .plan-snap-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--plan-text-muted);
+    cursor: pointer;
+}
+
+/* Checkbox styling to match task checkboxes */
+#plan-mode input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid var(--plan-border-color);
+    border-radius: 3px;
+    background: white;
+    transition: all 0.15s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] #plan-mode input[type="checkbox"] {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+#plan-mode input[type="checkbox"]:checked {
+    background: var(--plan-accent-color);
+    border-color: var(--plan-accent-color);
+}
+
+#plan-mode input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+#plan-mode input[type="checkbox"]:hover {
+    border-color: var(--plan-accent-color);
+}
+
+#plan-mode .plan-toolbar-color,
+#plan-mode .plan-color-picker-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+#plan-mode .plan-toolbar-color input[type="color"],
+#plan-mode .plan-color-picker-wrapper input[type="color"] {
+    position: absolute;
+    opacity: 0;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+#plan-mode .plan-font-color-indicator,
+#plan-mode .plan-bg-color-indicator,
+#plan-mode .plan-line-color-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid var(--plan-border-color);
+    cursor: pointer;
+}
+
+#plan-mode .plan-bg-color-indicator {
+    background: transparent;
+    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
+        linear-gradient(-45deg, #ccc 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #ccc 75%),
+        linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+}
+
+#plan-mode .plan-toolbar-color-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+#plan-mode .plan-toolbar-btn.small {
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    padding: 0;
+}
+
+#plan-mode .plan-delete-btn {
+    color: #dc2626;
+}
+
+#plan-mode .plan-delete-btn:hover {
+    background: rgba(220, 38, 38, 0.1);
+}
+
+#plan-mode .plan-line-width-select {
+    padding: 4px 8px;
+    border: 1px solid var(--plan-border-color);
+    border-radius: 4px;
+    background: white;
+    color: var(--plan-text-primary);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+[data-theme="dark"] #plan-mode .plan-line-width-select {
+    background: #1e293b;
+}
+
+/* Note selected/dragging states */
+#plan-mode .plan-note-text.selected {
+    outline: 2px solid var(--plan-accent-color);
+    outline-offset: 2px;
+}
+
+#plan-mode .plan-note-text.dragging {
+    opacity: 0.8;
+    cursor: grabbing !important;
+}
+
+/* Line container */
+#plan-mode .plan-note-line-container {
+    position: absolute;
+    pointer-events: none;
+}
+
+#plan-mode .plan-note-line {
+    position: absolute;
+    pointer-events: auto;
+    border-radius: 4px;
+    cursor: grab;
+}
+
+#plan-mode .plan-note-line:hover {
+    filter: brightness(1.1);
+}
+
+#plan-mode .plan-note-line.selected {
+    box-shadow: 0 0 0 2px var(--plan-accent-color);
+}
+
+#plan-mode .plan-note-line.dragging {
+    opacity: 0.8;
+    cursor: grabbing !important;
+}
+
+#plan-mode .plan-note-line.temp {
+    opacity: 0.5;
+    background: #999;
+    height: 8px;
+    border-radius: 4px;
+}

@@ -24,8 +24,114 @@ let draggedTabId = null;
 let draggedGroupId = null; // Track dragged group
 let focusedTaskId = null; // To track which task is currently in focus mode
 let activeFocusTaskId = null; // Used to style the focused task in the main window
-let currentView = 'lists'; // 'lists' or 'favourites'
+let currentView = 'lists'; // 'lists', 'favourites', or 'plan'
 let favouritesOrder = []; // Order of favourite task IDs for custom sorting
+let planModuleLoaded = false; // Track if plan module has been initialized
+let currentLang = 'en'; // Current language
+
+// Translations
+const translations = {
+    en: {
+        // Add task
+        addTaskPlaceholder: 'Add task...',
+        // Done section
+        done: 'Done',
+        clearAll: 'Clear all',
+        // Footer
+        madeWith: 'Made with',
+        by: 'by',
+        // Settings modal
+        settings: 'Settings',
+        language: 'Language',
+        enableTabGroups: 'Enable Tab Groups',
+        tabGroupsInfo: 'Organize your to-do lists into groups (shown in a top bar).',
+        dataManagement: 'Data Management',
+        dataManagementDesc: 'Backup or restore your data.',
+        exportBackup: 'Export Backup',
+        importBackup: 'Import Backup',
+        integrations: 'Integrations',
+        connectAppleReminders: 'Connect to Apple Reminders',
+        connectedAppleReminders: 'Connected to Apple Reminders',
+        remindersInfo: 'Import tasks from Apple Reminders.',
+        connectBasecamp: 'Connect to Basecamp',
+        connectedBasecamp: 'Connected to Basecamp',
+        basecampInfo: 'Sync your to-do lists with Basecamp project management software.',
+        disconnect: 'Disconnect',
+        yourVersion: 'Your version',
+        close: 'Close',
+        // Tooltips
+        settingsTooltip: 'Settings',
+        moreInfo: 'More info',
+        deleteAllCompleted: 'Delete all completed tasks',
+        // Modals
+        renameList: 'Rename list',
+        cancel: 'Cancel',
+        save: 'Save',
+        deleteConfirm: 'Delete this list?',
+        delete: 'Delete',
+        deleteList: 'Delete list',
+        // New items for plan
+        newItems: 'New items:',
+        addGroup: 'Add Group',
+        // Focus mode
+        focus: 'Focus',
+        exitFocus: 'Exit Focus',
+        // Time
+        minutes: 'm',
+    },
+    da: {
+        // Add task
+        addTaskPlaceholder: 'Tilføj opgave...',
+        // Done section
+        done: 'Færdig',
+        clearAll: 'Ryd alle',
+        // Footer
+        madeWith: 'Lavet med',
+        by: 'af',
+        // Settings modal
+        settings: 'Indstillinger',
+        language: 'Sprog',
+        enableTabGroups: 'Aktiver fanegrupper',
+        tabGroupsInfo: 'Organiser dine to-do lister i grupper (vist i en topbar).',
+        dataManagement: 'Datahåndtering',
+        dataManagementDesc: 'Sikkerhedskopier eller gendan dine data.',
+        exportBackup: 'Eksporter sikkerhedskopi',
+        importBackup: 'Importer sikkerhedskopi',
+        integrations: 'Integrationer',
+        connectAppleReminders: 'Opret forbindelse til Apple Påmindelser',
+        connectedAppleReminders: 'Forbundet til Apple Påmindelser',
+        remindersInfo: 'Importer opgaver fra Apple Påmindelser.',
+        connectBasecamp: 'Opret forbindelse til Basecamp',
+        connectedBasecamp: 'Forbundet til Basecamp',
+        basecampInfo: 'Synkroniser dine to-do lister med Basecamp projektstyringssoftware.',
+        disconnect: 'Afbryd forbindelse',
+        yourVersion: 'Din version',
+        close: 'Luk',
+        // Tooltips
+        settingsTooltip: 'Indstillinger',
+        moreInfo: 'Mere info',
+        deleteAllCompleted: 'Slet alle færdige opgaver',
+        // Modals
+        renameList: 'Omdøb liste',
+        cancel: 'Annuller',
+        save: 'Gem',
+        deleteConfirm: 'Slet denne liste?',
+        delete: 'Slet',
+        deleteList: 'Slet liste',
+        // New items for plan
+        newItems: 'Nye elementer:',
+        addGroup: 'Tilføj gruppe',
+        // Focus mode
+        focus: 'Fokus',
+        exitFocus: 'Afslut fokus',
+        // Time
+        minutes: 'm',
+    }
+};
+
+function t(key) {
+    return translations[currentLang]?.[key] || translations.en[key] || key;
+}
 
 // Cross-tab task dragging state
 let dragSourceTabId = null; // The tab where the dragged task originated
@@ -36,6 +142,8 @@ let dragPlaceholderPosition = 0; // Position where the placeholder is in the tar
 // View Switcher Elements
 const viewListsBtn = document.getElementById('view-lists-btn');
 const viewFavBtn = document.getElementById('view-fav-btn');
+const viewPlanBtn = document.getElementById('view-plan-btn');
+const planMode = document.getElementById('plan-mode');
 const groupsContainerMain = document.querySelector('.groups-container');
 const tabsContainerMain = document.querySelector('.tabs-container');
 
@@ -163,7 +271,6 @@ const completeFocusBtn = document.getElementById('complete-focus-btn');
 const resetFocusBtn = document.getElementById('reset-focus-btn');
 const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
 
-
 // Theme Management
 const darkModeToggle = document.getElementById('dark-mode-toggle');
 
@@ -189,6 +296,68 @@ if (darkModeToggle) {
             document.documentElement.removeAttribute('data-theme');
             localStorage.setItem('theme', 'light');
         }
+    });
+}
+
+// Language Management
+const languageSelect = document.getElementById('language-select');
+
+function applyTranslations() {
+    // Update all elements with data-i18n attribute
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = t(key);
+    });
+
+    // Add task placeholder
+    const newTaskInput = document.getElementById('new-task-input');
+    if (newTaskInput) newTaskInput.placeholder = t('addTaskPlaceholder');
+
+    // Done section
+    const doneLabel = document.querySelector('.done-label');
+    if (doneLabel) doneLabel.textContent = t('done');
+
+    const deleteAllBtn = document.getElementById('delete-all-btn');
+    if (deleteAllBtn) {
+        deleteAllBtn.textContent = t('clearAll');
+        deleteAllBtn.title = t('deleteAllCompleted');
+    }
+
+    // Footer
+    const footerText = document.querySelector('.footer-text');
+    if (footerText) {
+        footerText.innerHTML = `${t('madeWith')} <span class="heart">♥</span> ${t('by')} <a href="https://reddfocus.org" target="_blank">reddfocus.org</a>`;
+    }
+
+    // Export/Import buttons
+    const exportBtn = document.getElementById('export-data-btn');
+    if (exportBtn) exportBtn.textContent = t('exportBackup');
+
+    const importBtn = document.getElementById('import-data-btn');
+    if (importBtn) importBtn.textContent = t('importBackup');
+
+    // Settings button tooltip
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) settingsBtn.title = t('settingsTooltip');
+
+    // Plan module - update labels if loaded
+    if (planModuleLoaded && typeof PlanModule !== 'undefined' && PlanModule.refresh) {
+        PlanModule.refresh();
+    }
+}
+
+function initLanguage() {
+    const savedLanguage = localStorage.getItem('language') || 'en';
+    currentLang = savedLanguage;
+    if (languageSelect) languageSelect.value = savedLanguage;
+    applyTranslations();
+}
+
+if (languageSelect) {
+    languageSelect.addEventListener('change', (e) => {
+        currentLang = e.target.value;
+        localStorage.setItem('language', e.target.value);
+        applyTranslations();
     });
 }
 
@@ -260,6 +429,7 @@ function initApp() {
         renderTasks();
     }
     initTheme(); // Initialize theme
+    initLanguage(); // Initialize language
 
     // Check Basecamp connection status
     updateBasecampUI();
@@ -1829,6 +1999,51 @@ function switchView(viewName) {
     if (currentView === viewName) return;
     currentView = viewName;
 
+    // Get content elements that should be hidden in plan view
+    const tasksContainer = document.querySelector('.tasks-container');
+    const addTaskContainer = document.getElementById('add-task-container');
+    const doneContainer = document.querySelector('.done-container');
+
+    // Handle plan view - hide content, show calendar below title bar
+    if (currentView === 'plan') {
+        viewListsBtn.classList.remove('active');
+        viewFavBtn.classList.remove('active');
+        if (viewPlanBtn) viewPlanBtn.classList.add('active');
+
+        // Hide all content elements below title bar
+        if (groupsContainerMain) groupsContainerMain.style.display = 'none';
+        if (tabsContainerMain) tabsContainerMain.style.display = 'none';
+        if (tasksContainer) tasksContainer.style.display = 'none';
+        if (addTaskContainer) addTaskContainer.style.display = 'none';
+        if (doneContainer) doneContainer.style.display = 'none';
+
+        // Show plan mode container
+        if (planMode) {
+            planMode.classList.remove('hidden');
+            planMode.style.display = 'flex';
+        }
+
+        // Initialize plan module if not already done
+        if (!planModuleLoaded && typeof PlanModule !== 'undefined') {
+            PlanModule.init(planMode);
+            planModuleLoaded = true;
+        }
+        localStorage.setItem('currentView', currentView);
+        return;
+    }
+
+    // For lists/favourites views, hide plan mode and show content
+    if (planMode) {
+        planMode.classList.add('hidden');
+        planMode.style.display = 'none';
+    }
+
+    // Show content elements
+    if (tasksContainer) tasksContainer.style.display = '';
+    if (addTaskContainer) addTaskContainer.style.display = '';
+    if (doneContainer) doneContainer.style.display = '';
+    if (viewPlanBtn) viewPlanBtn.classList.remove('active');
+
     if (currentView === 'lists') {
         viewListsBtn.classList.add('active');
         viewFavBtn.classList.remove('active');
@@ -1840,9 +2055,13 @@ function switchView(viewName) {
         if (groupsContainerMain) groupsContainerMain.style.display = 'none';
         if (tabsContainerMain) tabsContainerMain.style.display = 'none';
     }
+    localStorage.setItem('currentView', currentView);
     updateSyncButtonState();
     renderTasks();
 }
+
+// Expose switchView globally so plan module can call it
+window.switchView = switchView;
 
 function getAllFavouriteTasks() {
     let allTasks = [];
@@ -2593,6 +2812,9 @@ function setupEventListeners() {
     if (viewFavBtn) {
         viewFavBtn.addEventListener('click', () => switchView('favourites'));
     }
+    if (viewPlanBtn) {
+        viewPlanBtn.addEventListener('click', () => switchView('plan'));
+    }
 
     // Note: addTabBtn is now dynamically created inside renderTabs
 
@@ -2731,7 +2953,7 @@ function setupEventListeners() {
         const versionEl = document.getElementById('current-app-version');
         if (versionEl) {
             const ver = await ipcRenderer.invoke('get-app-version');
-            versionEl.textContent = `Your version: ${ver}`;
+            versionEl.textContent = `${t('yourVersion')}: ${ver}`;
         }
     });
 
