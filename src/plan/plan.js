@@ -833,6 +833,8 @@ const PlanModule = (function () {
                         if (noteArea) noteArea.appendChild(el);
                     }
                 }
+            } else if (text && !dateKey) {
+                console.warn('[Plan] Note not saved - dateKey is missing. Text:', text);
             }
         };
 
