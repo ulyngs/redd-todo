@@ -88,7 +88,11 @@ builder.build({
       ],
       extendInfo: {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSRemindersUsageDescription": "ReDD Do needs access to your reminders to sync tasks."
+        "NSRemindersUsageDescription": "ReDD Do needs access to your reminders to sync tasks.",
+        "CFBundleURLTypes": [{
+          "CFBundleURLName": "ReDD Do OAuth",
+          "CFBundleURLSchemes": ["redddo"]
+        }]
       }
     },
     mas: {
@@ -140,6 +144,17 @@ builder.build({
       icon: 'assets/icon.png',
       artifactName: 'redd-todo-${version}-${arch}.${ext}'
     },
+    // NSIS installer configuration for Windows
+    nsis: {
+      oneClick: false,
+      allowToChangeInstallationDirectory: true,
+      perMachine: false
+    },
+    // Custom URL scheme registration for OAuth callbacks (works on Windows/Linux)
+    protocols: [{
+      name: 'ReDD Do OAuth',
+      schemes: ['redddo']
+    }],
     // electron-panel-window is macOS-only at runtime; excluding it from Windows/Linux
     // packaging avoids electron-builder dependency graph errors on those platforms.
     extraMetadata: (buildWin || buildLinux || isImplicitWin || isImplicitLinux) ? {

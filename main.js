@@ -1,6 +1,5 @@
 const { app, BrowserWindow, ipcMain, Menu, shell, screen } = require('electron');
 const path = require('path');
-const http = require('http');
 const https = require('https');
 const url = require('url');
 const fetch = require('node-fetch');
@@ -53,8 +52,9 @@ function saveWindowState(win) {
 
 // Basecamp OAuth Configuration
 const BC_CLIENT_ID = 'd83392d7842f055157c3fef1f5464b2e15a013dc';
-const BC_REDIRECT_URI = 'http://localhost:3000/callback';
-const NETLIFY_EXCHANGE_URL = 'https://redd-todo.netlify.app/.netlify/functions/exchange';
+// OAuth callback now goes through Netlify, which redirects to our custom URL scheme
+const BC_REDIRECT_URI = 'https://redd-todo.netlify.app/.netlify/functions/auth';
+const PROTOCOL_SCHEME = 'redddo';
 
 let mainWindow;
 let focusWindow;
@@ -477,14 +477,139 @@ ipcMain.on('install-update', () => {
   autoUpdater.quitAndInstall();
 });
 
+// Handle OAuth callback from custom URL scheme (redddo://oauth-callback?access_token=...)
+function handleOAuthCallback(urlString) {
+  log.info('[Basecamp OAuth] Received URL:', urlString);
+  console.log('[Basecamp OAuth] Received URL:', urlString);
 
-app.on('ready', () => {
-  createMainWindow();
-  createMenu();
+  try {
+    const parsedUrl = new URL(urlString);
+    log.info('[Basecamp OAuth] Parsed URL - protocol:', parsedUrl.protocol, 'hostname:', parsedUrl.hostname);
+    console.log('[Basecamp OAuth] Parsed URL - protocol:', parsedUrl.protocol, 'hostname:', parsedUrl.hostname);
 
-  if (process.env.NODE_ENV !== 'development') {
-    autoUpdater.checkForUpdatesAndNotify();
+    // Check if this is our OAuth callback
+    if (parsedUrl.protocol !== `${PROTOCOL_SCHEME}:` || parsedUrl.hostname !== 'oauth-callback') {
+      log.info('[Basecamp OAuth] Not an OAuth callback URL, ignoring');
+      console.log('[Basecamp OAuth] Not an OAuth callback URL, ignoring');
+      return;
+    }
+
+    const params = parsedUrl.searchParams;
+
+    // Check for error
+    if (params.has('error')) {
+      const errorMessage = params.get('error_description') || params.get('error') || 'Unknown error';
+      log.error('[Basecamp OAuth] Auth error received:', errorMessage);
+      console.error('[Basecamp OAuth] Auth error received:', errorMessage);
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('basecamp-auth-error', errorMessage);
+      }
+      return;
+    }
+
+    // Extract tokens
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const expiresIn = params.get('expires_in');
+
+    if (!accessToken) {
+      log.error('[Basecamp OAuth] No access token in callback URL');
+      console.error('[Basecamp OAuth] No access token in callback URL');
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('basecamp-auth-error', 'No access token received');
+      }
+      return;
+    }
+
+    log.info('[Basecamp OAuth] Successfully received tokens, sending to renderer');
+    console.log('[Basecamp OAuth] Successfully received tokens, sending to renderer');
+
+    // Send tokens to renderer
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('basecamp-auth-success', {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_in: expiresIn,
+        client_id: BC_CLIENT_ID
+      });
+
+      // Focus the app window
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      log.warn('[Basecamp OAuth] Main window not available to send tokens');
+      console.warn('[Basecamp OAuth] Main window not available to send tokens');
+    }
+
+  } catch (e) {
+    log.error('[Basecamp OAuth] Error parsing callback URL:', e.message);
+    console.error('[Basecamp OAuth] Error parsing callback URL:', e);
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('basecamp-auth-error', 'Failed to parse OAuth callback: ' + e.message);
+    }
   }
+}
+
+// Windows: Use single instance lock to receive protocol URLs
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  log.info('[App] Another instance is running, quitting');
+  app.quit();
+} else {
+  // Windows: Handle protocol URL when app is already running
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    log.info('[App] Second instance detected, command line:', commandLine);
+    console.log('[App] Second instance detected, command line:', commandLine);
+
+    // Find the protocol URL in command line args (Windows passes it as an argument)
+    const protocolUrl = commandLine.find(arg => arg.startsWith(`${PROTOCOL_SCHEME}://`));
+    if (protocolUrl) {
+      log.info('[App] Found protocol URL in command line:', protocolUrl);
+      console.log('[App] Found protocol URL in command line:', protocolUrl);
+      handleOAuthCallback(protocolUrl);
+    }
+
+    // Focus existing window
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.on('ready', () => {
+    // Register custom protocol handler
+    log.info('[App] Registering protocol handler for:', PROTOCOL_SCHEME);
+    console.log('[App] Registering protocol handler for:', PROTOCOL_SCHEME);
+
+    const protocolRegistered = app.setAsDefaultProtocolClient(PROTOCOL_SCHEME);
+    log.info('[App] Protocol registration result:', protocolRegistered);
+    console.log('[App] Protocol registration result:', protocolRegistered);
+
+    createMainWindow();
+    createMenu();
+
+    if (process.env.NODE_ENV !== 'development') {
+      autoUpdater.checkForUpdatesAndNotify();
+    }
+
+    // macOS: Handle protocol URL passed at launch
+    const protocolUrlArg = process.argv.find(arg => arg.startsWith(`${PROTOCOL_SCHEME}://`));
+    if (protocolUrlArg) {
+      log.info('[App] Protocol URL found in launch args:', protocolUrlArg);
+      console.log('[App] Protocol URL found in launch args:', protocolUrlArg);
+      // Delay slightly to ensure renderer is ready
+      setTimeout(() => handleOAuthCallback(protocolUrlArg), 1000);
+    }
+  });
+}
+
+// macOS: Handle protocol URL when app is already running
+app.on('open-url', (event, urlString) => {
+  event.preventDefault();
+  log.info('[App] open-url event received:', urlString);
+  console.log('[App] open-url event received:', urlString);
+  handleOAuthCallback(urlString);
 });
 
 app.on('window-all-closed', () => {
@@ -723,91 +848,33 @@ ipcMain.on('window-drag-end', () => {
   }
 });
 
-async function exchangeCodeForToken(code) {
 
-  // Call Netlify function to exchange code for token
-  const response = await fetch(NETLIFY_EXCHANGE_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      code,
-      redirect_uri: BC_REDIRECT_URI,
-      client_id: BC_CLIENT_ID
-    })
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Token exchange failed: ${text}`);
-  }
-
-  return await response.json();
-}
-
-
-// Basecamp Authentication Logic
+// Basecamp Authentication Logic - simplified for custom URL scheme approach
+// The flow now is:
+// 1. Open browser to Basecamp auth with Netlify as redirect_uri
+// 2. User authorizes on Basecamp
+// 3. Basecamp redirects to Netlify function
+// 4. Netlify exchanges code for tokens and redirects to redddo://oauth-callback
+// 5. Our app catches the custom URL scheme via open-url/second-instance event
 ipcMain.on('start-basecamp-auth', (event) => {
-  const server = http.createServer(async (req, res) => {
-    const reqUrl = url.parse(req.url, true);
+  log.info('[Basecamp OAuth] Starting authentication flow');
+  console.log('[Basecamp OAuth] Starting authentication flow');
+  console.log('[Basecamp OAuth] Redirect URI:', BC_REDIRECT_URI);
 
-    if (reqUrl.pathname === '/callback') {
-      const code = reqUrl.query.code;
+  const authUrl = `https://launchpad.37signals.com/authorization/new?type=web_server&client_id=${BC_CLIENT_ID}&redirect_uri=${encodeURIComponent(BC_REDIRECT_URI)}`;
 
-      if (code) {
-        try {
-          // Exchange code for token via Netlify function
-          const tokenData = await exchangeCodeForToken(code);
+  log.info('[Basecamp OAuth] Opening auth URL:', authUrl);
+  console.log('[Basecamp OAuth] Opening auth URL:', authUrl);
 
-          // Send tokens back to renderer
-          if (mainWindow) {
-            mainWindow.webContents.send('basecamp-auth-success', {
-              ...tokenData,
-              client_id: BC_CLIENT_ID
-            });
-          }
-
-          // Show success message
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(`
-            <html>
-              <body style="font-family: system-ui; text-align: center; padding-top: 50px;">
-                <h1>Authentication successful!</h1>
-                <p>You can close this window and return to ReDD Do.</p>
-                <script>window.close()</script>
-              </body>
-            </html>
-          `);
-        } catch (error) {
-          console.error('Token exchange error:', error);
-          res.writeHead(500);
-          res.end('Authentication failed: ' + error.message);
-          if (mainWindow) {
-            mainWindow.webContents.send('basecamp-auth-error', error.message);
-          }
-        }
-      }
-
-      // Close server shortly after to ensure response is sent
-      setTimeout(() => server.close(), 1000);
+  shell.openExternal(authUrl).then(() => {
+    log.info('[Basecamp OAuth] Browser opened successfully');
+    console.log('[Basecamp OAuth] Browser opened successfully');
+  }).catch((err) => {
+    log.error('[Basecamp OAuth] Failed to open browser:', err.message);
+    console.error('[Basecamp OAuth] Failed to open browser:', err);
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('basecamp-auth-error', 'Failed to open browser: ' + err.message);
     }
   });
-
-  server.listen(3000, () => {
-    const authUrl = `https://launchpad.37signals.com/authorization/new?type=web_server&client_id=${BC_CLIENT_ID}&redirect_uri=${encodeURIComponent(BC_REDIRECT_URI)}`;
-    shell.openExternal(authUrl);
-  });
-
-  server.on('error', (e) => {
-    console.error('Server error', e);
-    if (e.code === 'EADDRINUSE') {
-      console.log('Port 3000 in use, retrying...');
-      setTimeout(() => {
-        server.close();
-        server.listen(3000);
-      }, 1000);
-    }
-  });
-
 });
+

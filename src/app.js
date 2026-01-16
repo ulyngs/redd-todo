@@ -3209,10 +3209,14 @@ function setupEventListeners() {
     // New OAuth Button
     if (oauthConnectBtn) {
         oauthConnectBtn.addEventListener('click', () => {
+            console.log('[Basecamp OAuth] Connect button clicked, starting auth flow...');
             oauthConnectBtn.textContent = 'Connecting...';
             oauthConnectBtn.disabled = true;
             ipcRenderer.send('start-basecamp-auth');
+            console.log('[Basecamp OAuth] IPC message sent to main process');
         });
+    } else {
+        console.warn('[Basecamp OAuth] OAuth connect button not found in DOM');
     }
 
     // Toggle Manual Fields
@@ -5183,7 +5187,9 @@ ipcRenderer.on('task-updated', (event, payload) => {
 
 // Basecamp Authentication Logic
 ipcRenderer.on('basecamp-auth-success', async (event, data) => {
-    console.log('Auth success, tokens received');
+    console.log('[Basecamp OAuth] SUCCESS - Tokens received from main process');
+    console.log('[Basecamp OAuth] Access token received:', !!data.access_token);
+    console.log('[Basecamp OAuth] Refresh token received:', !!data.refresh_token);
 
     basecampConfig.accessToken = data.access_token;
     basecampConfig.refreshToken = data.refresh_token;
@@ -5191,12 +5197,19 @@ ipcRenderer.on('basecamp-auth-success', async (event, data) => {
     basecampConfig.clientSecret = data.client_secret;
 
     // Now we need to get the account ID (Identity)
-    await fetchBasecampIdentity();
+    console.log('[Basecamp OAuth] Fetching Basecamp identity...');
+    try {
+        await fetchBasecampIdentity();
+        console.log('[Basecamp OAuth] Identity fetched successfully, account ID:', basecampConfig.accountId);
+    } catch (e) {
+        console.error('[Basecamp OAuth] Failed to fetch identity:', e);
+    }
 
     basecampConfig.isConnected = true;
     saveData();
     updateBasecampUI();
     updateSyncButtonState();
+    console.log('[Basecamp OAuth] Connection complete! UI updated.');
 
     // Reset button
     if (oauthConnectBtn) {
@@ -5206,6 +5219,7 @@ ipcRenderer.on('basecamp-auth-success', async (event, data) => {
 });
 
 ipcRenderer.on('basecamp-auth-error', (event, errorMessage) => {
+    console.error('[Basecamp OAuth] ERROR - Authentication failed:', errorMessage);
     alert('Authentication failed: ' + errorMessage);
     if (oauthConnectBtn) {
         oauthConnectBtn.textContent = 'Connect with Basecamp';
