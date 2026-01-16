@@ -44,6 +44,10 @@ const translations = {
         // Settings modal
         settings: 'Settings',
         language: 'Language',
+        themeMode: 'Light/dark mode',
+        themeLight: 'Light',
+        themeDark: 'Dark',
+        themeSystem: 'Auto',
         enableTabGroups: 'Enable Tab Groups',
         enablePlanMode: 'Enable plan mode (beta)',
         tabGroupsInfo: 'Organize your to-do lists into groups (shown in a top bar).',
@@ -93,6 +97,10 @@ const translations = {
         // Settings modal
         settings: 'Indstillinger',
         language: 'Sprog',
+        themeMode: 'Lys/mørk tilstand',
+        themeLight: 'Lys',
+        themeDark: 'Mørk',
+        themeSystem: 'Auto',
         enableTabGroups: 'Aktiver fanegrupper',
         enablePlanMode: 'Aktiver plantilstand (beta)',
         tabGroupsInfo: 'Organiser dine to-do lister i grupper (vist i en topbar).',
@@ -275,30 +283,47 @@ const resetFocusBtn = document.getElementById('reset-focus-btn');
 const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
 
 // Theme Management
-const darkModeToggle = document.getElementById('dark-mode-toggle');
+const themeSelect = document.getElementById('theme-select');
 
-function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+function applyTheme(theme) {
+    if (theme === 'system') {
+        // Follow system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    } else if (theme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        if (darkModeToggle) darkModeToggle.checked = true;
     } else {
         document.documentElement.removeAttribute('data-theme');
-        if (darkModeToggle) darkModeToggle.checked = false;
     }
 }
 
-if (darkModeToggle) {
-    darkModeToggle.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-            localStorage.setItem('theme', 'light');
-        }
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'system';
+
+    if (themeSelect) {
+        themeSelect.value = savedTheme;
+    }
+
+    applyTheme(savedTheme);
+}
+
+// Listen for system theme changes (for when "System" is selected)
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    const currentTheme = localStorage.getItem('theme') || 'system';
+    if (currentTheme === 'system') {
+        applyTheme('system');
+    }
+});
+
+if (themeSelect) {
+    themeSelect.addEventListener('change', (e) => {
+        const theme = e.target.value;
+        localStorage.setItem('theme', theme);
+        applyTheme(theme);
     });
 }
 

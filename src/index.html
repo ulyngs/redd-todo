@@ -245,31 +245,13 @@
 
                 <div class="settings-section">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div class="theme-toggle-container"
-                            style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-primary);">
-                            <!-- Sun Icon -->
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="4"></circle>
-                                <path d="M12 2v2"></path>
-                                <path d="M12 20v2"></path>
-                                <path d="m4.93 4.93 1.41 1.41"></path>
-                                <path d="m17.66 17.66 1.41 1.41"></path>
-                                <path d="M2 12h2"></path>
-                                <path d="M20 12h2"></path>
-                                <path d="m6.34 17.66-1.41 1.41"></path>
-                                <path d="m19.07 4.93-1.41 1.41"></path>
-                            </svg>
-                            <label class="switch">
-                                <input type="checkbox" id="dark-mode-toggle">
-                                <span class="slider round"></span>
-                            </label>
-                            <!-- Moon Icon -->
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-                            </svg>
-                        </div>
+                        <span data-i18n="themeMode" style="font-size: 13px;">Light/dark mode</span>
+                        <select id="theme-select"
+                            style="padding: 6px 10px; border: 1px solid var(--border-color-medium); border-radius: 4px; background: var(--modal-bg); color: var(--text-primary); font-size: 13px; cursor: pointer;">
+                            <option value="light" data-i18n="themeLight">Light</option>
+                            <option value="dark" data-i18n="themeDark">Dark</option>
+                            <option value="system" data-i18n="themeSystem">Auto</option>
+                        </select>
                     </div>
                 </div>
 
