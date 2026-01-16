@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, Menu, shell, screen } = require('electron');
 const path = require('path');
+const http = require('http');
 const https = require('https');
 const url = require('url');
 const fetch = require('node-fetch');
@@ -51,10 +52,18 @@ function saveWindowState(win) {
 }
 
 // Basecamp OAuth Configuration
-const BC_CLIENT_ID = 'd83392d7842f055157c3fef1f5464b2e15a013dc';
-// OAuth callback now goes through Netlify, which redirects to our custom URL scheme
-const BC_REDIRECT_URI = 'https://redd-todo.netlify.app/.netlify/functions/auth';
+// Production app uses Netlify redirect -> custom URL scheme (for sandboxed builds)
+// Dev app uses localhost redirect (for local testing)
 const PROTOCOL_SCHEME = 'redddo';
+const isDev = !app.isPackaged;
+
+const BC_CLIENT_ID = isDev
+  ? 'aed7f4889aa6bb83b74e8e494e70701d59d1c9c5'  // Dev app with localhost redirect
+  : 'd83392d7842f055157c3fef1f5464b2e15a013dc'; // Prod app with Netlify redirect
+
+const BC_REDIRECT_URI = isDev
+  ? 'http://localhost:3000/callback'
+  : 'https://redd-todo.netlify.app/.netlify/functions/auth';
 
 let mainWindow;
 let focusWindow;
@@ -849,16 +858,13 @@ ipcMain.on('window-drag-end', () => {
 });
 
 
-// Basecamp Authentication Logic - simplified for custom URL scheme approach
-// The flow now is:
-// 1. Open browser to Basecamp auth with Netlify as redirect_uri
-// 2. User authorizes on Basecamp
-// 3. Basecamp redirects to Netlify function
-// 4. Netlify exchanges code for tokens and redirects to redddo://oauth-callback
-// 5. Our app catches the custom URL scheme via open-url/second-instance event
+// Basecamp Authentication Logic
+// In dev mode: uses localhost server (URL schemes don't work with unpacked apps)
+// In production: uses Netlify + custom URL scheme (works in sandboxed environments)
 ipcMain.on('start-basecamp-auth', (event) => {
   log.info('[Basecamp OAuth] Starting authentication flow');
   console.log('[Basecamp OAuth] Starting authentication flow');
+  console.log('[Basecamp OAuth] isDev:', isDev);
   console.log('[Basecamp OAuth] Redirect URI:', BC_REDIRECT_URI);
 
   const authUrl = `https://launchpad.37signals.com/authorization/new?type=web_server&client_id=${BC_CLIENT_ID}&redirect_uri=${encodeURIComponent(BC_REDIRECT_URI)}`;
@@ -866,15 +872,98 @@ ipcMain.on('start-basecamp-auth', (event) => {
   log.info('[Basecamp OAuth] Opening auth URL:', authUrl);
   console.log('[Basecamp OAuth] Opening auth URL:', authUrl);
 
-  shell.openExternal(authUrl).then(() => {
-    log.info('[Basecamp OAuth] Browser opened successfully');
-    console.log('[Basecamp OAuth] Browser opened successfully');
-  }).catch((err) => {
-    log.error('[Basecamp OAuth] Failed to open browser:', err.message);
-    console.error('[Basecamp OAuth] Failed to open browser:', err);
-    if (mainWindow && mainWindow.webContents) {
-      mainWindow.webContents.send('basecamp-auth-error', 'Failed to open browser: ' + err.message);
-    }
-  });
-});
+  if (isDev) {
+    // Development mode: use local server to receive callback
+    console.log('[Basecamp OAuth] Dev mode: starting local callback server on port 3000');
 
+    const server = http.createServer(async (req, res) => {
+      const reqUrl = url.parse(req.url, true);
+
+      if (reqUrl.pathname === '/callback') {
+        const code = reqUrl.query.code;
+        console.log('[Basecamp OAuth] Received callback with code:', !!code);
+
+        if (code) {
+          try {
+            // Exchange code for token via Netlify function
+            console.log('[Basecamp OAuth] Exchanging code for token...');
+            const response = await fetch('https://redd-todo.netlify.app/.netlify/functions/exchange', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                code,
+                redirect_uri: BC_REDIRECT_URI,
+                client_id: BC_CLIENT_ID
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error(`Token exchange failed: ${await response.text()}`);
+            }
+
+            const tokenData = await response.json();
+            console.log('[Basecamp OAuth] Token received successfully');
+
+            // Send tokens back to renderer
+            if (mainWindow) {
+              mainWindow.webContents.send('basecamp-auth-success', {
+                ...tokenData,
+                client_id: BC_CLIENT_ID
+              });
+            }
+
+            // Show success message
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(`
+              <html>
+                <body style="font-family: system-ui; text-align: center; padding-top: 50px;">
+                  <h1>Authentication successful!</h1>
+                  <p>You can close this window and return to ReDD Do.</p>
+                  <script>window.close()</script>
+                </body>
+              </html>
+            `);
+          } catch (error) {
+            console.error('[Basecamp OAuth] Token exchange error:', error);
+            res.writeHead(500);
+            res.end('Authentication failed: ' + error.message);
+            if (mainWindow) {
+              mainWindow.webContents.send('basecamp-auth-error', error.message);
+            }
+          }
+        }
+
+        setTimeout(() => server.close(), 1000);
+      }
+    });
+
+    server.listen(3000, () => {
+      console.log('[Basecamp OAuth] Local server listening on port 3000');
+      shell.openExternal(authUrl);
+    });
+
+    server.on('error', (e) => {
+      console.error('[Basecamp OAuth] Server error:', e);
+      if (e.code === 'EADDRINUSE') {
+        console.log('[Basecamp OAuth] Port 3000 in use, retrying...');
+        setTimeout(() => {
+          server.close();
+          server.listen(3000);
+        }, 1000);
+      }
+    });
+  } else {
+    // Production mode: just open browser, Netlify will redirect to custom URL scheme
+    console.log('[Basecamp OAuth] Production mode: using custom URL scheme callback');
+    shell.openExternal(authUrl).then(() => {
+      log.info('[Basecamp OAuth] Browser opened successfully');
+      console.log('[Basecamp OAuth] Browser opened successfully');
+    }).catch((err) => {
+      log.error('[Basecamp OAuth] Failed to open browser:', err.message);
+      console.error('[Basecamp OAuth] Failed to open browser:', err);
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('basecamp-auth-error', 'Failed to open browser: ' + err.message);
+      }
+    });
+  }
+});
