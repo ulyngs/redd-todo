@@ -5,12 +5,12 @@ const CLIENT_ID = process.env.BC_CLIENT_ID;
 const CLIENT_SECRET = process.env.BC_CLIENT_SECRET;
 const REDIRECT_URI = process.env.BC_REDIRECT_URI; // Your Netlify URL + /.netlify/functions/auth/callback
 
-exports.handler = async function(event, context) {
+exports.handler = async function (event, context) {
     // 1. HANDLE TOKEN REFRESH (POST)
     if (event.httpMethod === 'POST') {
         try {
             const { refresh_token } = JSON.parse(event.body);
-            
+
             if (!refresh_token) {
                 return { statusCode: 400, body: JSON.stringify({ error: 'Missing refresh_token' }) };
             }
@@ -24,7 +24,7 @@ exports.handler = async function(event, context) {
 
             return {
                 statusCode: 200,
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*' // Allow desktop app to call this
                 },
@@ -39,7 +39,7 @@ exports.handler = async function(event, context) {
     // 2. HANDLE OAUTH CALLBACK (GET)
     if (event.httpMethod === 'GET') {
         const code = event.queryStringParameters.code;
-        
+
         if (!code) {
             return { statusCode: 400, body: 'Missing code parameter' };
         }
@@ -53,9 +53,8 @@ exports.handler = async function(event, context) {
                 redirect_uri: REDIRECT_URI
             });
 
-            // Redirect back to localhost with tokens
-            // Note: In production, you might want a custom protocol like redd-todo://
-            // But localhost:3000 is fine for this setup.
+            // Redirect to custom URL scheme that the Electron app handles
+            // This works in sandboxed environments (Mac App Store, Windows Store)
             const params = new URLSearchParams({
                 access_token: tokenData.access_token,
                 refresh_token: tokenData.refresh_token,
@@ -65,12 +64,23 @@ exports.handler = async function(event, context) {
             return {
                 statusCode: 302,
                 headers: {
-                    Location: `http://localhost:3000/callback?${params.toString()}`
+                    Location: `redddo://oauth-callback?${params.toString()}`
                 }
             };
 
         } catch (error) {
-            return { statusCode: 500, body: `Auth failed: ${error.message}` };
+            console.error('OAuth callback error:', error);
+            // Redirect to app with error so user gets feedback
+            const errorParams = new URLSearchParams({
+                error: 'auth_failed',
+                error_description: error.message
+            });
+            return {
+                statusCode: 302,
+                headers: {
+                    Location: `redddo://oauth-callback?${errorParams.toString()}`
+                }
+            };
         }
     }
 
@@ -80,7 +90,7 @@ exports.handler = async function(event, context) {
 function exchangeToken(payload) {
     return new Promise((resolve, reject) => {
         const postData = JSON.stringify(payload);
-        
+
         const options = {
             hostname: 'launchpad.37signals.com',
             path: '/authorization/token',
