@@ -14,6 +14,7 @@ let isFocusMode = false;
 let isDoneCollapsed = false; // New state for done section
 let doneMaxHeight = 140; // New state for done section resize
 let enableGroups = false; // Feature toggle for tab groups
+let enablePlan = false; // Feature toggle for plan mode
 let focusStartTime = null;
 let previousFocusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
@@ -44,6 +45,7 @@ const translations = {
         settings: 'Settings',
         language: 'Language',
         enableTabGroups: 'Enable Tab Groups',
+        enablePlanMode: 'Enable plan mode (beta)',
         tabGroupsInfo: 'Organize your to-do lists into groups (shown in a top bar).',
         dataManagement: 'Data Management',
         dataManagementDesc: 'Backup or restore your data.',
@@ -92,6 +94,7 @@ const translations = {
         settings: 'Indstillinger',
         language: 'Sprog',
         enableTabGroups: 'Aktiver fanegrupper',
+        enablePlanMode: 'Aktiver plantilstand (beta)',
         tabGroupsInfo: 'Organiser dine to-do lister i grupper (vist i en topbar).',
         dataManagement: 'Datahåndtering',
         dataManagementDesc: 'Sikkerhedskopier eller gendan dine data.',
@@ -434,6 +437,9 @@ function initApp() {
     // Check Basecamp connection status
     updateBasecampUI();
     updateRemindersUI();
+
+    // Update plan button visibility based on settings
+    updatePlanButtonVisibility();
 
     // Show window controls on non-Mac platforms
     if (process.platform !== 'darwin') {
@@ -2063,6 +2069,17 @@ function switchView(viewName) {
 // Expose switchView globally so plan module can call it
 window.switchView = switchView;
 
+// Update plan button visibility based on settings
+function updatePlanButtonVisibility() {
+    if (viewPlanBtn) {
+        if (enablePlan) {
+            viewPlanBtn.classList.remove('hidden');
+        } else {
+            viewPlanBtn.classList.add('hidden');
+        }
+    }
+}
+
 function getAllFavouriteTasks() {
     let allTasks = [];
     Object.keys(tabs).forEach(tabId => {
@@ -2949,6 +2966,12 @@ function setupEventListeners() {
             groupsToggle.checked = enableGroups;
         }
 
+        // Set plan toggle state
+        const planToggle = document.getElementById('enable-plan-toggle');
+        if (planToggle) {
+            planToggle.checked = enablePlan;
+        }
+
         // Show current version
         const versionEl = document.getElementById('current-app-version');
         if (versionEl) {
@@ -2979,6 +3002,21 @@ function setupEventListeners() {
                     // Re-select current group to filter tabs correctly
                     switchToGroup(currentGroupId);
                 }
+            }
+        });
+    }
+
+    // Plan mode toggle listener
+    const planToggle = document.getElementById('enable-plan-toggle');
+    if (planToggle) {
+        planToggle.addEventListener('change', (e) => {
+            enablePlan = e.target.checked;
+            saveData();
+            updatePlanButtonVisibility();
+
+            // If disabling plan mode while in plan view, switch back to lists
+            if (!enablePlan && currentView === 'plan') {
+                switchView('lists');
             }
         });
     }
@@ -5162,6 +5200,7 @@ function saveData() {
         groups: groups,
         currentGroupId: currentGroupId,
         enableGroups: enableGroups,
+        enablePlan: enablePlan,
         favouritesOrder: favouritesOrder
     };
     localStorage.setItem('redd-todo-data', JSON.stringify(data));
@@ -5206,6 +5245,7 @@ function loadData() {
             groups = data.groups || {};
             currentGroupId = data.currentGroupId || null;
             enableGroups = data.enableGroups !== undefined ? data.enableGroups : (Object.keys(groups).length > 0); // Default to true if groups exist, else false
+            enablePlan = data.enablePlan !== undefined ? data.enablePlan : false; // Default to false
             favouritesOrder = data.favouritesOrder || [];
         }
     } catch (e) {

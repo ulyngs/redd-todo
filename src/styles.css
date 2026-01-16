@@ -198,6 +198,11 @@ body {
     /* Lighter gray for inactive state */
     transition: all 0.2s ease;
     padding: 0;
+    outline: none;
+}
+
+.view-btn:focus {
+    outline: none;
 }
 
 .view-btn:hover {
