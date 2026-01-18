@@ -242,6 +242,8 @@ const PlanModule = (function () {
             </div>
             <!-- Line Toolbar -->
             <div class="plan-line-toolbar plan-inline-toolbar hidden">
+                <input type="text" class="plan-line-label-field" placeholder="Label..." title="Line label">
+                <div class="plan-toolbar-divider"></div>
                 <select class="plan-line-width-select" title="Line Width">
                     <option value="4">Thin</option>
                     <option value="8" selected>Medium</option>
@@ -270,6 +272,11 @@ const PlanModule = (function () {
             else groups = JSON.parse(JSON.stringify(DEFAULT_GROUPS));
             const storedActiveGroup = localStorage.getItem(ACTIVE_GROUP_KEY);
             if (storedActiveGroup) activeGroup = storedActiveGroup;
+
+            console.log('[Plan] Loaded data:', {
+                notes: freeformNotes.length,
+                lines: freeformLines.map(l => ({ id: l.id, x1: Math.round(l.x1), x2: Math.round(l.x2), label: l.label }))
+            });
         } catch (e) {
             console.error('Failed to load plan data:', e);
             freeformNotes = []; freeformLines = [];
@@ -283,6 +290,11 @@ const PlanModule = (function () {
             localStorage.setItem(LINES_KEY, JSON.stringify(freeformLines));
             localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
             localStorage.setItem(ACTIVE_GROUP_KEY, activeGroup);
+
+            console.log('[Plan] Saved data:', {
+                notes: freeformNotes.length,
+                lines: freeformLines.map(l => ({ id: l.id, x1: Math.round(l.x1), x2: Math.round(l.x2), label: l.label }))
+            });
         } catch (e) { console.error('Failed to save plan data:', e); }
     }
 
@@ -680,6 +692,12 @@ const PlanModule = (function () {
         lineEl.style.background = color;
         lineEl.style.height = width + 'px';
 
+        // Label element (positioned at center of line)
+        const labelEl = document.createElement('div');
+        labelEl.className = 'plan-line-label';
+        labelEl.textContent = line.label || '';
+        if (!line.label) labelEl.classList.add('empty');
+
         // Endpoint handles (hidden by default, shown when selected)
         const handle1 = document.createElement('div');
         handle1.className = 'plan-line-handle';
@@ -705,12 +723,131 @@ const PlanModule = (function () {
             handle1.style.top = (y1 - 6) + 'px';
             handle2.style.left = (x2 - 6) + 'px';
             handle2.style.top = (y2 - 6) + 'px';
+
+            // Position label at center of line
+            const centerX = (x1 + x2) / 2;
+            const centerY = (y1 + y2) / 2;
+            labelEl.style.left = centerX + 'px';
+            labelEl.style.top = centerY + 'px';
         }
 
         containerEl.appendChild(lineEl);
+        containerEl.appendChild(labelEl);
         containerEl.appendChild(handle1);
         containerEl.appendChild(handle2);
         updateLineGeometry();
+
+        // Double-click to edit label
+        lineEl.addEventListener('dblclick', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Make label editable for inline editing
+            if (!line.label) {
+                line.label = '';
+                labelEl.textContent = '';
+                labelEl.classList.remove('empty');
+            }
+            labelEl.setAttribute('contenteditable', 'true');
+            labelEl.focus();
+            // Select all text
+            const range = document.createRange();
+            range.selectNodeContents(labelEl);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        });
+
+        labelEl.addEventListener('dblclick', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Make label editable for inline editing
+            labelEl.setAttribute('contenteditable', 'true');
+            labelEl.focus();
+            // Select all text
+            const range = document.createRange();
+            range.selectNodeContents(labelEl);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        });
+
+        // Handle blur to save label changes
+        labelEl.addEventListener('blur', () => {
+            labelEl.setAttribute('contenteditable', 'false');
+            line.label = labelEl.textContent.trim();
+            if (line.label) {
+                labelEl.classList.remove('empty');
+            } else {
+                labelEl.classList.add('empty');
+            }
+            saveData();
+            // Update toolbar label field if visible
+            const labelField = container.querySelector('.plan-line-label-field');
+            if (labelField) labelField.value = line.label;
+        });
+
+        // Handle Enter key to finish editing
+        labelEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                labelEl.blur();
+            } else if (e.key === 'Escape') {
+                labelEl.textContent = line.label || '';
+                labelEl.blur();
+            }
+        });
+
+        // Mousedown on label - supports both click to select and drag to move
+        labelEl.addEventListener('mousedown', e => {
+            // Don't interfere with editing
+            if (labelEl.getAttribute('contenteditable') === 'true') return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            let labelDragged = false;
+            const mouseStartX = e.clientX;
+            const mouseStartY = e.clientY;
+            const origX1 = x1, origY1 = y1, origX2 = x2, origY2 = y2;
+
+            const onMouseMove = moveEvent => {
+                const deltaX = moveEvent.clientX - mouseStartX;
+                const deltaY = moveEvent.clientY - mouseStartY;
+
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                    labelDragged = true;
+                    lineEl.classList.add('dragging');
+                }
+
+                if (labelDragged) {
+                    x1 = origX1 + deltaX;
+                    y1 = origY1 + deltaY;
+                    x2 = origX2 + deltaX;
+                    y2 = origY2 + deltaY;
+                    updateLineGeometry();
+                }
+            };
+
+            const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                lineEl.classList.remove('dragging');
+
+                if (labelDragged) {
+                    // Save new position after drag
+                    line.x1 = x1; line.y1 = y1;
+                    line.x2 = x2; line.y2 = y2;
+                    saveData();
+                } else {
+                    // It was a click - select the line
+                    showLineEditor(line.id, lineEl);
+                    containerEl.classList.add('selected');
+                }
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
 
         // Handle dragging for endpoints
         function setupHandleDrag(handle, isEndpoint2) {
@@ -752,11 +889,28 @@ const PlanModule = (function () {
 
         // Track dragging to distinguish from click
         let hasDragged = false;
+        let lastClickTime = 0;
 
-        // Drag line to move
+        // Drag line to move (also handles click and double-click detection)
         lineEl.addEventListener('mousedown', e => {
             e.preventDefault();
             e.stopPropagation();
+
+            const clickTime = Date.now();
+            const isDoubleClick = (clickTime - lastClickTime) < 400;
+            lastClickTime = clickTime;
+
+            // If double-click, enable inline label editing
+            if (isDoubleClick) {
+                if (!line.label) {
+                    line.label = '';
+                    labelEl.textContent = '';
+                    labelEl.classList.remove('empty');
+                }
+                labelEl.setAttribute('contenteditable', 'true');
+                labelEl.focus();
+                return;
+            }
 
             hasDragged = false;
             const mouseStartX = e.clientX;
@@ -817,7 +971,7 @@ const PlanModule = (function () {
 
         const finishEditing = () => {
             const text = input.value.trim();
-            input.remove();
+            if (input.parentNode) input.remove();
 
             if (text && dateKey) {
                 pushHistory();
@@ -931,6 +1085,53 @@ const PlanModule = (function () {
         return { x, y, dateKey: null, offsetX: 0 };
     }
 
+    // Show inline input for editing line label
+    function showLineLabelInput(line, labelEl, updateGeometryCallback) {
+        // Remove any existing line label input
+        const existingInput = canvasLayer.querySelector('.plan-line-label-input');
+        if (existingInput && existingInput.parentNode) existingInput.remove();
+
+        // Get label position
+        const labelRect = labelEl.getBoundingClientRect();
+        const containerRect = calendarContainer.getBoundingClientRect();
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'plan-line-label-input';
+        input.value = line.label || '';
+        input.placeholder = 'Add label...';
+        input.style.left = (labelRect.left - containerRect.left) + 'px';
+        input.style.top = (labelRect.top - containerRect.top + calendarContainer.scrollTop - 10) + 'px';
+
+        const finishEditing = () => {
+            const text = input.value.trim();
+            if (input.parentNode) input.remove();
+
+            line.label = text;
+            labelEl.textContent = text;
+            if (text) {
+                labelEl.classList.remove('empty');
+            } else {
+                labelEl.classList.add('empty');
+            }
+            saveData();
+        };
+
+        input.addEventListener('blur', finishEditing);
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            } else if (e.key === 'Escape') {
+                if (input.parentNode) input.remove();
+            }
+        });
+
+        canvasLayer.appendChild(input);
+        input.focus();
+        input.select();
+    }
+
     // Show note editor toolbar
     function showNoteEditor(noteId, noteElement, shiftKey = false) {
         const note = freeformNotes.find(n => n.id === noteId);
@@ -995,18 +1196,20 @@ const PlanModule = (function () {
 
         const toolbar = container.querySelector('.plan-note-toolbar');
 
-        // Position toolbar above the element
+        // Position toolbar centered above the element
         const rect = noteElement.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
-
-        // Calculate left position, but ensure it doesn't overflow right edge
-        let leftPos = rect.left - containerRect.left;
         const toolbarWidth = 280; // Approximate toolbar width
+
+        // Center horizontally above the element
+        const elementCenterX = rect.left - containerRect.left + rect.width / 2;
+        let leftPos = elementCenterX - toolbarWidth / 2;
+        // Ensure toolbar stays within bounds
         const maxLeft = containerRect.width - toolbarWidth - 8;
         leftPos = Math.max(8, Math.min(leftPos, maxLeft));
 
         toolbar.style.left = leftPos + 'px';
-        toolbar.style.top = Math.max(8, rect.top - containerRect.top - 40) + 'px';
+        toolbar.style.top = Math.max(8, rect.top - containerRect.top - 12) + 'px';
 
         toolbar.classList.remove('hidden');
 
@@ -1038,20 +1241,47 @@ const PlanModule = (function () {
 
         const toolbar = container.querySelector('.plan-line-toolbar');
 
-        // Position toolbar above the element
+        // Position toolbar centered above the element
         const rect = lineElement.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
+        const toolbarWidth = 280; // Approximate line toolbar width
 
-        // Calculate left position, but ensure it doesn't overflow right edge
-        let leftPos = rect.left - containerRect.left;
-        const toolbarWidth = 180; // Approximate line toolbar width
+        // Center horizontally above the element
+        const elementCenterX = rect.left - containerRect.left + rect.width / 2;
+        let leftPos = elementCenterX - toolbarWidth / 2;
+        // Ensure toolbar stays within bounds
         const maxLeft = containerRect.width - toolbarWidth - 8;
         leftPos = Math.max(8, Math.min(leftPos, maxLeft));
 
         toolbar.style.left = leftPos + 'px';
-        toolbar.style.top = Math.max(8, rect.top - containerRect.top - 40) + 'px';
+        toolbar.style.top = Math.max(8, rect.top - containerRect.top - 12) + 'px';
 
         toolbar.classList.remove('hidden');
+
+        // Update label field
+        const labelField = container.querySelector('.plan-line-label-field');
+        if (labelField) {
+            labelField.value = line.label || '';
+            // Remove old listener and add new one
+            labelField.onchange = null;
+            labelField.oninput = () => {
+                line.label = labelField.value.trim();
+                // Update the label element in the line container
+                const lineContainer = canvasLayer.querySelector(`.plan-note-line-container[data-line-id="${lineId}"]`);
+                if (lineContainer) {
+                    const labelEl = lineContainer.querySelector('.plan-line-label');
+                    if (labelEl) {
+                        labelEl.textContent = line.label;
+                        if (line.label) {
+                            labelEl.classList.remove('empty');
+                        } else {
+                            labelEl.classList.add('empty');
+                        }
+                    }
+                }
+                saveData();
+            };
+        }
 
         // Update color picker
         const colorPicker = container.querySelector('.plan-line-color-picker');
@@ -1158,11 +1388,20 @@ const PlanModule = (function () {
 
         // Update period display and handle infinite loading as user scrolls
         let scrollTimeout;
+        let lastScrollLeft = calendarContainer.scrollLeft;
+
         calendarContainer.addEventListener('scroll', () => {
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(() => {
                 updatePeriodDisplay();
-                checkAndLoadMoreMonths();
+
+                // Only check for loading more months if horizontal scroll changed
+                const currentScrollLeft = calendarContainer.scrollLeft;
+                if (currentScrollLeft !== lastScrollLeft) {
+                    console.log('[Plan] Horizontal scroll changed:', lastScrollLeft, '->', currentScrollLeft);
+                    lastScrollLeft = currentScrollLeft;
+                    checkAndLoadMoreMonths();
+                }
             }, 100);
         });
     }
@@ -1238,6 +1477,15 @@ const PlanModule = (function () {
         const addedWidth = COLUMN_WIDTH * count;
         calendarContainer.scrollLeft = oldScrollLeft + addedWidth;
 
+        // CRITICAL: Shift all line X coordinates to account for the prepended months
+        // Lines use absolute pixel positions, so we need to move them right
+        freeformLines.forEach(line => {
+            line.x1 += addedWidth;
+            line.x2 += addedWidth;
+        });
+        saveData();
+        renderFreeformElements();
+
         // Update start tracking
         startMonth = month + 1;
         if (startMonth > 11) { startMonth = 0; startYear = year + 1; }
@@ -1246,7 +1494,7 @@ const PlanModule = (function () {
 
     function setupCanvasInteraction() {
         calendarContainer.addEventListener('mousedown', e => {
-            if (e.target.closest('.plan-note-text') || e.target.closest('.plan-note-line') || e.target.closest('.plan-line-handle')) return;
+            if (e.target.closest('.plan-note-text') || e.target.closest('.plan-note-line') || e.target.closest('.plan-line-handle') || e.target.closest('.plan-line-label')) return;
 
             // If something is selected, deselect it and don't create new content
             if (selectedElements.length > 0) {
@@ -1488,11 +1736,13 @@ const PlanModule = (function () {
 
             // Delete selected elements
             if ((e.key === 'Backspace' || e.key === 'Delete') && selectedElements.length > 0) {
-                // Don't delete if we're editing text (contenteditable) - only check if single note is being edited
+                // Don't delete if we're editing text (contenteditable) - check notes and line labels
                 const editingNote = selectedElements.find(s =>
                     s.type === 'note' && s.element.getAttribute('contenteditable') === 'true'
                 );
-                if (editingNote) {
+                // Also check if any line label is being edited
+                const editingLabel = document.querySelector('.plan-line-label[contenteditable="true"]');
+                if (editingNote || editingLabel) {
                     return; // Let normal text editing happen
                 }
                 e.preventDefault();

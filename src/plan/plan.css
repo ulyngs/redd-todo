@@ -6,6 +6,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 #plan-mode.hidden {
@@ -705,6 +707,27 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     background: #1e293b;
 }
 
+/* Line label field in toolbar */
+#plan-mode .plan-line-label-field {
+    width: 80px;
+    padding: 2px 4px;
+    border: 1px solid var(--plan-border-color);
+    border-radius: 4px;
+    background: white;
+    color: var(--plan-text-primary);
+    font-family: 'Caveat', cursive;
+    font-size: 14px;
+    outline: none;
+}
+
+#plan-mode .plan-line-label-field:focus {
+    border-color: var(--plan-accent-color);
+}
+
+[data-theme="dark"] #plan-mode .plan-line-label-field {
+    background: #1e293b;
+}
+
 /* Note selected/dragging states */
 #plan-mode .plan-note-text.selected {
     outline: 2px solid var(--plan-accent-color);
@@ -747,4 +770,66 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     background: #999;
     height: 8px;
     border-radius: 4px;
+}
+
+/* Line label */
+#plan-mode .plan-line-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-family: 'Caveat', cursive;
+    font-size: 16px;
+    color: var(--plan-text-primary);
+    background: rgba(255, 255, 255, 0.85);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: auto;
+    cursor: grab;
+    z-index: 105;
+}
+
+[data-theme="dark"] #plan-mode .plan-line-label {
+    background: rgba(30, 41, 59, 0.9);
+}
+
+#plan-mode .plan-line-label.empty {
+    display: none;
+}
+
+#plan-mode .plan-line-label:hover {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+[data-theme="dark"] #plan-mode .plan-line-label:hover {
+    background: rgba(30, 41, 59, 1);
+}
+
+/* Label in edit mode */
+#plan-mode .plan-line-label[contenteditable="true"] {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+    outline: 2px solid var(--plan-accent-color);
+    outline-offset: 1px;
+    min-width: 40px;
+}
+
+/* Line label input */
+#plan-mode .plan-line-label-input {
+    position: absolute;
+    font-family: 'Caveat', cursive;
+    font-size: 16px;
+    color: var(--plan-text-primary);
+    background: white;
+    border: 2px solid var(--plan-accent-color);
+    border-radius: 4px;
+    padding: 4px 8px;
+    min-width: 100px;
+    outline: none;
+    z-index: 1001;
+    transform: translateX(-50%);
+}
+
+[data-theme="dark"] #plan-mode .plan-line-label-input {
+    background: #1e293b;
 }
