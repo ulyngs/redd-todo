@@ -562,6 +562,14 @@ const PlanModule = (function () {
             .forEach(l => canvasLayer.appendChild(createLine(l)));
     }
 
+    // Separate function to re-render only lines (for scroll updates)
+    function renderFreeformLines() {
+        canvasLayer.innerHTML = '';
+        const visible = groups.filter(g => g.visible).map(g => g.id);
+        freeformLines.filter(l => !l.group || visible.includes(l.group))
+            .forEach(l => canvasLayer.appendChild(createLine(l)));
+    }
+
     function createNote(note) {
         const el = document.createElement('span');
         el.className = 'plan-note-text freeform';
@@ -682,8 +690,28 @@ const PlanModule = (function () {
         const color = line.color || '#333333';
         const width = line.width || 8;
 
-        let x1 = line.x1, y1 = line.y1 || line.y;
-        let x2 = line.x2, y2 = line.y2 || line.y;
+        // Check if using new date-relative format or old pixel format
+        const usesDateCoords = line.startDate && line.endDate;
+
+        let x1, y1, x2, y2;
+
+        if (usesDateCoords) {
+            // New format: convert date-relative to screen coords
+            const start = dateCoordsToScreen(line.startDate, line.startOffsetX || 0);
+            const end = dateCoordsToScreen(line.endDate, line.endOffsetX || 0);
+            if (!start || !end) {
+                console.warn('[Plan] createLine: Could not convert date coords, line may be off-screen', line.id);
+                // Return an invisible placeholder if dates are not in DOM
+                containerEl.style.display = 'none';
+                return containerEl;
+            }
+            x1 = start.x; y1 = start.y;
+            x2 = end.x; y2 = end.y;
+        } else {
+            // Old format: use pixel coords directly (backward compatibility)
+            x1 = line.x1; y1 = line.y1 || line.y;
+            x2 = line.x2; y2 = line.y2 || line.y;
+        }
 
         // The line element
         const lineEl = document.createElement('div');
@@ -834,9 +862,15 @@ const PlanModule = (function () {
                 lineEl.classList.remove('dragging');
 
                 if (labelDragged) {
-                    // Save new position after drag
-                    line.x1 = x1; line.y1 = y1;
-                    line.x2 = x2; line.y2 = y2;
+                    // Convert new pixel positions to date-relative coords
+                    const startCoords = screenToDateCoords(x1, y1);
+                    const endCoords = screenToDateCoords(x2, y2);
+
+                    line.startDate = startCoords.dateKey;
+                    line.startOffsetX = startCoords.offsetX;
+                    line.endDate = endCoords.dateKey;
+                    line.endOffsetX = endCoords.offsetX;
+                    delete line.x1; delete line.y1; delete line.x2; delete line.y2;
                     saveData();
                 } else {
                     // It was a click - select the line
@@ -874,8 +908,16 @@ const PlanModule = (function () {
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
 
-                    line.x1 = x1; line.y1 = y1;
-                    line.x2 = x2; line.y2 = y2;
+                    // Convert new pixel positions to date-relative coords
+                    const startCoords = screenToDateCoords(x1, y1);
+                    const endCoords = screenToDateCoords(x2, y2);
+
+                    line.startDate = startCoords.dateKey;
+                    line.startOffsetX = startCoords.offsetX;
+                    line.endDate = endCoords.dateKey;
+                    line.endOffsetX = endCoords.offsetX;
+                    // Remove old pixel coords if present
+                    delete line.x1; delete line.y1; delete line.x2; delete line.y2;
                     saveData();
                 };
 
@@ -939,12 +981,21 @@ const PlanModule = (function () {
                 document.removeEventListener('mouseup', onMouseUp);
                 lineEl.classList.remove('dragging');
 
-                line.x1 = x1; line.y1 = y1;
-                line.x2 = x2; line.y2 = y2;
-                saveData();
+                if (hasDragged) {
+                    // Convert new pixel positions to date-relative coords
+                    const startCoords = screenToDateCoords(x1, y1);
+                    const endCoords = screenToDateCoords(x2, y2);
 
-                // If it was a click (not drag), show line editor and show handles
-                if (!hasDragged) {
+                    // Update line with new date-relative coords
+                    line.startDate = startCoords.dateKey;
+                    line.startOffsetX = startCoords.offsetX;
+                    line.endDate = endCoords.dateKey;
+                    line.endOffsetX = endCoords.offsetX;
+                    // Remove old pixel coords if present
+                    delete line.x1; delete line.y1; delete line.x2; delete line.y2;
+                    saveData();
+                } else {
+                    // It was a click (not drag), show line editor and show handles
                     containerEl.classList.add('selected');
                     showLineEditor(line.id, lineEl);
                 }
@@ -1014,33 +1065,29 @@ const PlanModule = (function () {
         canvasLayer.appendChild(input);
         input.focus();
     }
-
     // Find the closest date row position for snapping
+    // Input: x, y are canvas-relative (from mouse event relative to canvasLayer.getBoundingClientRect())
+    // Since canvas scrolls with content, these are effectively content-relative
     function findClosestDateRowPosition(x, y) {
         const dayRows = container.querySelectorAll('.plan-day-row');
         let targetRow = null;
         let closestDistance = Infinity;
-        const containerRect = calendarContainer.getBoundingClientRect();
-
-        // Click coords (x, y) are relative to canvasLayer which now equals calendarContainer
-        // y includes scrollTop, so convert to viewport-relative Y for comparison
-        const viewportY = y - calendarContainer.scrollTop;
+        // Use canvasLayer rect as reference since coords are relative to it
+        const canvasRect = canvasLayer.getBoundingClientRect();
 
         // Find the row that contains this point
         // Use center-based matching for more intuitive snapping behavior
         for (const row of dayRows) {
             const rect = row.getBoundingClientRect();
-            // Convert row position to container-relative coordinates
-            const rowLeft = rect.left - containerRect.left;
+            // Convert row position to canvas-relative coordinates
+            const rowLeft = rect.left - canvasRect.left;
             const rowRight = rowLeft + rect.width;
-            const rowTop = rect.top - containerRect.top;
-            const rowBottom = rowTop + rect.height;
+            const rowTop = rect.top - canvasRect.top;
             const rowCenterY = rowTop + rect.height / 2;
 
             // Check if point is within this row's horizontal bounds and closer to this row's center
-            // Use center-based vertical matching: snap to the row whose center is closest
             if (x >= rowLeft && x < rowRight) {
-                const yDistToCenter = Math.abs(viewportY - rowCenterY);
+                const yDistToCenter = Math.abs(y - rowCenterY);
                 if (yDistToCenter < closestDistance) {
                     closestDistance = yDistToCenter;
                     targetRow = row;
@@ -1048,7 +1095,7 @@ const PlanModule = (function () {
             } else {
                 // Track closest row as fallback (for points outside columns)
                 const xDist = x < rowLeft ? rowLeft - x : (x > rowRight ? x - rowRight : 0);
-                const yDistToCenter = Math.abs(viewportY - rowCenterY);
+                const yDistToCenter = Math.abs(y - rowCenterY);
                 const distance = Math.sqrt(xDist * xDist + yDistToCenter * yDistToCenter);
 
                 if (distance < closestDistance) {
@@ -1063,26 +1110,92 @@ const PlanModule = (function () {
             const noteArea = targetRow.querySelector('.plan-note-area');
             const dateKey = targetRow.dataset.dateKey;
 
+            // Row's canvas-relative Y position
+            const rowY = rect.top - canvasRect.top;
+
             let snappedX = x;
             let offsetX = 0;
             if (noteArea) {
                 const noteAreaRect = noteArea.getBoundingClientRect();
-                snappedX = Math.max(noteAreaRect.left - containerRect.left, x);
+                const noteAreaLeft = noteAreaRect.left - canvasRect.left;
+                snappedX = Math.max(noteAreaLeft, x);
                 // Calculate offset relative to note-area left edge
-                offsetX = x - (noteAreaRect.left - containerRect.left);
+                offsetX = x - noteAreaLeft;
                 if (offsetX < 0) offsetX = 0;
             }
 
-            // Return position, dateKey, and offsetX for date-relative storage
+            // Return canvas-relative position, dateKey, and offsetX
             return {
                 x: snappedX,
-                y: rect.top - containerRect.top + calendarContainer.scrollTop,
+                y: rowY,
                 dateKey: dateKey,
                 offsetX: offsetX
             };
         }
 
         return { x, y, dateKey: null, offsetX: 0 };
+    }
+
+    // Convert screen coordinates to date-relative coordinates
+    // screenX/screenY are canvas-relative (from mouse event relative to canvasLayer.getBoundingClientRect())
+    // Returns { dateKey, offsetX } where offsetX is relative to the month column's left edge
+    function screenToDateCoords(screenX, screenY) {
+        const canvasRect = canvasLayer.getBoundingClientRect();
+        const dayRows = container.querySelectorAll('.plan-day-row');
+
+        let closestRow = null;
+        let closestDistance = Infinity;
+        let columnLeft = 0;
+
+        for (const row of dayRows) {
+            const rect = row.getBoundingClientRect();
+            const rowTop = rect.top - canvasRect.top;
+            const rowCenterY = rowTop + rect.height / 2;
+            const dist = Math.abs(screenY - rowCenterY);
+
+            if (dist < closestDistance) {
+                closestDistance = dist;
+                closestRow = row;
+                // Get the month column's left edge (canvas-relative)
+                const monthCol = row.closest('.plan-month-column');
+                if (monthCol) {
+                    columnLeft = monthCol.getBoundingClientRect().left - canvasRect.left;
+                }
+            }
+        }
+
+        if (closestRow) {
+            const dateKey = closestRow.dataset.dateKey;
+            const offsetX = screenX - columnLeft;
+            return { dateKey, offsetX };
+        }
+
+        return { dateKey: null, offsetX: screenX };
+    }
+
+    // Convert date-relative coordinates back to screen coordinates
+    // Returns { x, y } in canvas-layer pixel coordinates
+    function dateCoordsToScreen(dateKey, offsetX) {
+        const row = container.querySelector(`.plan-day-row[data-date-key="${dateKey}"]`);
+        if (!row) {
+            console.warn('[Plan] dateCoordsToScreen: Row not found for', dateKey);
+            return null;
+        }
+
+        const canvasRect = canvasLayer.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        const monthCol = row.closest('.plan-month-column');
+
+        // X = column left + offsetX (canvas-relative)
+        let x = offsetX;
+        if (monthCol) {
+            x = (monthCol.getBoundingClientRect().left - canvasRect.left) + offsetX;
+        }
+
+        // Y = row center (canvas-relative)
+        const y = rowRect.top - canvasRect.top + rowRect.height / 2;
+
+        return { x, y };
     }
 
     // Show inline input for editing line label
@@ -1392,6 +1505,8 @@ const PlanModule = (function () {
 
         calendarContainer.addEventListener('scroll', () => {
             clearTimeout(scrollTimeout);
+            // Canvas scrolls with content naturally, no need to re-render lines
+
             scrollTimeout = setTimeout(() => {
                 updatePeriodDisplay();
 
@@ -1477,13 +1592,8 @@ const PlanModule = (function () {
         const addedWidth = COLUMN_WIDTH * count;
         calendarContainer.scrollLeft = oldScrollLeft + addedWidth;
 
-        // CRITICAL: Shift all line X coordinates to account for the prepended months
-        // Lines use absolute pixel positions, so we need to move them right
-        freeformLines.forEach(line => {
-            line.x1 += addedWidth;
-            line.x2 += addedWidth;
-        });
-        saveData();
+        // Re-render freeform elements since their screen positions have changed
+        // With date-relative coordinates, lines will automatically render in correct positions
         renderFreeformElements();
 
         // Update start tracking
@@ -1502,9 +1612,13 @@ const PlanModule = (function () {
                 return;
             }
 
-            const rect = canvasLayer.getBoundingClientRect();
-            const startX = e.clientX - rect.left;
-            const startY = e.clientY - rect.top + calendarContainer.scrollTop;
+            // Get fresh rect at mousedown time
+            const getRect = () => canvasLayer.getBoundingClientRect();
+            const initialRect = getRect();
+            // canvasLayer scrolls with content, so its getBoundingClientRect() already 
+            // accounts for scroll position. No need to add scrollTop/scrollLeft.
+            const startX = e.clientX - initialRect.left;
+            const startY = e.clientY - initialRect.top;
             let isDragging = false;
 
             const tempLine = document.createElement('div');
@@ -1515,7 +1629,11 @@ const PlanModule = (function () {
             canvasLayer.appendChild(tempLine);
 
             const move = ev => {
-                const x = ev.clientX - rect.left, y = ev.clientY - rect.top + calendarContainer.scrollTop;
+                // Get fresh rect in case window was resized
+                const rect = getRect();
+                // No scroll offset needed - rect already reflects scroll
+                const x = ev.clientX - rect.left;
+                const y = ev.clientY - rect.top;
                 const dx = x - startX, dy = y - startY;
                 const len = Math.sqrt(dx * dx + dy * dy);
                 if (len > 5) {
@@ -1531,15 +1649,32 @@ const PlanModule = (function () {
                 document.removeEventListener('mouseup', up);
                 tempLine.remove();
 
+                // Get fresh rect for final coordinates
+                const rect = getRect();
+                // No scroll offset needed - rect already reflects scroll
                 const endX = ev.clientX - rect.left;
-                const endY = ev.clientY - rect.top + calendarContainer.scrollTop;
+                const endY = ev.clientY - rect.top;
 
                 if (isDragging && Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2) > 10) {
                     pushHistory();
+
+                    // Convert pixel coords to date-relative coords for stable storage
+                    const startCoords = screenToDateCoords(startX, startY);
+                    const endCoords = screenToDateCoords(endX, endY);
+
                     const line = {
-                        id: Date.now().toString(), x1: startX, y1: startY, x2: endX, y2: endY,
-                        color: '#333', width: 8, group: activeGroup
+                        id: Date.now().toString(),
+                        // New date-relative format
+                        startDate: startCoords.dateKey,
+                        startOffsetX: startCoords.offsetX,
+                        endDate: endCoords.dateKey,
+                        endOffsetX: endCoords.offsetX,
+                        color: '#333',
+                        width: 8,
+                        group: activeGroup
                     };
+
+                    console.log('[Plan] New line created with date coords:', line);
                     freeformLines.push(line);
                     saveData();
                     canvasLayer.appendChild(createLine(line));

@@ -213,13 +213,15 @@
     min-width: 800px;
 }
 
-/* Canvas Layer */
+/* Canvas Layer - must be tall enough to cover all scrollable content */
+/* Using a large fixed height so lines scroll with content naturally */
 #plan-mode .plan-canvas-layer {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    bottom: 0;
+    height: 100000px;
+    /* Large enough to cover scrollable content */
     pointer-events: none;
     z-index: 100;
 }
