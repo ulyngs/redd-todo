@@ -556,9 +556,9 @@ const PlanModule = (function () {
         el.innerHTML = note.html || note.text || 'Note';
 
         // Absolute positioning within note-area using offsetX
+        // Note: top position is handled by CSS (.plan-note-text.freeform { top: -4px })
         el.style.position = 'absolute';
         el.style.left = (note.offsetX || 0) + 'px';
-        el.style.top = '0';
 
         if (note.fontColor) el.style.color = note.fontColor;
         if (note.bgColor) el.style.backgroundColor = note.bgColor;
@@ -582,6 +582,9 @@ const PlanModule = (function () {
             const containerRect = calendarContainer.getBoundingClientRect();
             let dragX = rect.left - containerRect.left;
             let dragY = rect.top - containerRect.top + calendarContainer.scrollTop;
+
+            // Track where within the note the user clicked (for maintaining relative position on drop)
+            const clickOffsetX = mouseStartX - rect.left;
 
             const dragClone = el.cloneNode(true);
             dragClone.classList.add('dragging');
@@ -616,10 +619,15 @@ const PlanModule = (function () {
                 el.style.opacity = '1';
 
                 if (hasDragged) {
-                    // Calculate final position and snap to date
-                    const finalX = dragX + (moveEvent.clientX - mouseStartX);
-                    const finalY = dragY + (moveEvent.clientY - mouseStartY);
-                    const snapped = findClosestDateRowPosition(finalX, finalY);
+                    // Use cursor position for vertical snapping (so row under cursor is targeted)
+                    // But adjust horizontal position by where user clicked within the note
+                    const containerRect = calendarContainer.getBoundingClientRect();
+                    const cursorX = moveEvent.clientX - containerRect.left;
+                    const cursorY = moveEvent.clientY - containerRect.top + calendarContainer.scrollTop;
+
+                    // Subtract click offset so the note's left edge maintains relative position to cursor
+                    const adjustedX = cursorX - clickOffsetX;
+                    const snapped = findClosestDateRowPosition(adjustedX, cursorY);
 
                     if (snapped.dateKey) {
                         // Update note data
@@ -865,6 +873,7 @@ const PlanModule = (function () {
         const viewportY = y - calendarContainer.scrollTop;
 
         // Find the row that contains this point
+        // Use center-based matching for more intuitive snapping behavior
         for (const row of dayRows) {
             const rect = row.getBoundingClientRect();
             // Convert row position to container-relative coordinates
@@ -872,21 +881,26 @@ const PlanModule = (function () {
             const rowRight = rowLeft + rect.width;
             const rowTop = rect.top - containerRect.top;
             const rowBottom = rowTop + rect.height;
+            const rowCenterY = rowTop + rect.height / 2;
 
-            // Check if point is within this row
-            if (x >= rowLeft && x < rowRight && viewportY >= rowTop && viewportY < rowBottom) {
-                targetRow = row;
-                break; // Found exact match
-            }
+            // Check if point is within this row's horizontal bounds and closer to this row's center
+            // Use center-based vertical matching: snap to the row whose center is closest
+            if (x >= rowLeft && x < rowRight) {
+                const yDistToCenter = Math.abs(viewportY - rowCenterY);
+                if (yDistToCenter < closestDistance) {
+                    closestDistance = yDistToCenter;
+                    targetRow = row;
+                }
+            } else {
+                // Track closest row as fallback (for points outside columns)
+                const xDist = x < rowLeft ? rowLeft - x : (x > rowRight ? x - rowRight : 0);
+                const yDistToCenter = Math.abs(viewportY - rowCenterY);
+                const distance = Math.sqrt(xDist * xDist + yDistToCenter * yDistToCenter);
 
-            // Track closest row as fallback
-            const xDist = x < rowLeft ? rowLeft - x : (x > rowRight ? x - rowRight : 0);
-            const yDist = viewportY < rowTop ? rowTop - viewportY : (viewportY > rowBottom ? viewportY - rowBottom : 0);
-            const distance = Math.sqrt(xDist * xDist + yDist * yDist);
-
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                targetRow = row;
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    targetRow = row;
+                }
             }
         }
 
