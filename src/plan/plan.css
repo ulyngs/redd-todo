@@ -213,15 +213,15 @@
     min-width: 800px;
 }
 
-/* Canvas Layer - must be tall enough to cover all scrollable content */
-/* Using a large fixed height so lines scroll with content naturally */
+/* Canvas Layer - positioned inside scrollable area, matches grid height */
 #plan-mode .plan-canvas-layer {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    height: 100000px;
-    /* Large enough to cover scrollable content */
+    /* Match the grid's height so canvas doesn't create extra scroll space */
+    height: auto;
+    min-height: 100%;
     pointer-events: none;
     z-index: 100;
 }
