@@ -797,9 +797,9 @@ const PlanModule = (function () {
 
     // Create inline text input for new notes
     function createFreeformInput(x, y, dateKey, offsetX) {
-        // Remove any existing input
+        // Remove any existing input (check if still attached to DOM to avoid race condition with blur handler)
         const existingInput = canvasLayer.querySelector('.plan-note-input-inline');
-        if (existingInput) existingInput.remove();
+        if (existingInput && existingInput.parentNode) existingInput.remove();
 
         const input = document.createElement('input');
         input.type = 'text';
