@@ -3,7 +3,7 @@ const https = require('https');
 // These will be set in your Netlify Site Settings
 const CLIENT_ID = process.env.BC_CLIENT_ID;
 const CLIENT_SECRET = process.env.BC_CLIENT_SECRET;
-const REDIRECT_URI = process.env.BC_REDIRECT_URI; // Your Netlify URL + /.netlify/functions/auth/callback
+const REDIRECT_URI = 'https://redd-todo.netlify.app/.netlify/functions/auth';
 
 exports.handler = async function (event, context) {
     // 1. HANDLE TOKEN REFRESH (POST)
