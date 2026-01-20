@@ -825,7 +825,29 @@ const PlanModule = (function () {
             }
         });
 
-        // Mousedown on label - supports both click to select and drag to move
+        // Track if label was dragged (used by click handler)
+        let labelWasDragged = false;
+
+        // Click handler for label - select the line on single click
+        labelEl.addEventListener('click', e => {
+            // Don't interfere with editing
+            if (labelEl.getAttribute('contenteditable') === 'true') return;
+
+            // If we just finished dragging, don't select
+            if (labelWasDragged) {
+                labelWasDragged = false;
+                return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Select the line
+            containerEl.classList.add('selected');
+            showLineEditor(line.id, lineEl);
+        });
+
+        // Mousedown on label - supports drag to move
         labelEl.addEventListener('mousedown', e => {
             // Don't interfere with editing
             if (labelEl.getAttribute('contenteditable') === 'true') return;
@@ -833,7 +855,7 @@ const PlanModule = (function () {
             e.preventDefault();
             e.stopPropagation();
 
-            let labelDragged = false;
+            labelWasDragged = false;
             const mouseStartX = e.clientX;
             const mouseStartY = e.clientY;
             const origX1 = x1, origY1 = y1, origX2 = x2, origY2 = y2;
@@ -843,11 +865,11 @@ const PlanModule = (function () {
                 const deltaY = moveEvent.clientY - mouseStartY;
 
                 if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-                    labelDragged = true;
+                    labelWasDragged = true;
                     lineEl.classList.add('dragging');
                 }
 
-                if (labelDragged) {
+                if (labelWasDragged) {
                     x1 = origX1 + deltaX;
                     y1 = origY1 + deltaY;
                     x2 = origX2 + deltaX;
@@ -861,7 +883,7 @@ const PlanModule = (function () {
                 document.removeEventListener('mouseup', onMouseUp);
                 lineEl.classList.remove('dragging');
 
-                if (labelDragged) {
+                if (labelWasDragged) {
                     // Convert new pixel positions to date-relative coords
                     const startCoords = screenToDateCoords(x1, y1);
                     const endCoords = screenToDateCoords(x2, y2);
@@ -872,11 +894,8 @@ const PlanModule = (function () {
                     line.endOffsetX = endCoords.offsetX;
                     delete line.x1; delete line.y1; delete line.x2; delete line.y2;
                     saveData();
-                } else {
-                    // It was a click - select the line
-                    showLineEditor(line.id, lineEl);
-                    containerEl.classList.add('selected');
                 }
+                // Note: click handler will handle selection for non-drag clicks
             };
 
             document.addEventListener('mousemove', onMouseMove);
