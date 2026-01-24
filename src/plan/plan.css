@@ -315,7 +315,17 @@
     flex: 1;
     position: relative;
     min-height: 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
     cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>') 0 16, crosshair;
+}
+
+#plan-mode .plan-note-area::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
 }
 
 /* Override pencil cursor when something is selected */
@@ -782,7 +792,7 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     font-size: 16px;
     color: var(--plan-text-primary);
     background: rgba(255, 255, 255, 0.85);
-    padding: 2px 8px;
+    padding: 2px 6px 2px 0;
     border-radius: 4px;
     white-space: nowrap;
     pointer-events: auto;
@@ -834,4 +844,283 @@ body.dark-mode #plan-mode .plan-modal-dialog {
 
 [data-theme="dark"] #plan-mode .plan-line-label-input {
     background: #1e293b;
+}
+
+/* ========================================
+   Calendar Sync Styles
+   ======================================== */
+
+/* Calendar sync nav section */
+#plan-mode .plan-calendar-sync-nav {
+    display: flex;
+    align-items: center;
+    -webkit-app-region: no-drag;
+}
+
+/* Calendar sync button indicator when synced */
+#plan-mode .plan-calendar-sync-btn.has-events {
+    color: #6366f1;
+}
+
+/* Calendar Sync Popover */
+#plan-mode .plan-calendar-popover {
+    position: absolute;
+    top: 60px;
+    right: 24px;
+    background: white;
+    border: 1px solid var(--plan-border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    z-index: 1100;
+    min-width: 320px;
+}
+
+[data-theme="dark"] #plan-mode .plan-calendar-popover {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+#plan-mode .plan-calendar-popover.hidden {
+    display: none;
+}
+
+#plan-mode .plan-calendar-popover-header {
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--plan-border-color);
+    color: var(--plan-text-primary);
+}
+
+#plan-mode .plan-calendar-popover-body {
+    padding: 16px;
+}
+
+#plan-mode .plan-calendar-popover-body label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--plan-text-secondary);
+    margin-bottom: 6px;
+}
+
+#plan-mode .plan-calendar-url-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--plan-border-color);
+    border-radius: 8px;
+    background: var(--plan-panel-bg);
+    color: var(--plan-text-primary);
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+#plan-mode .plan-calendar-url-input:focus {
+    border-color: var(--plan-accent-color);
+}
+
+#plan-mode .plan-calendar-hint {
+    font-size: 11px;
+    color: var(--plan-text-muted);
+    margin: 8px 0 12px 0;
+}
+
+#plan-mode .plan-calendar-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+#plan-mode .plan-calendar-sync-now-btn,
+#plan-mode .plan-calendar-clear-btn {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#plan-mode .plan-calendar-sync-now-btn {
+    background: #6366f1;
+    color: white;
+}
+
+#plan-mode .plan-calendar-sync-now-btn:hover {
+    background: #4f46e5;
+}
+
+#plan-mode .plan-calendar-clear-btn {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--plan-text-secondary);
+}
+
+[data-theme="dark"] #plan-mode .plan-calendar-clear-btn {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#plan-mode .plan-calendar-clear-btn:hover {
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+}
+
+#plan-mode .plan-calendar-status {
+    font-size: 11px;
+    color: var(--plan-text-muted);
+    text-align: center;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 6px;
+}
+
+[data-theme="dark"] #plan-mode .plan-calendar-status {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Calendar Event Styles (synced events are read-only) */
+#plan-mode .plan-note-text.calendar-event {
+    font-style: italic;
+    color: #6366f1;
+    opacity: 0.9;
+    cursor: default;
+}
+
+
+
+#plan-mode .plan-note-line-container.calendar-event .plan-note-line {
+    opacity: 0.6;
+    cursor: default;
+}
+
+#plan-mode .plan-note-line-container.calendar-event .plan-line-label {
+    font-style: italic;
+    color: #6366f1;
+    cursor: default;
+}
+
+
+
+/* Multi-calendar list styles */
+#plan-mode .plan-calendar-list {
+    margin-bottom: 12px;
+}
+
+#plan-mode .plan-calendar-empty {
+    font-size: 12px;
+    color: var(--plan-text-muted);
+    text-align: center;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 6px;
+}
+
+[data-theme="dark"] #plan-mode .plan-calendar-empty {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+#plan-mode .plan-calendar-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 6px;
+    border-left: 3px solid #6366f1;
+}
+
+[data-theme="dark"] #plan-mode .plan-calendar-item {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+#plan-mode .plan-calendar-item-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#plan-mode .plan-calendar-item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--plan-text-primary);
+}
+
+#plan-mode .plan-calendar-item-url {
+    font-size: 10px;
+    color: var(--plan-text-muted);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+#plan-mode .plan-calendar-item-delete {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--plan-text-muted);
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+#plan-mode .plan-calendar-item-delete:hover {
+    color: #dc2626;
+    background: rgba(220, 38, 38, 0.1);
+}
+
+#plan-mode .plan-calendar-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+#plan-mode .plan-calendar-name-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--plan-border-color);
+    border-radius: 8px;
+    background: var(--plan-panel-bg);
+    color: var(--plan-text-primary);
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+#plan-mode .plan-calendar-name-input:focus {
+    border-color: var(--plan-accent-color);
+}
+
+#plan-mode .plan-calendar-add-save-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #6366f1;
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#plan-mode .plan-calendar-add-save-btn:hover {
+    background: #4f46e5;
+}
+
+/* Sync all button animation */
+#plan-mode .plan-calendar-sync-all-btn.syncing svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }

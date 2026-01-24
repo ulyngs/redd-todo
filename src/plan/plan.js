@@ -134,8 +134,18 @@ const PlanModule = (function () {
     const LINES_KEY = STORAGE_PREFIX + 'freeform-lines';
     const GROUPS_KEY = STORAGE_PREFIX + 'groups';
     const ACTIVE_GROUP_KEY = STORAGE_PREFIX + 'active-group';
+    // Calendar sync keys
+    const CALENDARS_KEY = STORAGE_PREFIX + 'calendars'; // Array of {id, name, url}
+    const CALENDAR_EVENTS_KEY = STORAGE_PREFIX + 'calendar-events';
+    const CALENDAR_LAST_SYNC_KEY = STORAGE_PREFIX + 'calendar-last-sync';
     // Use shared keys for theme and language (no prefix) so they sync with main app
     const SHARED_LANGUAGE_KEY = 'language';
+
+    // Calendar sync state - now supports multiple calendars
+    let calendars = []; // [{id, name, url}, ...]
+    let calendarNotes = [];
+    let calendarLines = [];
+    let calendarLastSync = null;
 
     function init(containerElement) {
         if (isInitialized) return;
@@ -202,6 +212,14 @@ const PlanModule = (function () {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/></svg>
                         </button>
                     </div>
+                    <div class="plan-calendar-sync-nav">
+                        <button class="plan-nav-btn plan-calendar-sync-all-btn" title="Sync All Calendars">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                        </button>
+                        <button class="plan-nav-btn plan-calendar-add-btn" title="Add Calendar">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M10 14h4"/><path d="M12 12v4"/></svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="plan-calendar-container">
                     <div class="plan-calendar-grid"></div>
@@ -257,6 +275,20 @@ const PlanModule = (function () {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                 </button>
             </div>
+            <!-- Calendar Popover (Add/Manage Calendars) -->
+            <div class="plan-calendar-popover hidden">
+                <div class="plan-calendar-popover-header">Calendars</div>
+                <div class="plan-calendar-popover-body">
+                    <div class="plan-calendar-list"></div>
+                    <div class="plan-calendar-add-form">
+                        <input type="text" class="plan-calendar-name-input" placeholder="Calendar name">
+                        <input type="text" class="plan-calendar-url-input" placeholder="ICS URL (https:// or webcal://)">
+                        <button class="plan-calendar-add-save-btn">Add Calendar</button>
+                    </div>
+                    <p class="plan-calendar-hint">Events with "REDD-DO" in description will be shown</p>
+                    <div class="plan-calendar-status"></div>
+                </div>
+            </div>
         `;
     }
 
@@ -277,6 +309,19 @@ const PlanModule = (function () {
                 notes: freeformNotes.length,
                 lines: freeformLines.map(l => ({ id: l.id, x1: Math.round(l.x1), x2: Math.round(l.x2), label: l.label }))
             });
+
+            // Load calendar sync data (multiple calendars)
+            const storedCalendars = localStorage.getItem(CALENDARS_KEY);
+            if (storedCalendars) calendars = JSON.parse(storedCalendars);
+            const storedCalendarEvents = localStorage.getItem(CALENDAR_EVENTS_KEY);
+            if (storedCalendarEvents) {
+                const parsed = JSON.parse(storedCalendarEvents);
+                calendarNotes = parsed.notes || [];
+                calendarLines = parsed.lines || [];
+            }
+            const storedLastSync = localStorage.getItem(CALENDAR_LAST_SYNC_KEY);
+            if (storedLastSync) calendarLastSync = storedLastSync;
+            console.log('[Plan] Loaded calendar data:', { calendars: calendars.length, notes: calendarNotes.length, lines: calendarLines.length });
         } catch (e) {
             console.error('Failed to load plan data:', e);
             freeformNotes = []; freeformLines = [];
@@ -560,14 +605,162 @@ const PlanModule = (function () {
         // Lines still use canvas layer with absolute positioning
         freeformLines.filter(l => !l.group || visible.includes(l.group))
             .forEach(l => canvasLayer.appendChild(createLine(l)));
+
+        // Render calendar events (read-only, from external calendar)
+        // Use requestAnimationFrame to ensure DOM is laid out before measuring positions
+        requestAnimationFrame(() => renderCalendarEvents());
+    }
+    // Render calendar synced events
+    function renderCalendarEvents() {
+        // First, calculate which dates are covered by multi-day lines
+        // so we can offset single-day notes on those dates
+        const datesWithLines = new Set();
+        calendarLines.forEach(line => {
+            if (!line.startDate || !line.endDate) return;
+            const startParts = line.startDate.split('-').map(Number);
+            const endParts = line.endDate.split('-').map(Number);
+            const startD = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+            const endD = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+
+            // Add all dates in range
+            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                datesWithLines.add(dateKey);
+            }
+        });
+
+        // Group calendar notes by date to handle multiple events on same day
+        const notesByDate = {};
+        calendarNotes.forEach(note => {
+            if (!note.dateKey) return;
+            if (!notesByDate[note.dateKey]) notesByDate[note.dateKey] = [];
+            notesByDate[note.dateKey].push(note);
+        });
+
+        // Render calendar notes into their date row's note-area with horizontal offset
+        // Offset extra if there's a multi-day line on this date
+        const LINE_OFFSET = 100; // Offset for notes on dates with multi-day lines
+        for (const dateKey in notesByDate) {
+            const row = container.querySelector(`.plan-day-row[data-date-key="${dateKey}"]`);
+            if (!row) continue;
+            const noteArea = row.querySelector('.plan-note-area');
+            if (!noteArea) continue;
+
+            // Start with extra offset if this date has a multi-day line
+            let currentOffset = datesWithLines.has(dateKey) ? LINE_OFFSET : 0;
+            const GAP = 8; // pixels between notes
+
+            notesByDate[dateKey].forEach((note, index) => {
+                const el = createCalendarNote(note, currentOffset);
+                noteArea.appendChild(el);
+                // After appending, measure the width and add to offset for next note
+                currentOffset += el.offsetWidth + GAP;
+            });
+        }
+
+        // Render calendar lines as continuous vertical lines on canvas (like user-drawn lines)
+
+        calendarLines.forEach((line, lineIndex) => {
+            if (!line.startDate || !line.endDate) return;
+
+            // Get all dates this line spans grouped by month
+            const startParts = line.startDate.split('-').map(Number);
+            const endParts = line.endDate.split('-').map(Number);
+            const startD = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+            const endD = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+
+            // Group dates by month for splitting at month boundaries
+            const datesByMonth = {};
+            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                if (!datesByMonth[monthKey]) datesByMonth[monthKey] = [];
+                datesByMonth[monthKey].push(dateKey);
+            }
+
+            // Horizontal slot offset to avoid overlap with other calendar lines on same dates
+            const slotOffset = 0; // Lines on different dates don't need offset
+
+            // Render each month segment as a continuous line
+            for (const monthKey in datesByMonth) {
+                const datesInMonth = datesByMonth[monthKey];
+                if (datesInMonth.length === 0) continue;
+
+                const firstDateKey = datesInMonth[0];
+                const lastDateKey = datesInMonth[datesInMonth.length - 1];
+
+                // Find the rows for start and end dates
+                const startRow = container.querySelector(`.plan-day-row[data-date-key="${firstDateKey}"]`);
+                const endRow = container.querySelector(`.plan-day-row[data-date-key="${lastDateKey}"]`);
+
+                if (!startRow || !endRow) continue;
+
+                const containerRect = calendarContainer.getBoundingClientRect();
+                const startRect = startRow.getBoundingClientRect();
+                const endRect = endRow.getBoundingClientRect();
+
+                // Calculate line position: vertical line from top of first date to bottom of last date
+                // Use the row's left position to ensure line is in correct column
+                // Add scrollLeft/scrollTop to account for current scroll position
+                const xPos = startRect.left - containerRect.left + calendarContainer.scrollLeft + 50 + slotOffset;
+                const topY = startRect.top - containerRect.top + calendarContainer.scrollTop;
+                const bottomY = endRect.bottom - containerRect.top + calendarContainer.scrollTop;
+                const lineHeight = bottomY - topY;
+
+                // Create line container
+                const lineContainer = document.createElement('div');
+                lineContainer.className = 'plan-note-line-container calendar-event';
+                lineContainer.dataset.calendarLineId = line.id;
+                lineContainer.style.position = 'absolute';
+                lineContainer.style.left = xPos + 'px';
+                lineContainer.style.top = topY + 'px';
+                lineContainer.style.width = '8px';
+                lineContainer.style.height = lineHeight + 'px';
+
+                // Create the vertical line
+                const lineEl = document.createElement('div');
+                lineEl.className = 'plan-note-line calendar-event';
+                lineEl.style.position = 'absolute';
+                lineEl.style.left = '0';
+                lineEl.style.top = '0';
+                lineEl.style.width = '8px';
+                lineEl.style.height = '100%';
+                lineEl.style.background = line.color || '#6366f1';
+                lineEl.style.borderRadius = '4px';
+                lineEl.style.opacity = '0.7';
+
+                // Create centered label
+                const labelEl = document.createElement('div');
+                labelEl.className = 'plan-line-label calendar-event';
+                labelEl.textContent = line.label || 'Event';
+                labelEl.style.position = 'absolute';
+                labelEl.style.left = '11px'; // Right of line
+                labelEl.style.top = '50%';
+                labelEl.style.transform = 'translateY(-50%)';
+                labelEl.style.color = line.color || '#6366f1';
+                labelEl.style.fontStyle = 'italic';
+                labelEl.style.fontSize = '17px';
+                labelEl.style.whiteSpace = 'nowrap';
+                labelEl.style.pointerEvents = 'none';
+                labelEl.title = 'Synced from calendar';
+
+                lineContainer.appendChild(lineEl);
+                lineContainer.appendChild(labelEl);
+                canvasLayer.appendChild(lineContainer);
+            }
+        });
     }
 
-    // Separate function to re-render only lines (for scroll updates)
-    function renderFreeformLines() {
-        canvasLayer.innerHTML = '';
-        const visible = groups.filter(g => g.visible).map(g => g.id);
-        freeformLines.filter(l => !l.group || visible.includes(l.group))
-            .forEach(l => canvasLayer.appendChild(createLine(l)));
+    // Create a read-only note element for calendar events
+    function createCalendarNote(note, offset = 0) {
+        const el = document.createElement('span');
+        el.className = 'plan-note-text freeform calendar-event';
+        el.textContent = note.text || 'Calendar Event';
+        el.style.position = 'absolute';
+        el.style.left = offset + 'px';
+        el.dataset.calendarEventId = note.id;
+        el.title = 'Synced from calendar';
+        return el;
     }
 
     function createNote(note) {
@@ -1726,6 +1919,179 @@ const PlanModule = (function () {
             freeformNotes = next.notes; freeformLines = next.lines;
             saveData(); renderFreeformElements(); updateUndoRedoButtons();
         });
+
+        // Calendar sync buttons
+        const calendarSyncAllBtn = container.querySelector('.plan-calendar-sync-all-btn');
+        const calendarAddBtn = container.querySelector('.plan-calendar-add-btn');
+        const calendarPopover = container.querySelector('.plan-calendar-popover');
+        const calendarList = container.querySelector('.plan-calendar-list');
+        const calendarNameInput = container.querySelector('.plan-calendar-name-input');
+        const calendarUrlInput = container.querySelector('.plan-calendar-url-input');
+        const calendarAddSaveBtn = container.querySelector('.plan-calendar-add-save-btn');
+        const calendarStatus = container.querySelector('.plan-calendar-status');
+
+        // Render calendar list in popover
+        function renderCalendarList() {
+            if (!calendarList) return;
+            if (calendars.length === 0) {
+                calendarList.innerHTML = '<div class="plan-calendar-empty">No calendars added yet</div>';
+                return;
+            }
+            calendarList.innerHTML = calendars.map(cal => `
+                <div class="plan-calendar-item" data-id="${cal.id}">
+                    <div class="plan-calendar-item-info">
+                        <span class="plan-calendar-item-name">${cal.name || 'Unnamed'}</span>
+                        <span class="plan-calendar-item-url">${cal.url.substring(0, 40)}...</span>
+                    </div>
+                    <button class="plan-calendar-item-delete" data-id="${cal.id}" title="Remove calendar">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            `).join('');
+
+            // Add delete handlers
+            calendarList.querySelectorAll('.plan-calendar-item-delete').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+                    calendars = calendars.filter(c => c.id !== id);
+                    localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+                    renderCalendarList();
+                    syncAllCalendars(); // Re-sync to update events
+                });
+            });
+        }
+
+        // Sync all calendars
+        async function syncAllCalendars() {
+            if (calendars.length === 0) {
+                calendarNotes = [];
+                calendarLines = [];
+                calendarLastSync = null;
+                localStorage.removeItem(CALENDAR_EVENTS_KEY);
+                localStorage.removeItem(CALENDAR_LAST_SYNC_KEY);
+                renderFreeformElements();
+                updateCalendarStatus();
+                return;
+            }
+
+            // Start spinning animation
+            if (calendarSyncAllBtn) calendarSyncAllBtn.classList.add('syncing');
+            if (calendarStatus) calendarStatus.textContent = 'Syncing...';
+
+            try {
+                const CalendarSync = window.CalendarSync;
+                if (!CalendarSync) throw new Error('CalendarSync module not loaded');
+
+                const allNotes = [];
+                const allLines = [];
+
+                for (const cal of calendars) {
+                    try {
+                        const result = await CalendarSync.syncCalendar(cal.url);
+                        // Add calendar name prefix to events for identification
+                        result.notes.forEach(n => { n.calendarId = cal.id; n.calendarName = cal.name; });
+                        result.lines.forEach(l => { l.calendarId = cal.id; l.calendarName = cal.name; });
+                        allNotes.push(...result.notes);
+                        allLines.push(...result.lines);
+                    } catch (err) {
+                        console.warn(`[Plan] Failed to sync calendar "${cal.name}":`, err);
+                    }
+                }
+
+                calendarNotes = allNotes;
+                calendarLines = allLines;
+                calendarLastSync = new Date().toISOString();
+
+                localStorage.setItem(CALENDAR_EVENTS_KEY, JSON.stringify({ notes: calendarNotes, lines: calendarLines }));
+                localStorage.setItem(CALENDAR_LAST_SYNC_KEY, calendarLastSync);
+
+                renderFreeformElements();
+                updateCalendarStatus();
+                console.log('[Plan] All calendars synced:', { calendars: calendars.length, notes: calendarNotes.length, lines: calendarLines.length });
+            } catch (error) {
+                console.error('[Plan] Calendar sync error:', error);
+                if (calendarStatus) calendarStatus.textContent = 'Sync failed: ' + error.message;
+            } finally {
+                // Stop spinning animation
+                if (calendarSyncAllBtn) calendarSyncAllBtn.classList.remove('syncing');
+            }
+        }
+
+        // Sync All button
+        if (calendarSyncAllBtn) {
+            calendarSyncAllBtn.addEventListener('click', () => {
+                syncAllCalendars();
+            });
+        }
+
+        // Add Calendar button - opens popover
+        if (calendarAddBtn && calendarPopover) {
+            calendarAddBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                calendarPopover.classList.toggle('hidden');
+                const btnRect = calendarAddBtn.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                calendarPopover.style.top = (btnRect.bottom - containerRect.top + 5) + 'px';
+                calendarPopover.style.right = (containerRect.right - btnRect.right) + 'px';
+                renderCalendarList();
+                updateCalendarStatus();
+            });
+        }
+
+        // Close popover when clicking outside (anywhere in document)
+        if (calendarPopover) {
+            document.addEventListener('click', (e) => {
+                const isInsidePopover = calendarPopover.contains(e.target);
+                const isAddBtn = calendarAddBtn && calendarAddBtn.contains(e.target);
+                const isSyncBtn = calendarSyncAllBtn && calendarSyncAllBtn.contains(e.target);
+                if (!isInsidePopover && !isAddBtn && !isSyncBtn) {
+                    calendarPopover.classList.add('hidden');
+                }
+            });
+        }
+
+        // Add Calendar save button
+        if (calendarAddSaveBtn) {
+            calendarAddSaveBtn.addEventListener('click', async () => {
+                const name = calendarNameInput?.value?.trim() || 'Calendar ' + (calendars.length + 1);
+                const url = calendarUrlInput?.value?.trim();
+                if (!url) {
+                    if (calendarStatus) calendarStatus.textContent = 'Please enter a calendar URL';
+                    return;
+                }
+
+                // Generate unique ID
+                const id = 'cal-' + Date.now();
+                calendars.push({ id, name, url });
+                localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+
+                // Clear inputs
+                if (calendarNameInput) calendarNameInput.value = '';
+                if (calendarUrlInput) calendarUrlInput.value = '';
+
+                renderCalendarList();
+                await syncAllCalendars();
+            });
+        }
+
+        // Initial render of calendar list
+        renderCalendarList();
+
+        function updateCalendarStatus() {
+            if (!calendarStatus) return;
+            if (calendarLastSync) {
+                const date = new Date(calendarLastSync);
+                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const dateStr = date.toLocaleDateString();
+                const totalEvents = calendarNotes.length + calendarLines.length;
+                calendarStatus.textContent = `Last synced: ${dateStr} ${timeStr} • ${calendars.length} cal${calendars.length !== 1 ? 's' : ''} • ${totalEvents} events`;
+            } else if (calendars.length > 0) {
+                calendarStatus.textContent = 'Click the sync button to fetch events';
+            } else {
+                calendarStatus.textContent = 'Add a calendar above to get started';
+            }
+        }
 
         // Formatting buttons (bold, italic, underline)
         container.querySelectorAll('.plan-note-toolbar .plan-toolbar-btn[data-command]').forEach(btn => {
