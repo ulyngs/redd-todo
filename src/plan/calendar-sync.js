@@ -107,15 +107,6 @@ const CalendarSync = (function () {
         const startDateKey = formatDateKey(startDate);
         const endDateKey = formatDateKey(adjustedEndDate);
 
-        console.log('[CalendarSync] convertToLine:', {
-            label: getDisplayText(event),
-            startDate: startDate,
-            endDate: endDate,
-            adjustedEndDate: adjustedEndDate,
-            startDateKey: startDateKey,
-            endDateKey: endDateKey
-        });
-
         return {
             id: 'cal-line-' + event.uid,
             label: getDisplayText(event),
