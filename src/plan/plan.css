@@ -357,6 +357,13 @@
 #plan-mode .plan-note-text.freeform {
     white-space: nowrap;
     top: -4px;
+    z-index: 10;
+    /* User notes on top of calendar events */
+}
+
+#plan-mode .plan-note-text.freeform.calendar-event {
+    z-index: 5;
+    /* Calendar events below user notes */
 }
 
 #plan-mode .plan-note-text.holiday {
@@ -376,6 +383,12 @@
     opacity: 0.4;
     border-radius: 4px;
     cursor: grab;
+}
+
+/* Dark mode: user-drawn lines should be almost white and fully opaque */
+[data-theme="dark"] #plan-mode .plan-note-line:not(.calendar-event) {
+    background: #e0e0e0;
+    opacity: 1;
 }
 
 /* Line endpoint handles */

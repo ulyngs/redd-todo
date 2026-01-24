@@ -591,24 +591,26 @@ const PlanModule = (function () {
 
         const visible = groups.filter(g => g.visible).map(g => g.id);
 
-        // Render notes into their date row's note-area
-        freeformNotes.filter(n => !n.group || visible.includes(n.group)).forEach(note => {
-            if (!note.dateKey) return; // Skip legacy notes without dateKey
-
-            const row = container.querySelector(`.plan-day-row[data-date-key="${note.dateKey}"]`);
-            if (row) {
-                const noteArea = row.querySelector('.plan-note-area');
-                if (noteArea) noteArea.appendChild(createNote(note));
-            }
-        });
-
         // Lines still use canvas layer with absolute positioning
         freeformLines.filter(l => !l.group || visible.includes(l.group))
             .forEach(l => canvasLayer.appendChild(createLine(l)));
 
-        // Render calendar events (read-only, from external calendar)
+        // Render calendar events FIRST (so user notes appear on top)
         // Use requestAnimationFrame to ensure DOM is laid out before measuring positions
-        requestAnimationFrame(() => renderCalendarEvents());
+        requestAnimationFrame(() => {
+            renderCalendarEvents();
+
+            // Then render user notes ON TOP of calendar events
+            freeformNotes.filter(n => !n.group || visible.includes(n.group)).forEach(note => {
+                if (!note.dateKey) return; // Skip legacy notes without dateKey
+
+                const row = container.querySelector(`.plan-day-row[data-date-key="${note.dateKey}"]`);
+                if (row) {
+                    const noteArea = row.querySelector('.plan-note-area');
+                    if (noteArea) noteArea.appendChild(createNote(note));
+                }
+            });
+        });
     }
     // Render calendar synced events
     function renderCalendarEvents() {
@@ -639,23 +641,30 @@ const PlanModule = (function () {
 
         // Render calendar notes into their date row's note-area with horizontal offset
         // Offset extra if there's a multi-day line on this date
-        const LINE_OFFSET = 100; // Offset for notes on dates with multi-day lines
+        const LINE_OFFSET = 30; // Small offset for notes on dates with multi-day lines
         for (const dateKey in notesByDate) {
             const row = container.querySelector(`.plan-day-row[data-date-key="${dateKey}"]`);
             if (!row) continue;
             const noteArea = row.querySelector('.plan-note-area');
             if (!noteArea) continue;
 
+            const notesOnDate = notesByDate[dateKey];
+            const totalOnDate = notesOnDate.length;
+
             // Start with extra offset if this date has a multi-day line
             let currentOffset = datesWithLines.has(dateKey) ? LINE_OFFSET : 0;
-            const GAP = 8; // pixels between notes
 
-            notesByDate[dateKey].forEach((note, index) => {
-                const el = createCalendarNote(note, currentOffset);
+            if (totalOnDate === 1) {
+                // Single event - just show it
+                const el = createCalendarNote(notesOnDate[0], currentOffset, 1, 0);
                 noteArea.appendChild(el);
-                // After appending, measure the width and add to offset for next note
-                currentOffset += el.offsetWidth + GAP;
-            });
+            } else {
+                // Multiple events - show only the current one (cycle on click)
+                const currentIndex = eventCycleIndex[dateKey] || 0;
+                const noteToShow = notesOnDate[currentIndex % totalOnDate];
+                const el = createCalendarNote(noteToShow, currentOffset, totalOnDate, currentIndex % totalOnDate);
+                noteArea.appendChild(el);
+            }
         }
 
         // Render calendar lines as continuous vertical lines on canvas (like user-drawn lines)
@@ -749,124 +758,46 @@ const PlanModule = (function () {
                 canvasLayer.appendChild(lineContainer);
             }
         });
-
-        // Add click handlers to show tooltip for dates with multiple/overlapping events
-        setupEventTooltips(notesByDate, datesWithLines);
     }
 
-    // Setup click handlers for event tooltips
-    let activeTooltip = null;
-    function setupEventTooltips(notesByDate, datesWithLines) {
-        // Find all dates that have events (notes or lines)
-        const allEventDates = new Set([...Object.keys(notesByDate), ...datesWithLines]);
+    // Track which event is currently visible for dates with overlapping events
+    // Key: dateKey, Value: current index being displayed
+    const eventCycleIndex = {};
 
-        allEventDates.forEach(dateKey => {
-            const row = container.querySelector(`.plan-day-row[data-date-key="${dateKey}"]`);
-            if (!row) return;
-
-            // Get all events for this date
-            const notes = notesByDate[dateKey] || [];
-            const hasLine = datesWithLines.has(dateKey);
-
-            // Get line labels for this date
-            const lineLabels = calendarLines
-                .filter(line => {
-                    if (!line.startDate || !line.endDate) return false;
-                    return dateKey >= line.startDate && dateKey <= line.endDate;
-                })
-                .map(line => line.label);
-
-            // Only add tooltip handler if there are multiple events or a line overlapping notes
-            const totalEvents = notes.length + lineLabels.length;
-            if (totalEvents < 2 && !(hasLine && notes.length > 0)) return;
-
-            // Add visual indicator that there are overlapping events
-            const dateCol = row.querySelector('.plan-day-name');
-            if (dateCol && !dateCol.querySelector('.event-indicator')) {
-                const indicator = document.createElement('span');
-                indicator.className = 'event-indicator';
-                indicator.textContent = `+${totalEvents}`;
-                indicator.style.cssText = 'margin-left: 4px; font-size: 10px; color: #6366f1; font-weight: 600;';
-                dateCol.appendChild(indicator);
-            }
-
-            // Add click handler to show tooltip - only on the date column itself
-            const dateColClick = row.querySelector('.plan-day-name');
-            if (dateColClick) {
-                dateColClick.style.cursor = 'pointer';
-                dateColClick.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showEventTooltip(dateKey, notes, lineLabels, e);
-                });
-            }
-        });
-    }
-
-    function showEventTooltip(dateKey, notes, lineLabels, event) {
-        // Remove existing tooltip
-        if (activeTooltip) {
-            activeTooltip.remove();
-            activeTooltip = null;
-        }
-
-        // Format date for header
-        const dateParts = dateKey.split('-');
-        const date = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-        const dateStr = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-
-        // Create tooltip
-        const tooltip = document.createElement('div');
-        tooltip.className = 'calendar-events-tooltip';
-
-        const header = document.createElement('div');
-        header.className = 'calendar-events-tooltip-header';
-        header.textContent = `Events on ${dateStr}`;
-        tooltip.appendChild(header);
-
-        // Add multi-day events first
-        lineLabels.forEach(label => {
-            const item = document.createElement('div');
-            item.className = 'calendar-events-tooltip-item multi-day';
-            item.textContent = label;
-            tooltip.appendChild(item);
-        });
-
-        // Add single-day notes
-        notes.forEach(note => {
-            const item = document.createElement('div');
-            item.className = 'calendar-events-tooltip-item';
-            item.textContent = note.text;
-            tooltip.appendChild(item);
-        });
-
-        // Position tooltip near click
-        tooltip.style.left = (event.clientX + 10) + 'px';
-        tooltip.style.top = (event.clientY + 10) + 'px';
-
-        document.body.appendChild(tooltip);
-        activeTooltip = tooltip;
-
-        // Close on click outside
-        setTimeout(() => {
-            document.addEventListener('click', function closeTooltip(e) {
-                if (!tooltip.contains(e.target)) {
-                    tooltip.remove();
-                    activeTooltip = null;
-                    document.removeEventListener('click', closeTooltip);
-                }
-            });
-        }, 10);
-    }
-
-    // Create a read-only note element for calendar events
-    function createCalendarNote(note, offset = 0) {
+    // Create a read-only note element for calendar events with click-to-cycle for overlaps
+    function createCalendarNote(note, offset = 0, totalOnDate = 1, indexOnDate = 0) {
         const el = document.createElement('span');
         el.className = 'plan-note-text freeform calendar-event';
-        el.textContent = note.text || 'Calendar Event';
+
+        // Show which event this is if there are multiple
+        if (totalOnDate > 1) {
+            el.textContent = `${note.text || 'Calendar Event'} (${indexOnDate + 1}/${totalOnDate})`;
+        } else {
+            el.textContent = note.text || 'Calendar Event';
+        }
+
         el.style.position = 'absolute';
         el.style.left = offset + 'px';
+        el.style.zIndex = '1'; // Calendar events have low z-index
         el.dataset.calendarEventId = note.id;
-        el.title = 'Synced from calendar';
+        el.dataset.dateKey = note.dateKey;
+
+        if (totalOnDate > 1) {
+            el.style.cursor = 'pointer';
+            el.title = 'Click to see next event';
+
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Cycle to next event
+                const dateKey = note.dateKey;
+                eventCycleIndex[dateKey] = ((eventCycleIndex[dateKey] || 0) + 1) % totalOnDate;
+                // Re-render calendar events
+                renderCalendarEvents();
+            });
+        } else {
+            el.title = 'Synced from calendar';
+        }
+
         return el;
     }
 
@@ -879,6 +810,7 @@ const PlanModule = (function () {
         // Note: top position is handled by CSS (.plan-note-text.freeform { top: -4px })
         el.style.position = 'absolute';
         el.style.left = (note.offsetX || 0) + 'px';
+        el.style.zIndex = '100'; // User notes always on top of calendar events
 
         if (note.fontColor) el.style.color = note.fontColor;
         if (note.bgColor) el.style.backgroundColor = note.bgColor;
@@ -1017,7 +949,10 @@ const PlanModule = (function () {
         const lineEl = document.createElement('div');
         lineEl.className = 'plan-note-line';
         lineEl.style.transformOrigin = '0 50%';
-        lineEl.style.background = color;
+        // Only set inline color if explicitly specified, otherwise let CSS control it
+        if (color && color !== '#333' && color !== '#333333') {
+            lineEl.style.background = color;
+        }
         lineEl.style.height = width + 'px';
 
         // Label element (positioned at center of line)
@@ -1988,7 +1923,7 @@ const PlanModule = (function () {
                         startOffsetX: startCoords.offsetX,
                         endDate: endCoords.dateKey,
                         endOffsetX: endCoords.offsetX,
-                        color: '#333',
+                        color: null, // Let CSS control color for dark/light mode support
                         width: 8,
                         group: activeGroup
                     };
