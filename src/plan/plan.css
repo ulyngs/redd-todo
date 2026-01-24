@@ -1124,3 +1124,50 @@ body.dark-mode #plan-mode .plan-modal-dialog {
         transform: rotate(360deg);
     }
 }
+
+/* Calendar events tooltip popup */
+#plan-mode .calendar-events-tooltip {
+    position: absolute;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 12px 16px;
+    z-index: 1000;
+    min-width: 200px;
+    max-width: 300px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+#plan-mode .calendar-events-tooltip-header {
+    font-weight: 600;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #eee;
+}
+
+#plan-mode .calendar-events-tooltip-item {
+    padding: 6px 0;
+    font-family: 'Caveat', cursive;
+    font-size: 16px;
+    color: #6366f1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#plan-mode .calendar-events-tooltip-item::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: #6366f1;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+#plan-mode .calendar-events-tooltip-item.multi-day::before {
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+}

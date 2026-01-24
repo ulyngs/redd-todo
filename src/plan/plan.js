@@ -749,6 +749,113 @@ const PlanModule = (function () {
                 canvasLayer.appendChild(lineContainer);
             }
         });
+
+        // Add click handlers to show tooltip for dates with multiple/overlapping events
+        setupEventTooltips(notesByDate, datesWithLines);
+    }
+
+    // Setup click handlers for event tooltips
+    let activeTooltip = null;
+    function setupEventTooltips(notesByDate, datesWithLines) {
+        // Find all dates that have events (notes or lines)
+        const allEventDates = new Set([...Object.keys(notesByDate), ...datesWithLines]);
+
+        allEventDates.forEach(dateKey => {
+            const row = container.querySelector(`.plan-day-row[data-date-key="${dateKey}"]`);
+            if (!row) return;
+
+            // Get all events for this date
+            const notes = notesByDate[dateKey] || [];
+            const hasLine = datesWithLines.has(dateKey);
+
+            // Get line labels for this date
+            const lineLabels = calendarLines
+                .filter(line => {
+                    if (!line.startDate || !line.endDate) return false;
+                    return dateKey >= line.startDate && dateKey <= line.endDate;
+                })
+                .map(line => line.label);
+
+            // Only add tooltip handler if there are multiple events or a line overlapping notes
+            const totalEvents = notes.length + lineLabels.length;
+            if (totalEvents < 2 && !(hasLine && notes.length > 0)) return;
+
+            // Add visual indicator that there are overlapping events
+            const dateCol = row.querySelector('.plan-day-name');
+            if (dateCol && !dateCol.querySelector('.event-indicator')) {
+                const indicator = document.createElement('span');
+                indicator.className = 'event-indicator';
+                indicator.textContent = `+${totalEvents}`;
+                indicator.style.cssText = 'margin-left: 4px; font-size: 10px; color: #6366f1; font-weight: 600;';
+                dateCol.appendChild(indicator);
+            }
+
+            // Add click handler to show tooltip - only on the date column itself
+            const dateColClick = row.querySelector('.plan-day-name');
+            if (dateColClick) {
+                dateColClick.style.cursor = 'pointer';
+                dateColClick.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showEventTooltip(dateKey, notes, lineLabels, e);
+                });
+            }
+        });
+    }
+
+    function showEventTooltip(dateKey, notes, lineLabels, event) {
+        // Remove existing tooltip
+        if (activeTooltip) {
+            activeTooltip.remove();
+            activeTooltip = null;
+        }
+
+        // Format date for header
+        const dateParts = dateKey.split('-');
+        const date = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+        const dateStr = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        // Create tooltip
+        const tooltip = document.createElement('div');
+        tooltip.className = 'calendar-events-tooltip';
+
+        const header = document.createElement('div');
+        header.className = 'calendar-events-tooltip-header';
+        header.textContent = `Events on ${dateStr}`;
+        tooltip.appendChild(header);
+
+        // Add multi-day events first
+        lineLabels.forEach(label => {
+            const item = document.createElement('div');
+            item.className = 'calendar-events-tooltip-item multi-day';
+            item.textContent = label;
+            tooltip.appendChild(item);
+        });
+
+        // Add single-day notes
+        notes.forEach(note => {
+            const item = document.createElement('div');
+            item.className = 'calendar-events-tooltip-item';
+            item.textContent = note.text;
+            tooltip.appendChild(item);
+        });
+
+        // Position tooltip near click
+        tooltip.style.left = (event.clientX + 10) + 'px';
+        tooltip.style.top = (event.clientY + 10) + 'px';
+
+        document.body.appendChild(tooltip);
+        activeTooltip = tooltip;
+
+        // Close on click outside
+        setTimeout(() => {
+            document.addEventListener('click', function closeTooltip(e) {
+                if (!tooltip.contains(e.target)) {
+                    tooltip.remove();
+                    activeTooltip = null;
+                    document.removeEventListener('click', closeTooltip);
+                }
+            });
+        }, 10);
     }
 
     // Create a read-only note element for calendar events
