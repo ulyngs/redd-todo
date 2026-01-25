@@ -804,7 +804,7 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     font-family: 'Caveat', cursive;
     font-size: 16px;
     color: var(--plan-text-primary);
-    background: rgba(255, 255, 255, 0.85);
+    background: transparent;
     padding: 2px 6px 2px 0;
     border-radius: 4px;
     white-space: nowrap;
@@ -814,7 +814,7 @@ body.dark-mode #plan-mode .plan-modal-dialog {
 }
 
 [data-theme="dark"] #plan-mode .plan-line-label {
-    background: rgba(30, 41, 59, 0.9);
+    background: transparent;
 }
 
 #plan-mode .plan-line-label.empty {
@@ -822,11 +822,11 @@ body.dark-mode #plan-mode .plan-modal-dialog {
 }
 
 #plan-mode .plan-line-label:hover {
-    background: rgba(255, 255, 255, 0.95);
+    background: transparent;
 }
 
 [data-theme="dark"] #plan-mode .plan-line-label:hover {
-    background: rgba(30, 41, 59, 1);
+    background: transparent;
 }
 
 /* Label in edit mode */

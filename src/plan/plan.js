@@ -135,16 +135,13 @@ const PlanModule = (function () {
     const GROUPS_KEY = STORAGE_PREFIX + 'groups';
     const ACTIVE_GROUP_KEY = STORAGE_PREFIX + 'active-group';
     // Calendar sync keys
-    const CALENDARS_KEY = STORAGE_PREFIX + 'calendars'; // Array of {id, name, url}
-    const CALENDAR_EVENTS_KEY = STORAGE_PREFIX + 'calendar-events';
+    const CALENDARS_KEY = STORAGE_PREFIX + 'calendars'; // Array of {id, name, url, fontFamily, fontColor, lineColor}
     const CALENDAR_LAST_SYNC_KEY = STORAGE_PREFIX + 'calendar-last-sync';
     // Use shared keys for theme and language (no prefix) so they sync with main app
     const SHARED_LANGUAGE_KEY = 'language';
 
-    // Calendar sync state - now supports multiple calendars
-    let calendars = []; // [{id, name, url}, ...]
-    let calendarNotes = [];
-    let calendarLines = [];
+    // Calendar sync state - supports multiple calendars with per-calendar styling
+    let calendars = []; // [{id, name, url, fontFamily, fontColor, lineColor}, ...]
     let calendarLastSync = null;
 
     function init(containerElement) {
@@ -166,7 +163,8 @@ const PlanModule = (function () {
         renderCalendar();
         updatePeriodDisplay();
         renderGroupsUI();
-        renderFreeformElements();
+        // Delay initial render of freeform elements to ensure DOM is fully laid out
+        setTimeout(() => renderFreeformElements(), 100);
         setupToolbarListeners();
 
         isInitialized = true;
@@ -310,18 +308,22 @@ const PlanModule = (function () {
                 lines: freeformLines.map(l => ({ id: l.id, x1: Math.round(l.x1), x2: Math.round(l.x2), label: l.label }))
             });
 
-            // Load calendar sync data (multiple calendars)
+            // Load calendar metadata (multiple calendars with per-calendar styling)
             const storedCalendars = localStorage.getItem(CALENDARS_KEY);
             if (storedCalendars) calendars = JSON.parse(storedCalendars);
-            const storedCalendarEvents = localStorage.getItem(CALENDAR_EVENTS_KEY);
-            if (storedCalendarEvents) {
-                const parsed = JSON.parse(storedCalendarEvents);
-                calendarNotes = parsed.notes || [];
-                calendarLines = parsed.lines || [];
-            }
             const storedLastSync = localStorage.getItem(CALENDAR_LAST_SYNC_KEY);
             if (storedLastSync) calendarLastSync = storedLastSync;
-            console.log('[Plan] Loaded calendar data:', { calendars: calendars.length, notes: calendarNotes.length, lines: calendarLines.length });
+
+            // Count calendar events in freeformNotes/Lines for logging
+            const calendarEventNotes = freeformNotes.filter(n => n.source === 'calendar').length;
+            const calendarEventLines = freeformLines.filter(l => l.source === 'calendar').length;
+            console.log('[Plan] Loaded data:', {
+                calendars: calendars.length,
+                totalNotes: freeformNotes.length,
+                totalLines: freeformLines.length,
+                calendarEventNotes,
+                calendarEventLines
+            });
         } catch (e) {
             console.error('Failed to load plan data:', e);
             freeformNotes = []; freeformLines = [];
@@ -591,16 +593,17 @@ const PlanModule = (function () {
 
         const visible = groups.filter(g => g.visible).map(g => g.id);
 
-        // Lines still use canvas layer with absolute positioning
-        freeformLines.filter(l => !l.group || visible.includes(l.group))
-            .forEach(l => canvasLayer.appendChild(createLine(l)));
-
-        // Render calendar events FIRST (so user notes appear on top)
         // Use requestAnimationFrame to ensure DOM is laid out before measuring positions
         requestAnimationFrame(() => {
-            renderCalendarEvents();
+            // Force reflow to ensure all layout calculations are complete
+            // This is needed because getBoundingClientRect needs accurate positions
+            void calendarContainer.offsetWidth;
 
-            // Then render user notes ON TOP of calendar events
+            // Render all lines (user-drawn AND calendar-synced, since calendar lines are now in freeformLines)
+            freeformLines.filter(l => !l.group || visible.includes(l.group))
+                .forEach(l => canvasLayer.appendChild(createLine(l)));
+
+            // Render all notes (user-created AND calendar-synced, since calendar notes are now in freeformNotes)
             freeformNotes.filter(n => !n.group || visible.includes(n.group)).forEach(note => {
                 if (!note.dateKey) return; // Skip legacy notes without dateKey
 
@@ -612,209 +615,33 @@ const PlanModule = (function () {
             });
         });
     }
-    // Render calendar synced events
-    function renderCalendarEvents() {
-        // First, calculate which dates are covered by multi-day lines
-        // so we can offset single-day notes on those dates
-        const datesWithLines = new Set();
-        calendarLines.forEach(line => {
-            if (!line.startDate || !line.endDate) return;
-            const startParts = line.startDate.split('-').map(Number);
-            const endParts = line.endDate.split('-').map(Number);
-            const startD = new Date(startParts[0], startParts[1] - 1, startParts[2]);
-            const endD = new Date(endParts[0], endParts[1] - 1, endParts[2]);
-
-            // Add all dates in range
-            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                datesWithLines.add(dateKey);
-            }
-        });
-
-        // Group calendar notes by date to handle multiple events on same day
-        const notesByDate = {};
-        calendarNotes.forEach(note => {
-            if (!note.dateKey) return;
-            if (!notesByDate[note.dateKey]) notesByDate[note.dateKey] = [];
-            notesByDate[note.dateKey].push(note);
-        });
-
-        // Render calendar notes into their date row's note-area with horizontal offset
-        // Offset extra if there's a multi-day line on this date
-        const LINE_OFFSET = 30; // Small offset for notes on dates with multi-day lines
-        for (const dateKey in notesByDate) {
-            const row = container.querySelector(`.plan-day-row[data-date-key="${dateKey}"]`);
-            if (!row) continue;
-            const noteArea = row.querySelector('.plan-note-area');
-            if (!noteArea) continue;
-
-            const notesOnDate = notesByDate[dateKey];
-            const totalOnDate = notesOnDate.length;
-
-            // Start with extra offset if this date has a multi-day line
-            let currentOffset = datesWithLines.has(dateKey) ? LINE_OFFSET : 0;
-
-            if (totalOnDate === 1) {
-                // Single event - just show it
-                const el = createCalendarNote(notesOnDate[0], currentOffset, 1, 0);
-                noteArea.appendChild(el);
-            } else {
-                // Multiple events - show only the current one (cycle on click)
-                const currentIndex = eventCycleIndex[dateKey] || 0;
-                const noteToShow = notesOnDate[currentIndex % totalOnDate];
-                const el = createCalendarNote(noteToShow, currentOffset, totalOnDate, currentIndex % totalOnDate);
-                noteArea.appendChild(el);
-            }
-        }
-
-        // Render calendar lines as continuous vertical lines on canvas (like user-drawn lines)
-
-        calendarLines.forEach((line, lineIndex) => {
-            if (!line.startDate || !line.endDate) return;
-
-            // Get all dates this line spans grouped by month
-            const startParts = line.startDate.split('-').map(Number);
-            const endParts = line.endDate.split('-').map(Number);
-            const startD = new Date(startParts[0], startParts[1] - 1, startParts[2]);
-            const endD = new Date(endParts[0], endParts[1] - 1, endParts[2]);
-
-            // Group dates by month for splitting at month boundaries
-            const datesByMonth = {};
-            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                if (!datesByMonth[monthKey]) datesByMonth[monthKey] = [];
-                datesByMonth[monthKey].push(dateKey);
-            }
-
-            // Horizontal slot offset to avoid overlap with other calendar lines on same dates
-            const slotOffset = 0; // Lines on different dates don't need offset
-
-            // Render each month segment as a continuous line
-            for (const monthKey in datesByMonth) {
-                const datesInMonth = datesByMonth[monthKey];
-                if (datesInMonth.length === 0) continue;
-
-                const firstDateKey = datesInMonth[0];
-                const lastDateKey = datesInMonth[datesInMonth.length - 1];
-
-                // Find the rows for start and end dates
-                const startRow = container.querySelector(`.plan-day-row[data-date-key="${firstDateKey}"]`);
-                const endRow = container.querySelector(`.plan-day-row[data-date-key="${lastDateKey}"]`);
-
-                if (!startRow || !endRow) continue;
-
-                const containerRect = calendarContainer.getBoundingClientRect();
-                const startRect = startRow.getBoundingClientRect();
-                const endRect = endRow.getBoundingClientRect();
-
-                // Calculate line position: vertical line from top of first date to bottom of last date
-                // Use the row's left position to ensure line is in correct column
-                // Add scrollLeft/scrollTop to account for current scroll position
-                const xPos = startRect.left - containerRect.left + calendarContainer.scrollLeft + 50 + slotOffset;
-                const topY = startRect.top - containerRect.top + calendarContainer.scrollTop;
-                const bottomY = endRect.bottom - containerRect.top + calendarContainer.scrollTop;
-                const lineHeight = bottomY - topY;
-
-                // Create line container
-                const lineContainer = document.createElement('div');
-                lineContainer.className = 'plan-note-line-container calendar-event';
-                lineContainer.dataset.calendarLineId = line.id;
-                lineContainer.style.position = 'absolute';
-                lineContainer.style.left = xPos + 'px';
-                lineContainer.style.top = topY + 'px';
-                lineContainer.style.width = '8px';
-                lineContainer.style.height = lineHeight + 'px';
-
-                // Create the vertical line
-                const lineEl = document.createElement('div');
-                lineEl.className = 'plan-note-line calendar-event';
-                lineEl.style.position = 'absolute';
-                lineEl.style.left = '0';
-                lineEl.style.top = '0';
-                lineEl.style.width = '8px';
-                lineEl.style.height = '100%';
-                lineEl.style.background = line.color || '#6366f1';
-                lineEl.style.borderRadius = '4px';
-                lineEl.style.opacity = '0.7';
-
-                // Create centered label
-                const labelEl = document.createElement('div');
-                labelEl.className = 'plan-line-label calendar-event';
-                labelEl.textContent = line.label || 'Event';
-                labelEl.style.position = 'absolute';
-                labelEl.style.left = '11px'; // Right of line
-                labelEl.style.top = '50%';
-                labelEl.style.transform = 'translateY(-50%)';
-                labelEl.style.color = line.color || '#6366f1';
-                labelEl.style.fontStyle = 'italic';
-                labelEl.style.fontSize = '17px';
-                labelEl.style.whiteSpace = 'nowrap';
-                labelEl.style.pointerEvents = 'none';
-                labelEl.title = 'Synced from calendar';
-
-                lineContainer.appendChild(lineEl);
-                lineContainer.appendChild(labelEl);
-                canvasLayer.appendChild(lineContainer);
-            }
-        });
-    }
-
-    // Track which event is currently visible for dates with overlapping events
-    // Key: dateKey, Value: current index being displayed
-    const eventCycleIndex = {};
-
-    // Create a read-only note element for calendar events with click-to-cycle for overlaps
-    function createCalendarNote(note, offset = 0, totalOnDate = 1, indexOnDate = 0) {
-        const el = document.createElement('span');
-        el.className = 'plan-note-text freeform calendar-event';
-
-        // Show which event this is if there are multiple
-        if (totalOnDate > 1) {
-            el.textContent = `${note.text || 'Calendar Event'} (${indexOnDate + 1}/${totalOnDate})`;
-        } else {
-            el.textContent = note.text || 'Calendar Event';
-        }
-
-        el.style.position = 'absolute';
-        el.style.left = offset + 'px';
-        el.style.zIndex = '1'; // Calendar events have low z-index
-        el.dataset.calendarEventId = note.id;
-        el.dataset.dateKey = note.dateKey;
-
-        if (totalOnDate > 1) {
-            el.style.cursor = 'pointer';
-            el.title = 'Click to see next event';
-
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // Cycle to next event
-                const dateKey = note.dateKey;
-                eventCycleIndex[dateKey] = ((eventCycleIndex[dateKey] || 0) + 1) % totalOnDate;
-                // Re-render calendar events
-                renderCalendarEvents();
-            });
-        } else {
-            el.title = 'Synced from calendar';
-        }
-
-        return el;
-    }
 
     function createNote(note) {
         const el = document.createElement('span');
         el.className = 'plan-note-text freeform';
+
+        // Add class for calendar-sourced notes
+        if (note.source === 'calendar') {
+            el.classList.add('calendar-event');
+        }
+
         el.innerHTML = note.html || note.text || 'Note';
 
         // Absolute positioning within note-area using offsetX
         // Note: top position is handled by CSS (.plan-note-text.freeform { top: -4px })
         el.style.position = 'absolute';
         el.style.left = (note.offsetX || 0) + 'px';
-        el.style.zIndex = '100'; // User notes always on top of calendar events
+        el.style.zIndex = note.source === 'calendar' ? '50' : '100'; // User notes on top of calendar events
 
+        // Apply styling
+        if (note.fontFamily) el.style.fontFamily = note.fontFamily + ', sans-serif';
         if (note.fontColor) el.style.color = note.fontColor;
         if (note.bgColor) el.style.backgroundColor = note.bgColor;
+
         el.dataset.noteId = note.id;
+        if (note.source === 'calendar') {
+            el.title = `From calendar: ${note.calendarName || 'Unknown'}`;
+        }
 
         // Track dragging to distinguish from click
         let hasDragged = false;
@@ -922,6 +749,118 @@ const PlanModule = (function () {
         const color = line.color || '#333333';
         const width = line.width || 8;
 
+        // Check if this is a calendar multi-day event (vertical line)
+        const isCalendarLine = line.source === 'calendar' || line.isCalendarEvent;
+        const isCalendarMultiDay = isCalendarLine && line.startDate && line.endDate && line.startDate !== line.endDate;
+
+        if (isCalendarMultiDay) {
+            // Render as VERTICAL line spanning multiple dates
+            containerEl.classList.add('calendar-event', 'vertical-line');
+
+            // Find all rows for the date range
+            const startRow = container.querySelector(`.plan-day-row[data-date-key="${line.startDate}"]`);
+            const endRow = container.querySelector(`.plan-day-row[data-date-key="${line.endDate}"]`);
+
+            if (!startRow || !endRow) {
+                containerEl.style.display = 'none';
+                return containerEl;
+            }
+
+            const containerRect = calendarContainer.getBoundingClientRect();
+            const startRect = startRow.getBoundingClientRect();
+            const endRect = endRow.getBoundingClientRect();
+
+            // Calculate vertical line position
+            const xPos = startRect.left - containerRect.left + calendarContainer.scrollLeft + 50;
+            const topY = startRect.top - containerRect.top + calendarContainer.scrollTop;
+            const bottomY = endRect.bottom - containerRect.top + calendarContainer.scrollTop;
+            const lineHeight = bottomY - topY;
+
+            containerEl.style.position = 'absolute';
+            containerEl.style.left = xPos + 'px';
+            containerEl.style.top = topY + 'px';
+            containerEl.style.width = width + 'px'; // Just fit the line bar itself
+            containerEl.style.height = lineHeight + 'px';
+            containerEl.style.overflow = 'visible'; // Allow label to overflow
+
+            // Create vertical line element
+            const lineEl = document.createElement('div');
+            lineEl.className = 'plan-note-line vertical';
+            lineEl.style.position = 'absolute';
+            lineEl.style.left = '0';
+            lineEl.style.top = '0';
+            lineEl.style.width = width + 'px';
+            lineEl.style.height = '100%';
+            lineEl.style.background = color;
+            lineEl.style.borderRadius = '4px';
+            lineEl.style.cursor = 'pointer';
+
+            // Create label (positioned to the right of the line, centered vertically)
+            const labelEl = document.createElement('div');
+            labelEl.className = 'plan-line-label vertical';
+            labelEl.textContent = line.label || '';
+            labelEl.style.position = 'absolute';
+            labelEl.style.left = (width + 4) + 'px';
+            labelEl.style.top = '50%';
+            labelEl.style.transform = 'translateY(-50%)';
+            labelEl.style.maxWidth = '150px';
+            labelEl.style.wordWrap = 'break-word';
+            labelEl.style.whiteSpace = 'normal';
+            labelEl.style.cursor = 'pointer';
+            if (line.fontFamily) labelEl.style.fontFamily = line.fontFamily + ', sans-serif';
+            if (line.fontColor) labelEl.style.color = line.fontColor;
+
+            containerEl.title = `From calendar: ${line.calendarName || 'Unknown'}`;
+            containerEl.appendChild(lineEl);
+            containerEl.appendChild(labelEl);
+
+            // Click to select and show line toolbar (same as user-drawn lines)
+            const selectLine = (e) => {
+                e.stopPropagation();
+                showLineEditor(line.id, containerEl);
+            };
+
+            lineEl.addEventListener('click', selectLine);
+            labelEl.addEventListener('click', selectLine);
+
+            // Double-click to edit label in place
+            const editLabel = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                labelEl.setAttribute('contenteditable', 'true');
+                labelEl.focus();
+                // Select all text
+                const range = document.createRange();
+                range.selectNodeContents(labelEl);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            };
+
+            lineEl.addEventListener('dblclick', editLabel);
+            labelEl.addEventListener('dblclick', editLabel);
+
+            // Save on blur/enter
+            labelEl.addEventListener('blur', () => {
+                labelEl.removeAttribute('contenteditable');
+                line.label = labelEl.textContent.trim();
+                saveData();
+            });
+
+            labelEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    labelEl.blur();
+                }
+                if (e.key === 'Escape') {
+                    labelEl.textContent = line.label || '';
+                    labelEl.blur();
+                }
+            });
+
+            return containerEl;
+        }
+
         // Check if using new date-relative format or old pixel format
         const usesDateCoords = line.startDate && line.endDate;
 
@@ -948,6 +887,12 @@ const PlanModule = (function () {
         // The line element
         const lineEl = document.createElement('div');
         lineEl.className = 'plan-note-line';
+
+        // Add class for calendar-sourced lines
+        if (line.source === 'calendar') {
+            containerEl.classList.add('calendar-event');
+        }
+
         lineEl.style.transformOrigin = '0 50%';
         // Only set inline color if explicitly specified, otherwise let CSS control it
         if (color && color !== '#333' && color !== '#333333') {
@@ -960,6 +905,14 @@ const PlanModule = (function () {
         labelEl.className = 'plan-line-label';
         labelEl.textContent = line.label || '';
         if (!line.label) labelEl.classList.add('empty');
+
+        // Apply calendar styling to label
+        if (line.fontFamily) labelEl.style.fontFamily = line.fontFamily + ', sans-serif';
+        if (line.fontColor) labelEl.style.color = line.fontColor;
+
+        if (line.source === 'calendar') {
+            containerEl.title = `From calendar: ${line.calendarName || 'Unknown'}`;
+        }
 
         // Endpoint handles (hidden by default, shown when selected)
         const handle1 = document.createElement('div');
@@ -2004,53 +1957,73 @@ const PlanModule = (function () {
             });
         }
 
-        // Sync all calendars
+        // Sync all calendars - merges events into freeformNotes/freeformLines
         async function syncAllCalendars() {
-            if (calendars.length === 0) {
-                calendarNotes = [];
-                calendarLines = [];
-                calendarLastSync = null;
-                localStorage.removeItem(CALENDAR_EVENTS_KEY);
-                localStorage.removeItem(CALENDAR_LAST_SYNC_KEY);
-                renderFreeformElements();
-                updateCalendarStatus();
-                return;
-            }
-
             // Start spinning animation
             if (calendarSyncAllBtn) calendarSyncAllBtn.classList.add('syncing');
             if (calendarStatus) calendarStatus.textContent = 'Syncing...';
 
             try {
+                // First, remove all existing calendar-sourced items from freeform arrays
+                freeformNotes = freeformNotes.filter(n => n.source !== 'calendar');
+                freeformLines = freeformLines.filter(l => l.source !== 'calendar');
+
+                if (calendars.length === 0) {
+                    calendarLastSync = null;
+                    localStorage.removeItem(CALENDAR_LAST_SYNC_KEY);
+                    saveData();
+                    renderFreeformElements();
+                    updateCalendarStatus();
+                    return;
+                }
+
                 const CalendarSync = window.CalendarSync;
                 if (!CalendarSync) throw new Error('CalendarSync module not loaded');
-
-                const allNotes = [];
-                const allLines = [];
 
                 for (const cal of calendars) {
                     try {
                         const result = await CalendarSync.syncCalendar(cal.url);
-                        // Add calendar name prefix to events for identification
-                        result.notes.forEach(n => { n.calendarId = cal.id; n.calendarName = cal.name; });
-                        result.lines.forEach(l => { l.calendarId = cal.id; l.calendarName = cal.name; });
-                        allNotes.push(...result.notes);
-                        allLines.push(...result.lines);
+
+                        // Add calendar styling and source markers to notes
+                        result.notes.forEach(n => {
+                            n.source = 'calendar';
+                            n.calendarId = cal.id;
+                            n.calendarName = cal.name;
+                            n.fontFamily = cal.fontFamily || 'Inter';
+                            n.fontColor = cal.fontColor || '#818cf8';
+                        });
+
+                        // Add calendar styling and source markers to lines
+                        result.lines.forEach(l => {
+                            l.source = 'calendar';
+                            l.calendarId = cal.id;
+                            l.calendarName = cal.name;
+                            l.color = cal.lineColor || '#6366f1';
+                            l.fontFamily = cal.fontFamily || 'Inter';
+                            l.fontColor = cal.fontColor || '#818cf8';
+                        });
+
+                        // Merge into freeform arrays
+                        freeformNotes.push(...result.notes);
+                        freeformLines.push(...result.lines);
                     } catch (err) {
                         console.warn(`[Plan] Failed to sync calendar "${cal.name}":`, err);
                     }
                 }
 
-                calendarNotes = allNotes;
-                calendarLines = allLines;
                 calendarLastSync = new Date().toISOString();
-
-                localStorage.setItem(CALENDAR_EVENTS_KEY, JSON.stringify({ notes: calendarNotes, lines: calendarLines }));
                 localStorage.setItem(CALENDAR_LAST_SYNC_KEY, calendarLastSync);
 
+                // Save merged data
+                saveData();
                 renderFreeformElements();
                 updateCalendarStatus();
-                console.log('[Plan] All calendars synced:', { calendars: calendars.length, notes: calendarNotes.length, lines: calendarLines.length });
+
+                console.log('[Plan] All calendars synced and merged:', {
+                    calendars: calendars.length,
+                    totalNotes: freeformNotes.length,
+                    totalLines: freeformLines.length
+                });
             } catch (error) {
                 console.error('[Plan] Calendar sync error:', error);
                 if (calendarStatus) calendarStatus.textContent = 'Sync failed: ' + error.message;
@@ -2126,7 +2099,9 @@ const PlanModule = (function () {
                 const date = new Date(calendarLastSync);
                 const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const dateStr = date.toLocaleDateString();
-                const totalEvents = calendarNotes.length + calendarLines.length;
+                // Count calendar events from freeformNotes/Lines
+                const totalEvents = freeformNotes.filter(n => n.source === 'calendar').length +
+                    freeformLines.filter(l => l.source === 'calendar').length;
                 calendarStatus.textContent = `Last synced: ${dateStr} ${timeStr} • ${calendars.length} cal${calendars.length !== 1 ? 's' : ''} • ${totalEvents} events`;
             } else if (calendars.length > 0) {
                 calendarStatus.textContent = 'Click the sync button to fetch events';
@@ -2252,8 +2227,15 @@ const PlanModule = (function () {
                     const line = freeformLines.find(l => l.id === sel.id);
                     if (line) {
                         line.width = width;
-                        const lineEl = sel.element.closest('.plan-note-line-container')?.querySelector('.plan-note-line') || sel.element;
-                        lineEl.style.height = width + 'px';
+                        const container = sel.element.closest('.plan-note-line-container') || sel.element;
+                        const lineEl = container.querySelector('.plan-note-line') || sel.element;
+
+                        // Vertical lines use width for bar thickness, horizontal use height
+                        if (lineEl.classList.contains('vertical')) {
+                            lineEl.style.width = width + 'px';
+                        } else {
+                            lineEl.style.height = width + 'px';
+                        }
                     }
                 });
                 saveData();

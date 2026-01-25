@@ -115,7 +115,7 @@ const CalendarSync = (function () {
             startOffsetX: 40,  // Position after day name/number
             endOffsetX: 200,   // Near end of note area
             color: '#6366f1',  // Indigo color for calendar events
-            width: 6,
+            width: 8,
             isCalendarEvent: true,
             calendarEventUid: event.uid
         };
