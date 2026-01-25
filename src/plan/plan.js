@@ -32,6 +32,9 @@ const PlanModule = (function () {
     let calendarContainer = null;
     let canvasLayer = null;
 
+    // Flag to prevent re-rendering during drag operations
+    let isDragInProgress = false;
+
     // Constants
     const MONTHS_DA = ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
         'Juli', 'August', 'September', 'Oktober', 'November', 'December'];
@@ -566,6 +569,12 @@ const PlanModule = (function () {
     }
 
     function renderFreeformElements() {
+        // Skip rendering if a drag operation is in progress
+        if (isDragInProgress) {
+            console.log('[Plan] Skipping render - drag in progress');
+            return;
+        }
+
         // Clear canvas layer (for lines)
         canvasLayer.innerHTML = '';
 
@@ -652,15 +661,16 @@ const PlanModule = (function () {
             e.preventDefault();
             e.stopPropagation();
 
+            isDragInProgress = true;  // Prevent render during drag
             hasDragged = false;
             const mouseStartX = e.clientX;
             const mouseStartY = e.clientY;
 
             // Create a temporary dragging clone on canvas
             const rect = el.getBoundingClientRect();
-            const containerRect = calendarContainer.getBoundingClientRect();
-            let dragX = rect.left - containerRect.left;
-            let dragY = rect.top - containerRect.top + calendarContainer.scrollTop;
+            const canvasRect = canvasLayer.getBoundingClientRect();
+            let dragX = rect.left - canvasRect.left;
+            let dragY = rect.top - canvasRect.top;
 
             // Track where within the note the user clicked (for maintaining relative position on drop)
             const clickOffsetX = mouseStartX - rect.left;
@@ -694,19 +704,27 @@ const PlanModule = (function () {
                 document.removeEventListener('mousemove', onMouseMove);
                 document.removeEventListener('mouseup', onMouseUp);
 
+                isDragInProgress = false;  // Re-enable render
                 dragClone.remove();
                 el.style.opacity = '1';
 
                 if (hasDragged) {
-                    // Use cursor position for vertical snapping (so row under cursor is targeted)
-                    // But adjust horizontal position by where user clicked within the note
-                    const containerRect = calendarContainer.getBoundingClientRect();
-                    const cursorX = moveEvent.clientX - containerRect.left;
-                    const cursorY = moveEvent.clientY - containerRect.top + calendarContainer.scrollTop;
+                    // Use cursor position for snapping
+                    // findClosestDateRowPosition expects viewport-relative coordinates 
+                    // (matching how it uses getBoundingClientRect for row positions)
+                    const canvasRect = canvasLayer.getBoundingClientRect();
+                    const cursorX = moveEvent.clientX - canvasRect.left;
+                    const cursorY = moveEvent.clientY - canvasRect.top;
 
                     // Subtract click offset so the note's left edge maintains relative position to cursor
                     const adjustedX = cursorX - clickOffsetX;
                     const snapped = findClosestDateRowPosition(adjustedX, cursorY);
+
+                    console.log('[Plan] Note drag drop:', {
+                        cursorX, cursorY, adjustedX,
+                        snapped,
+                        originalDateKey: note.dateKey
+                    });
 
                     if (snapped.dateKey) {
                         // Update note data
@@ -715,6 +733,10 @@ const PlanModule = (function () {
                         saveData();
 
                         // Re-render to move note to new location
+                        renderFreeformElements();
+                    } else {
+                        // No valid drop target found - just re-render to restore original position
+                        console.warn('[Plan] No valid drop target, restoring original position');
                         renderFreeformElements();
                     }
                 } else {
@@ -770,8 +792,11 @@ const PlanModule = (function () {
             const startRect = startRow.getBoundingClientRect();
             const endRect = endRow.getBoundingClientRect();
 
-            // Calculate vertical line position
-            const xPos = startRect.left - containerRect.left + calendarContainer.scrollLeft + 50;
+            // Calculate vertical line position relative to the start row
+            // verticalLineX stores extra offset from default (50px from row start)
+            const rowLeftRelative = startRect.left - containerRect.left + calendarContainer.scrollLeft;
+            const userOffset = line.verticalLineX !== undefined ? line.verticalLineX : 50;
+            const xPos = rowLeftRelative + userOffset;
             const topY = startRect.top - containerRect.top + calendarContainer.scrollTop;
             const bottomY = endRect.bottom - containerRect.top + calendarContainer.scrollTop;
             const lineHeight = bottomY - topY;
@@ -814,8 +839,52 @@ const PlanModule = (function () {
             containerEl.appendChild(lineEl);
             containerEl.appendChild(labelEl);
 
+            // Horizontal drag to move vertical line left/right
+            let isDragging = false;
+            let dragStartX = 0;
+            let initialLeft = 0;
+
+            containerEl.style.cursor = 'ew-resize'; // Show horizontal resize cursor
+            labelEl.style.cursor = 'ew-resize'; // Also on label
+
+            containerEl.addEventListener('mousedown', (e) => {
+                if (labelEl.getAttribute('contenteditable') === 'true') return;
+
+                isDragInProgress = true;  // Prevent render during drag
+                isDragging = true;
+                dragStartX = e.clientX;
+                initialLeft = parseFloat(containerEl.style.left) || 0;
+                e.preventDefault();
+                e.stopPropagation();
+
+                const onMouseMove = (moveEvent) => {
+                    if (!isDragging) return;
+                    const deltaX = moveEvent.clientX - dragStartX;
+                    const newLeft = initialLeft + deltaX;
+                    containerEl.style.left = newLeft + 'px';
+                };
+
+                const onMouseUp = () => {
+                    isDragInProgress = false;  // Re-enable render
+                    if (isDragging) {
+                        isDragging = false;
+                        // Save the new horizontal position as relative offset from row
+                        const newLeft = parseFloat(containerEl.style.left) || 0;
+                        // Calculate relative offset: newLeft - rowLeftRelative = userOffset
+                        line.verticalLineX = newLeft - rowLeftRelative;
+                        saveData();
+                    }
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+
             // Click to select and show line toolbar (same as user-drawn lines)
             const selectLine = (e) => {
+                if (isDragging) return; // Don't select during drag
                 e.stopPropagation();
                 showLineEditor(line.id, containerEl);
             };
