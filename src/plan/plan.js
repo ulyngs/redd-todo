@@ -165,7 +165,7 @@ const PlanModule = (function () {
         setupCanvasInteraction();
         renderCalendar();
         updatePeriodDisplay();
-        renderGroupsUI();
+
         // Delay initial render of freeform elements to ensure DOM is fully laid out
         setTimeout(() => renderFreeformElements(), 100);
         setupToolbarListeners();
@@ -195,16 +195,7 @@ const PlanModule = (function () {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
                         </button>
                     </div>
-                    <div class="plan-groups-panel">
-                        <div class="plan-groups-toggles"></div>
-                        <div class="plan-group-selector">
-                            <label>New items:</label>
-                            <select class="plan-active-group-select"></select>
-                        </div>
-                        <button class="plan-nav-btn plan-add-group-btn small" title="Add Group">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-                        </button>
-                    </div>
+
                     <div class="plan-undo-redo-nav">
                         <button class="plan-nav-btn plan-undo-btn" title="Undo" disabled>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
@@ -214,6 +205,7 @@ const PlanModule = (function () {
                         </button>
                     </div>
                     <div class="plan-calendar-sync-nav">
+                        <div class="plan-calendar-toggles"></div>
                         <button class="plan-nav-btn plan-calendar-sync-all-btn" title="Sync All Calendars">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
                         </button>
@@ -278,7 +270,20 @@ const PlanModule = (function () {
             </div>
             <!-- Calendar Popover (Add/Manage Calendars) -->
             <div class="plan-calendar-popover hidden">
-                <div class="plan-calendar-popover-header">Calendars</div>
+                <div class="plan-calendar-popover-header">
+                    Calendars
+                    <span class="plan-calendar-help-icon">?</span>
+                </div>
+                <div class="plan-calendar-help-content hidden">
+                    <p><strong>How to add a calendar:</strong></p>
+                    <ol>
+                        <li>In Google Calendar, click the ⋮ menu next to a calendar</li>
+                        <li>Select "Settings and sharing"</li>
+                        <li>Scroll to "Secret address in iCal format"</li>
+                        <li>Copy the URL and paste it below</li>
+                    </ol>
+                    <p>For other calendars, find the ICS/iCal URL in settings.</p>
+                </div>
                 <div class="plan-calendar-popover-body">
                     <div class="plan-calendar-list"></div>
                     <div class="plan-calendar-add-form">
@@ -540,33 +545,7 @@ const PlanModule = (function () {
         return Math.ceil(diff / 7);
     }
 
-    function renderGroupsUI() {
-        const toggles = container.querySelector('.plan-groups-toggles');
-        const select = container.querySelector('.plan-active-group-select');
-        toggles.innerHTML = '';
-        select.innerHTML = '';
 
-        groups.forEach(g => {
-            const name = g.translationKey ? UI_TEXT[currentLanguage][g.translationKey] : g.name;
-
-            const toggle = document.createElement('div');
-            toggle.className = 'plan-group-toggle';
-            toggle.innerHTML = `<label><input type="checkbox" data-group-id="${g.id}" ${g.visible ? 'checked' : ''}><span>${name}</span></label>`;
-            toggle.querySelector('input').addEventListener('change', e => {
-                const grp = groups.find(x => x.id === g.id);
-                if (grp) { grp.visible = e.target.checked; saveData(); renderFreeformElements(); }
-            });
-            toggles.appendChild(toggle);
-
-            const opt = document.createElement('option');
-            opt.value = g.id;
-            opt.textContent = name;
-            select.appendChild(opt);
-        });
-
-        select.value = activeGroup;
-        select.addEventListener('change', e => { activeGroup = e.target.value; saveData(); });
-    }
 
     function renderFreeformElements() {
         // Skip rendering if a drag operation is in progress
@@ -600,20 +579,24 @@ const PlanModule = (function () {
             }
         });
 
-        const visible = groups.filter(g => g.visible).map(g => g.id);
-
         // Use requestAnimationFrame to ensure DOM is laid out before measuring positions
         requestAnimationFrame(() => {
             // Force reflow to ensure all layout calculations are complete
             // This is needed because getBoundingClientRect needs accurate positions
-            void calendarContainer.offsetWidth;
+            // Get IDs of visible calendars
+            const visibleCalendarIds = calendars.filter(c => c.visible !== false).map(c => c.id);
 
-            // Render all lines (user-drawn AND calendar-synced, since calendar lines are now in freeformLines)
-            freeformLines.filter(l => !l.group || visible.includes(l.group))
-                .forEach(l => canvasLayer.appendChild(createLine(l)));
+            // Filter function to check if item should be shown
+            const isVisible = item => {
+                if (item.source !== 'calendar') return true; // User items always visible
+                return visibleCalendarIds.includes(item.calendarId);
+            };
 
-            // Render all notes (user-created AND calendar-synced, since calendar notes are now in freeformNotes)
-            freeformNotes.filter(n => !n.group || visible.includes(n.group)).forEach(note => {
+            // Render all lines (user-drawn AND calendar-synced)
+            freeformLines.filter(isVisible).forEach(l => canvasLayer.appendChild(createLine(l)));
+
+            // Render all notes (user-created AND calendar-synced)
+            freeformNotes.filter(isVisible).forEach(note => {
                 if (!note.dateKey) return; // Skip legacy notes without dateKey
 
                 const row = container.querySelector(`.plan-day-row[data-date-key="${note.dateKey}"]`);
@@ -2055,6 +2038,7 @@ const PlanModule = (function () {
                     saveData();
                     renderFreeformElements();
                     updateCalendarStatus();
+                    renderCalendarToggles();
                     return;
                 }
 
@@ -2119,6 +2103,7 @@ const PlanModule = (function () {
                 saveData();
                 renderFreeformElements();
                 updateCalendarStatus();
+                renderCalendarToggles();
 
                 console.log('[Plan] All calendars synced and merged:', {
                     calendars: calendars.length,
@@ -2152,7 +2137,19 @@ const PlanModule = (function () {
                 calendarPopover.style.right = (containerRect.right - btnRect.right) + 'px';
                 renderCalendarList();
                 updateCalendarStatus();
+                renderCalendarToggles();
             });
+
+            // Help icon - toggle help content
+            const helpIcon = calendarPopover.querySelector('.plan-calendar-help-icon');
+            const helpContent = calendarPopover.querySelector('.plan-calendar-help-content');
+            if (helpIcon && helpContent) {
+                helpIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    helpContent.classList.toggle('hidden');
+                    helpIcon.classList.toggle('active');
+                });
+            }
         }
 
         // Close popover when clicking outside (anywhere in document)
@@ -2209,6 +2206,72 @@ const PlanModule = (function () {
             } else {
                 calendarStatus.textContent = 'Add a calendar above to get started';
             }
+        }
+
+        // Render calendar visibility toggles in the navbar
+        function renderCalendarToggles() {
+            const togglesContainer = container.querySelector('.plan-calendar-toggles');
+            if (!togglesContainer) return;
+            togglesContainer.innerHTML = '';
+
+            calendars.forEach(cal => {
+                // Default to visible if not set
+                if (cal.visible === undefined) cal.visible = true;
+
+                const toggle = document.createElement('label');
+                toggle.className = 'plan-calendar-toggle';
+                toggle.title = 'Click name to rename';
+                toggle.innerHTML = `
+                    <input type="checkbox" ${cal.visible ? 'checked' : ''}>
+                    <span class="calendar-name" style="color: ${cal.fontColor || '#6366f1'}">${cal.name || 'Calendar'}</span>
+                `;
+                toggle.querySelector('input').addEventListener('change', e => {
+                    cal.visible = e.target.checked;
+                    localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+                    renderFreeformElements();
+                });
+
+                // Click to rename calendar
+                const nameSpan = toggle.querySelector('.calendar-name');
+                nameSpan.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    nameSpan.contentEditable = 'true';
+                    nameSpan.focus();
+
+                    // Select all text
+                    const range = document.createRange();
+                    range.selectNodeContents(nameSpan);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+
+                    const finishEdit = () => {
+                        nameSpan.contentEditable = 'false';
+                        const newName = nameSpan.textContent.trim();
+                        if (newName && newName !== cal.name) {
+                            cal.name = newName;
+                            localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+                        } else {
+                            nameSpan.textContent = cal.name || 'Calendar';
+                        }
+                    };
+
+                    nameSpan.addEventListener('blur', finishEdit, { once: true });
+                    nameSpan.addEventListener('keydown', ke => {
+                        if (ke.key === 'Enter') {
+                            ke.preventDefault();
+                            nameSpan.blur();
+                        } else if (ke.key === 'Escape') {
+                            nameSpan.textContent = cal.name || 'Calendar';
+                            nameSpan.blur();
+                        }
+                    });
+                });
+
+                togglesContainer.appendChild(toggle);
+            });
         }
 
         // Formatting buttons (bold, italic, underline)
@@ -2394,13 +2457,15 @@ const PlanModule = (function () {
                 deleteSelectedElement();
             }
         });
+
+        // Initialize calendar toggles
+        renderCalendarToggles();
     }
 
     function refresh() {
         // Re-read language setting and re-render
         loadLanguage();
         renderCalendar();
-        renderGroupsUI();
     }
 
     return { init, destroy, refresh };

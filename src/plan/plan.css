@@ -867,7 +867,32 @@ body.dark-mode #plan-mode .plan-modal-dialog {
 #plan-mode .plan-calendar-sync-nav {
     display: flex;
     align-items: center;
+    gap: 8px;
     -webkit-app-region: no-drag;
+}
+
+/* Calendar visibility toggles */
+#plan-mode .plan-calendar-toggles {
+    display: flex;
+    gap: 12px;
+    margin-right: 8px;
+}
+
+#plan-mode .plan-calendar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+
+#plan-mode .plan-calendar-toggle input[type="checkbox"] {
+    cursor: pointer;
+}
+
+#plan-mode .plan-calendar-toggle span {
+    font-weight: 500;
 }
 
 /* Calendar sync button indicator when synced */
@@ -903,6 +928,61 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     font-weight: 600;
     border-bottom: 1px solid var(--plan-border-color);
     color: var(--plan-text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#plan-mode .plan-calendar-help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--plan-border-color);
+    color: var(--plan-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: help;
+    transition: all 0.15s ease;
+}
+
+#plan-mode .plan-calendar-help-icon:hover,
+#plan-mode .plan-calendar-help-icon.active {
+    background: #6366f1;
+    color: white;
+}
+
+#plan-mode .plan-calendar-help-content {
+    background: var(--plan-surface-secondary);
+    padding: 12px 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    border-bottom: 1px solid var(--plan-border-color);
+}
+
+#plan-mode .plan-calendar-help-content.hidden {
+    display: none;
+}
+
+#plan-mode .plan-calendar-help-content p {
+    margin: 0 0 8px 0;
+    color: var(--plan-text-muted);
+}
+
+#plan-mode .plan-calendar-help-content p:last-child {
+    margin-bottom: 0;
+}
+
+#plan-mode .plan-calendar-help-content ol {
+    margin: 8px 0;
+    padding-left: 20px;
+    color: var(--plan-text-secondary);
+}
+
+#plan-mode .plan-calendar-help-content li {
+    margin: 4px 0;
 }
 
 #plan-mode .plan-calendar-popover-body {
