@@ -996,9 +996,12 @@ body.dark-mode #plan-mode .plan-modal-dialog {
 /* Calendar Event Styles (synced events are read-only) */
 #plan-mode .plan-note-text.calendar-event {
     font-style: italic;
+    font-size: 15px;
     color: #6366f1;
     opacity: 0.9;
     cursor: default;
+    top: 0;
+    /* Adjust vertical position */
 }
 
 
@@ -1010,6 +1013,7 @@ body.dark-mode #plan-mode .plan-modal-dialog {
 
 #plan-mode .plan-note-line-container.calendar-event .plan-line-label {
     font-style: italic;
+    font-size: 15px;
     color: #6366f1;
     cursor: default;
 }
