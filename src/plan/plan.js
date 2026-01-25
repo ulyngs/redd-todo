@@ -589,11 +589,69 @@ const PlanModule = (function () {
             // Filter function to check if item should be shown
             const isVisible = item => {
                 if (item.source !== 'calendar') return true; // User items always visible
-                return visibleCalendarIds.includes(item.calendarId);
+                const visible = visibleCalendarIds.includes(item.calendarId);
+                return visible;
             };
 
             // Render all lines (user-drawn AND calendar-synced)
-            freeformLines.filter(isVisible).forEach(l => canvasLayer.appendChild(createLine(l)));
+            freeformLines.filter(isVisible).forEach(l => {
+                renderLineOrSplit(l, canvasLayer);
+            });
+
+
+            // Helper to render a line, splitting it if it crosses month boundaries
+            function renderLineOrSplit(line, container) {
+                if (!line.startDate || !line.endDate) {
+                    // Legacy line without dates, just render
+                    container.appendChild(createLine(line));
+                    return;
+                }
+
+                const startParts = line.startDate.split('-').map(Number);
+                const endParts = line.endDate.split('-').map(Number);
+
+                // Check if year and month are the same
+                if (startParts[0] === endParts[0] && startParts[1] === endParts[1]) {
+                    // Same month, render normally
+                    container.appendChild(createLine(line));
+                    return;
+                }
+
+                // Crosses month boundary - split into segments
+                let currentYear = startParts[0];
+                let currentMonth = startParts[1];
+
+                // Loop from start month to end month
+                while (currentYear < endParts[0] || (currentYear === endParts[0] && currentMonth <= endParts[1])) {
+                    const isFirstSegment = currentYear === startParts[0] && currentMonth === startParts[1];
+                    const isLastSegment = currentYear === endParts[0] && currentMonth === endParts[1];
+
+                    const segmentStart = isFirstSegment ? line.startDate :
+                        `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+
+                    // Calculate last day of current month
+                    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+                    const segmentEnd = isLastSegment ? line.endDate :
+                        `${currentYear}-${String(currentMonth).padStart(2, '0')}-${daysInMonth}`;
+
+                    // Clone line properties
+                    const segment = { ...line };
+                    // Generate a transient ID for the segment so it doesn't conflict
+                    segment.id = line.id + `-seg-${currentYear}-${currentMonth}`;
+                    segment.startDate = segmentStart;
+                    segment.endDate = segmentEnd;
+
+                    // Render this segment
+                    container.appendChild(createLine(segment));
+
+                    // Move to next month
+                    currentMonth++;
+                    if (currentMonth > 12) {
+                        currentMonth = 1;
+                        currentYear++;
+                    }
+                }
+            }
 
             // Render all notes (user-created AND calendar-synced)
             freeformNotes.filter(isVisible).forEach(note => {

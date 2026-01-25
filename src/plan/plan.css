@@ -923,10 +923,9 @@ body.dark-mode #plan-mode .plan-modal-dialog {
 }
 
 #plan-mode .plan-calendar-popover-header {
-    padding: 12px 16px;
+    padding: 12px 16px 6px 16px;
     font-size: 14px;
     font-weight: 600;
-    border-bottom: 1px solid var(--plan-border-color);
     color: var(--plan-text-primary);
     display: flex;
     align-items: center;

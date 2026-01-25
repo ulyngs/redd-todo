@@ -20,8 +20,45 @@ const CalendarSync = (function () {
             const events = [];
             for (const vevent of vevents) {
                 const event = new ICAL.Event(vevent);
-                const startDate = event.startDate ? event.startDate.toJSDate() : null;
-                const endDate = event.endDate ? event.endDate.toJSDate() : null;
+                const isAllDay = event.startDate ? event.startDate.isDate : false;
+
+                let startDate, endDate;
+
+                if (isAllDay) {
+                    // For all-day events, use raw date components to avoid timezone issues
+                    // ICAL.Time stores year, month (1-based), day directly
+                    if (event.startDate) {
+                        startDate = new Date(Date.UTC(
+                            event.startDate.year,
+                            event.startDate.month - 1,  // JS months are 0-based
+                            event.startDate.day
+                        ));
+                    }
+                    if (event.endDate) {
+                        endDate = new Date(Date.UTC(
+                            event.endDate.year,
+                            event.endDate.month - 1,
+                            event.endDate.day
+                        ));
+                    }
+                } else {
+                    // For timed events, use toJSDate() which handles timezone correctly
+                    startDate = event.startDate ? event.startDate.toJSDate() : null;
+                    endDate = event.endDate ? event.endDate.toJSDate() : null;
+                }
+
+                // Debug logging for date parsing
+                if (event.description && event.description.toLowerCase().includes('redd-do')) {
+                    console.log('[CalendarSync] Parsing event:', event.summary, {
+                        isAllDay,
+                        rawStartObj: event.startDate ? JSON.stringify(event.startDate) : null,
+                        rawEndObj: event.endDate ? JSON.stringify(event.endDate) : null,
+                        jsStart: startDate ? startDate.toISOString() : null,
+                        jsEnd: endDate ? endDate.toISOString() : null,
+                        durationDays: startDate && endDate ?
+                            Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) : 1
+                    });
+                }
 
                 events.push({
                     uid: event.uid,
@@ -29,7 +66,7 @@ const CalendarSync = (function () {
                     description: event.description || '',
                     startDate: startDate,
                     endDate: endDate,
-                    isAllDay: event.startDate ? event.startDate.isDate : false,
+                    isAllDay: isAllDay,
                     location: event.location || '',
                     // Duration in days for multi-day events
                     durationDays: startDate && endDate ?
@@ -80,7 +117,8 @@ const CalendarSync = (function () {
         const startDate = event.startDate;
         if (!startDate) return null;
 
-        const dateKey = formatDateKey(startDate);
+        // Use UTC for all-day events to avoid timezone issues
+        const dateKey = formatDateKey(startDate, event.isAllDay);
 
         return {
             id: 'cal-' + event.uid,
@@ -101,11 +139,25 @@ const CalendarSync = (function () {
         // For all-day events, end date is exclusive, so subtract one day
         let adjustedEndDate = new Date(endDate);
         if (event.isAllDay && event.durationDays > 1) {
-            adjustedEndDate.setDate(adjustedEndDate.getDate() - 1);
+            adjustedEndDate.setUTCDate(adjustedEndDate.getUTCDate() - 1);
         }
 
-        const startDateKey = formatDateKey(startDate);
-        const endDateKey = formatDateKey(adjustedEndDate);
+        // Use UTC for all-day events to avoid timezone issues
+        const startDateKey = formatDateKey(startDate, event.isAllDay);
+        const endDateKey = formatDateKey(adjustedEndDate, event.isAllDay);
+
+        // Debug logging for specific event
+        if (event.description && event.description.toLowerCase().includes('redd-do') && event.durationDays > 1) {
+            console.log('[CalendarSync] Converting Line:', getDisplayText(event), {
+                isAllDay: event.isAllDay,
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                adjustedEndDate: adjustedEndDate.toISOString(),
+                startDateKey,
+                endDateKey,
+                durationDays: event.durationDays
+            });
+        }
 
         return {
             id: 'cal-line-' + event.uid,
@@ -122,7 +174,16 @@ const CalendarSync = (function () {
     }
 
     // Format date as YYYY-MM-DD key
-    function formatDateKey(date) {
+    // Use UTC for all-day events to avoid timezone conversion issues
+    function formatDateKey(date, useUTC = false) {
+        if (useUTC) {
+            const year = date.getUTCFullYear();
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(date.getUTCDate()).padStart(2, '0');
+            const key = `${year}-${month}-${day}`;
+            // console.log(`[CalendarSync] formatDateKey UTC: ${date.toISOString()} -> ${key}`);
+            return key;
+        }
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -137,6 +198,10 @@ const CalendarSync = (function () {
             if (fetchUrl.startsWith('webcal://')) {
                 fetchUrl = 'https://' + fetchUrl.slice(9);
             }
+
+            // Add cache buster
+            const separator = fetchUrl.includes('?') ? '&' : '?';
+            fetchUrl += `${separator}_=${new Date().getTime()}`;
 
             const response = await fetch(fetchUrl);
             if (!response.ok) {
