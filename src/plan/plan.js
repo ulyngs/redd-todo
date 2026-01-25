@@ -2033,7 +2033,19 @@ const PlanModule = (function () {
             if (calendarStatus) calendarStatus.textContent = 'Syncing...';
 
             try {
-                // First, remove all existing calendar-sourced items from freeform arrays
+                // Save user customizations (horizontal position, labels) from existing calendar items
+                // These will be restored after re-syncing
+                const noteCustomizations = {};
+                const lineCustomizations = {};
+
+                freeformNotes.filter(n => n.source === 'calendar').forEach(n => {
+                    noteCustomizations[n.id] = { offsetX: n.offsetX, label: n.label };
+                });
+                freeformLines.filter(l => l.source === 'calendar').forEach(l => {
+                    lineCustomizations[l.id] = { verticalLineX: l.verticalLineX, label: l.label };
+                });
+
+                // Remove all existing calendar-sourced items from freeform arrays
                 freeformNotes = freeformNotes.filter(n => n.source !== 'calendar');
                 freeformLines = freeformLines.filter(l => l.source !== 'calendar');
 
@@ -2072,9 +2084,29 @@ const PlanModule = (function () {
                             l.fontColor = cal.fontColor || '#818cf8';
                         });
 
-                        // Merge into freeform arrays
-                        freeformNotes.push(...result.notes);
-                        freeformLines.push(...result.lines);
+                        // Merge into freeform arrays, restoring user customizations
+                        result.notes.forEach(n => {
+                            if (noteCustomizations[n.id]) {
+                                if (noteCustomizations[n.id].offsetX !== undefined) {
+                                    n.offsetX = noteCustomizations[n.id].offsetX;
+                                }
+                                if (noteCustomizations[n.id].label !== undefined) {
+                                    n.label = noteCustomizations[n.id].label;
+                                }
+                            }
+                            freeformNotes.push(n);
+                        });
+                        result.lines.forEach(l => {
+                            if (lineCustomizations[l.id]) {
+                                if (lineCustomizations[l.id].verticalLineX !== undefined) {
+                                    l.verticalLineX = lineCustomizations[l.id].verticalLineX;
+                                }
+                                if (lineCustomizations[l.id].label !== undefined) {
+                                    l.label = lineCustomizations[l.id].label;
+                                }
+                            }
+                            freeformLines.push(l);
+                        });
                     } catch (err) {
                         console.warn(`[Plan] Failed to sync calendar "${cal.name}":`, err);
                     }
