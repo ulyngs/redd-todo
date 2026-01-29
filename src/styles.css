@@ -123,7 +123,7 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: var(--bg-gradient);
+    background: var(--app-bg-solid);
     color: var(--text-primary);
     overflow: hidden;
 }
@@ -136,8 +136,8 @@ body {
     flex-direction: column;
     background: var(--app-bg);
     backdrop-filter: blur(10px);
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: none;
     padding-top: 4px;
     /* Added some top padding */
     padding-bottom: 30px;
