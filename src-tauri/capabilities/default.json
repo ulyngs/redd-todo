@@ -1,0 +1,29 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default permissions for ReDD Do",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "shell:default",
+    "opener:default",
+    "deep-link:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://*.37signals.com/*"
+        },
+        {
+          "url": "https://*.basecampapi.com/*"
+        },
+        {
+          "url": "https://launchpad.37signals.com/*"
+        }
+      ]
+    }
+  ]
+}

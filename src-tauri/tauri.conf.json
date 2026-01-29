@@ -1,0 +1,72 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "ReDD Do",
+  "version": "1.7.0",
+  "identifier": "com.redd.todo",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "ReDD Do",
+        "width": 400,
+        "height": 600,
+        "minWidth": 400,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay",
+        "transparent": false,
+        "alwaysOnTop": false,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Productivity",
+    "copyright": "Copyright © 2025 Reduce Digital Distraction Ltd",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "minimumSystemVersion": "10.15",
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "resources": [
+      "reminders-connector"
+    ],
+    "externalBin": []
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://redd-todo.netlify.app/updates/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "pubkey": ""
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "redddo"
+        ]
+      }
+    }
+  }
+}

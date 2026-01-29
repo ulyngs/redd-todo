@@ -1,6 +1,123 @@
-const { ipcRenderer, clipboard, shell } = require('electron');
-const path = require('path');
-const fs = require('fs');
+// Platform detection and API abstraction for Tauri/Electron compatibility
+// Directly check for Tauri runtime - don't rely on tauriAPI which may load after
+const reddIsTauri = typeof window !== 'undefined' && window.__TAURI__ != null;
+console.log('[ReddIpc] Tauri detection:', { reddIsTauri, hasTauriGlobal: !!window.__TAURI__, hasTauriAPI: typeof tauriAPI !== 'undefined' });
+
+// Platform detection (works in both Tauri and Electron)
+const platform = (() => {
+    if (reddIsTauri) {
+        // In Tauri, detect from user agent
+        const ua = navigator.userAgent.toLowerCase();
+        if (ua.includes('mac')) return 'darwin';
+        if (ua.includes('win')) return 'win32';
+        return 'linux';
+    }
+    // Electron
+    return typeof process !== 'undefined' ? process.platform : 'darwin';
+})();
+
+// Legacy Electron compatibility - only used if not running in Tauri
+let ipcRenderer = null;
+let clipboard = null;
+let shell = null;
+
+if (!reddIsTauri && typeof require !== 'undefined') {
+    try {
+        const electron = require('electron');
+        ipcRenderer = electron.ipcRenderer;
+        clipboard = electron.clipboard;
+        shell = electron.shell;
+    } catch (e) {
+        console.log('Not running in Electron environment');
+    }
+}
+
+// Unified IPC wrapper - routes to Tauri or Electron as appropriate
+const reddIpc = {
+    async send(channel, ...args) {
+        if (reddIsTauri && typeof tauriAPI !== 'undefined') {
+            // Map Electron channel names to Tauri commands
+            const channelMap = {
+                'exit-focus-mode': () => tauriAPI.exitFocusMode(),
+                'open-focus-window': () => tauriAPI.enterFocusMode(),
+                'window-minimize': () => tauriAPI.windowMinimize(),
+                'window-maximize': () => tauriAPI.windowMaximize(),
+                'window-close': () => tauriAPI.windowClose(),
+                'enter-focus-mode': () => tauriAPI.enterFocusMode(),
+                'set-focus-window-size': () => tauriAPI.setFocusWindowSize(args[0]),
+                'set-focus-window-height': () => tauriAPI.setFocusWindowHeight(args[0]),
+                'enter-fullscreen-focus': () => tauriAPI.enterFullscreenFocus(),
+                'refresh-main-window': () => tauriAPI.refreshMainWindow(),
+                'task-updated': () => tauriAPI.taskUpdated(args[0]?.taskId, args[0]?.text),
+                'start-basecamp-auth': async () => {
+                    console.log('[Tauri OAuth] Invoking start_basecamp_auth command');
+                    try {
+                        await tauriAPI.invoke('start_basecamp_auth');
+                        console.log('[Tauri OAuth] Command completed');
+                    } catch (e) {
+                        console.error('[Tauri OAuth] Command failed:', e);
+                    }
+                },
+                'window-drag-start': () => tauriAPI.startDrag(),
+                'window-drag-end': () => { } // No-op, drag ends automatically
+            };
+            const handler = channelMap[channel];
+            if (handler) {
+                try { await handler(); } catch (e) { console.error(`reddIpc.send(${channel}) error:`, e); }
+            } else {
+                console.warn(`Unknown Tauri channel: ${channel}`);
+            }
+        } else if (ipcRenderer) {
+            ipcRenderer.send(channel, ...args);
+        }
+    },
+
+    async invoke(channel, ...args) {
+        if (reddIsTauri && typeof tauriAPI !== 'undefined') {
+            const channelMap = {
+                'get-app-version': () => tauriAPI.getAppVersion(),
+                'fetch-reminders-lists': () => tauriAPI.fetchRemindersLists(),
+                'fetch-reminders-tasks': () => tauriAPI.fetchRemindersTasks(args[0]),
+                'update-reminders-status': () => tauriAPI.updateRemindersStatus(args[0], args[1]),
+                'update-reminders-title': () => tauriAPI.updateRemindersTitle(args[0], args[1]),
+                'update-reminders-notes': () => tauriAPI.updateRemindersNotes(args[0], args[1]),
+                'delete-reminders-task': () => tauriAPI.deleteRemindersTask(args[0]),
+                'create-reminders-task': () => tauriAPI.createRemindersTask(args[0], args[1])
+            };
+            const handler = channelMap[channel];
+            if (handler) {
+                return await handler();
+            }
+            console.warn(`Unknown Tauri invoke channel: ${channel}`);
+            return null;
+        } else if (ipcRenderer) {
+            return ipcRenderer.invoke(channel, ...args);
+        }
+        return null;
+    },
+
+    on(channel, callback) {
+        if (reddIsTauri && typeof tauriAPI !== 'undefined') {
+            // Set up Tauri event listener
+            return tauriAPI.onEvent(channel, callback);
+        } else if (ipcRenderer) {
+            ipcRenderer.on(channel, callback);
+            return () => ipcRenderer.removeListener(channel, callback);
+        }
+        return () => { };
+    }
+};
+
+// Shell wrapper for opening external URLs
+const openExternal = async (url) => {
+    if (reddIsTauri && typeof tauriAPI !== 'undefined') {
+        await tauriAPI.openExternal(url);
+    } else if (shell) {
+        shell.openExternal(url);
+    } else {
+        window.open(url, '_blank');
+    }
+};
 
 const isFocusPanelWindow = new URLSearchParams(window.location.search).get('focus') === '1';
 
@@ -467,7 +584,7 @@ function initApp() {
     updatePlanButtonVisibility();
 
     // Show window controls on non-Mac platforms
-    if (process.platform !== 'darwin') {
+    if (platform !== 'darwin') {
         const winControls = document.getElementById('window-controls');
         if (winControls) {
             winControls.classList.remove('hidden');
@@ -1171,8 +1288,8 @@ function focusTask(taskId) {
     const { task } = context;
 
     // If this task is already focused (as indicated in the main window), clicking the icon exits focus mode.
-    if (process.platform === 'darwin' && !isFocusPanelWindow && activeFocusTaskId === taskId) {
-        ipcRenderer.send('exit-focus-mode');
+    if (platform === 'darwin' && !isFocusPanelWindow && activeFocusTaskId === taskId) {
+        reddIpc.send('exit-focus-mode');
         activeFocusTaskId = null;
         renderTasks();
         return;
@@ -1180,10 +1297,10 @@ function focusTask(taskId) {
 
     // On macOS, use a dedicated floating panel window (NSPanel) for focus mode.
     // This is what allows the focus window to float above fullscreen Spaces.
-    if (process.platform === 'darwin' && !isFocusPanelWindow) {
+    if (platform === 'darwin' && !isFocusPanelWindow) {
         activeFocusTaskId = taskId;
         renderTasks();
-        ipcRenderer.send('open-focus-window', {
+        reddIpc.send('open-focus-window', {
             taskId,
             taskName: task.text,
             duration: task.expectedDuration ?? null,
@@ -2832,12 +2949,12 @@ function setupEventListeners() {
             }
 
             // Start custom drag
-            ipcRenderer.send('window-drag-start');
+            reddIpc.send('window-drag-start');
             document.body.style.cursor = 'grabbing';
             focusContainer.style.cursor = 'grabbing';
 
             const handleMouseUp = () => {
-                ipcRenderer.send('window-drag-end');
+                reddIpc.send('window-drag-end');
                 document.body.style.cursor = '';
                 focusContainer.style.cursor = 'grab';
                 window.removeEventListener('mouseup', handleMouseUp);
@@ -3000,8 +3117,15 @@ function setupEventListeners() {
         // Show current version
         const versionEl = document.getElementById('current-app-version');
         if (versionEl) {
-            const ver = await ipcRenderer.invoke('get-app-version');
-            versionEl.textContent = `${t('yourVersion')}: ${ver}`;
+            try {
+                console.log('[Version] Fetching app version...');
+                const ver = await reddIpc.invoke('get-app-version');
+                console.log('[Version] Got version:', ver);
+                versionEl.textContent = `${t('yourVersion')}: ${ver || 'Unknown'}`;
+            } catch (e) {
+                console.error('[Version] Error fetching version:', e);
+                versionEl.textContent = `${t('yourVersion')}: Error`;
+            }
         }
     });
 
@@ -3125,7 +3249,7 @@ function setupEventListeners() {
 
     // Reminders Connect Button
     if (remindersConnectBtn) {
-        if (process.platform !== 'darwin') {
+        if (platform !== 'darwin') {
             // Disable for non-Mac
             remindersConnectBtn.disabled = true;
             remindersConnectBtn.title = 'Apple Reminders integration is only available on macOS';
@@ -3143,7 +3267,7 @@ function setupEventListeners() {
                     remindersConnectBtn.disabled = true;
 
                     // Try to fetch lists to trigger permission prompt
-                    const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+                    const lists = await reddIpc.invoke('fetch-reminders-lists');
                     console.log('[Reminders] fetch-reminders-lists result:', {
                         type: Array.isArray(lists) ? 'array' : typeof lists,
                         length: Array.isArray(lists) ? lists.length : undefined,
@@ -3202,7 +3326,7 @@ function setupEventListeners() {
     if (bcHelpLink) {
         bcHelpLink.addEventListener('click', (e) => {
             e.preventDefault();
-            shell.openExternal('https://launchpad.37signals.com/integrations');
+            openExternal('https://launchpad.37signals.com/integrations');
         });
     }
 
@@ -3212,7 +3336,7 @@ function setupEventListeners() {
             console.log('[Basecamp OAuth] Connect button clicked, starting auth flow...');
             oauthConnectBtn.textContent = 'Connecting...';
             oauthConnectBtn.disabled = true;
-            ipcRenderer.send('start-basecamp-auth');
+            reddIpc.send('start-basecamp-auth');
             console.log('[Basecamp OAuth] IPC message sent to main process');
         });
     } else {
@@ -3262,9 +3386,9 @@ function setupEventListeners() {
                     );
 
                     if (reconnect) {
-                        if (hasDisconnectedReminders && process.platform === 'darwin') {
+                        if (hasDisconnectedReminders && platform === 'darwin') {
                             try {
-                                const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+                                const lists = await reddIpc.invoke('fetch-reminders-lists');
                                 if (Array.isArray(lists)) {
                                     remindersConfig.isConnected = true;
                                     saveData();
@@ -3276,7 +3400,7 @@ function setupEventListeners() {
                                 console.error('Failed to reconnect to Reminders:', e);
                             }
                         } else if (hasDisconnectedBasecamp) {
-                            ipcRenderer.send('start-basecamp-auth');
+                            reddIpc.send('start-basecamp-auth');
                         }
                     }
                     return;
@@ -3329,10 +3453,10 @@ function setupEventListeners() {
 
                 if (reconnect) {
                     // Directly trigger reconnection
-                    if (remindersDisconnected && process.platform === 'darwin') {
+                    if (remindersDisconnected && platform === 'darwin') {
                         // Reconnect to Apple Reminders
                         try {
-                            const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+                            const lists = await reddIpc.invoke('fetch-reminders-lists');
                             if (Array.isArray(lists)) {
                                 remindersConfig.isConnected = true;
                                 saveData();
@@ -3346,7 +3470,7 @@ function setupEventListeners() {
                         }
                     } else if (basecampDisconnected) {
                         // Reconnect to Basecamp via OAuth
-                        ipcRenderer.send('start-basecamp-auth');
+                        reddIpc.send('start-basecamp-auth');
                     }
                 }
                 return;
@@ -3439,7 +3563,7 @@ function setupEventListeners() {
     document.addEventListener('click', (event) => {
         if (event.target.tagName === 'A' && event.target.href.startsWith('http')) {
             event.preventDefault();
-            shell.openExternal(event.target.href);
+            openExternal(event.target.href);
         }
     });
 
@@ -3465,7 +3589,7 @@ function setupEventListeners() {
                 focusContainer.classList.remove('fullscreen');
                 updateFullscreenButtonState(false);
                 // Restore standard width (similar to logic in fullscreen button handler)
-                ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+                reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
             }
         }
     });
@@ -3816,7 +3940,7 @@ function setupEventListeners() {
             // First exit fullscreen locally
             focusContainer.classList.remove('fullscreen');
             // Restore standard width so IPC doesn't get confused
-            ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+            reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
             // Then continue to standard exit
         }
 
@@ -3833,7 +3957,7 @@ function setupEventListeners() {
             // First exit fullscreen locally
             focusContainer.classList.remove('fullscreen');
             // Restore standard width so IPC doesn't get confused
-            ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+            reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
         }
 
         // Calculate elapsed time
@@ -3871,7 +3995,7 @@ function setupEventListeners() {
         // Wait 300ms before exiting focus mode (same delay as task completion animation)
         setTimeout(() => {
             // Ensure the main window updates (important on macOS focus panel)
-            ipcRenderer.send('refresh-main-window');
+            reddIpc.send('refresh-main-window');
             exitFocusMode();
 
             // Clean up the completed class for next focus session
@@ -3981,12 +4105,12 @@ function setupEventListeners() {
                 // Restore window size logic would be complex without knowing original state, 
                 // but we can rely on the standard focus mode sizing logic which runs on enter or resize
                 // Actually, we should probably just tell main process to exit kiosk/fullscreen
-                ipcRenderer.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500)); // Restore standard width
+                reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500)); // Restore standard width
             } else {
                 // Enter fullscreen
                 focusContainer.classList.add('fullscreen');
                 updateFullscreenButtonState(true);
-                ipcRenderer.send('enter-fullscreen-focus');
+                reddIpc.send('enter-fullscreen-focus');
             }
         });
     }
@@ -4012,7 +4136,7 @@ function setupEventListeners() {
                 if (focusNotesWrapper) focusNotesWrapper.classList.remove('active');
 
                 // Resize window back to normal height, preserving width
-                ipcRenderer.send('set-focus-window-height', 48);
+                reddIpc.send('set-focus-window-height', 48);
             } else {
                 // Open notes
                 focusNotesContainer.classList.remove('hidden');
@@ -4046,7 +4170,7 @@ function setupEventListeners() {
                                 const focusBar = document.querySelector('.focus-bar');
                                 const barHeight = focusBar ? focusBar.offsetHeight : 48;
                                 const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                                ipcRenderer.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
+                                reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
                             }, 50);
                         });
 
@@ -4096,7 +4220,7 @@ function setupEventListeners() {
                     const focusBar = document.querySelector('.focus-bar');
                     const barHeight = focusBar ? focusBar.offsetHeight : 48;
                     const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                    ipcRenderer.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
+                    reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
                 }, 50);
             }
         });
@@ -4165,19 +4289,19 @@ function setupEventListeners() {
 
     if (minBtn) {
         minBtn.addEventListener('click', () => {
-            ipcRenderer.send('window-minimize');
+            reddIpc.send('window-minimize');
         });
     }
 
     if (maxBtn) {
         maxBtn.addEventListener('click', () => {
-            ipcRenderer.send('window-maximize');
+            reddIpc.send('window-maximize');
         });
     }
 
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
-            ipcRenderer.send('window-close');
+            reddIpc.send('window-close');
         });
     }
 
@@ -4300,12 +4424,12 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
         if (container) {
             const containerWidth = Math.min(Math.max(container.offsetWidth, 280), 500);
             console.log('Calculated container width:', containerWidth);
-            ipcRenderer.send('set-focus-window-size', containerWidth);
+            reddIpc.send('set-focus-window-size', containerWidth);
         }
     }, 50); // Small delay to ensure DOM is updated
 
     console.log('Sending enter-focus-mode IPC');
-    ipcRenderer.send('enter-focus-mode', taskName);
+    reddIpc.send('enter-focus-mode', taskName);
 }
 
 function exitFocusMode() {
@@ -4323,7 +4447,7 @@ function exitFocusMode() {
     focusedTaskId = null; // Clear focused task ID
     // Only clear the "active focus" indicator in this window if we're not the main window on macOS.
     // On macOS the main process will broadcast focus-status-changed when the panel closes.
-    if (!isFocusPanelWindow && process.platform !== 'darwin') {
+    if (!isFocusPanelWindow && platform !== 'darwin') {
         activeFocusTaskId = null;
     }
     focusDuration = null; // Reset duration
@@ -4337,7 +4461,7 @@ function exitFocusMode() {
     focusMode.classList.add('hidden');
     normalMode.classList.remove('hidden');
 
-    ipcRenderer.send('exit-focus-mode');
+    reddIpc.send('exit-focus-mode');
 }
 
 function startFocusTimer(initialTimeSpent = 0) {
@@ -4854,7 +4978,7 @@ function editTaskText(taskId, textElement) {
             saveData();
 
             // Sync to other windows (e.g. macOS focus panel)
-            ipcRenderer.send('task-updated', { taskId, text: task.text });
+            reddIpc.send('task-updated', { taskId, text: task.text });
         }
         renderTasks(); // Re-render to restore span and update UI
     }
@@ -5131,7 +5255,7 @@ function hideDeleteConfirmModal() {
 }
 
 // IPC listeners
-ipcRenderer.on('enter-focus-mode', (event, payload) => {
+reddIpc.on('enter-focus-mode', (event, payload) => {
     if (payload && typeof payload === 'object') {
         if (payload.taskId) {
             focusedTaskId = payload.taskId;
@@ -5144,12 +5268,12 @@ ipcRenderer.on('enter-focus-mode', (event, payload) => {
     enterFocusMode(payload);
 });
 
-ipcRenderer.on('exit-focus-mode', () => {
+reddIpc.on('exit-focus-mode', () => {
     exitFocusMode();
 });
 
 // Used by main process to force the main window to re-load state
-ipcRenderer.on('refresh-data', () => {
+reddIpc.on('refresh-data', () => {
     if (isFocusPanelWindow) return;
     loadData();
     renderGroups();
@@ -5159,13 +5283,13 @@ ipcRenderer.on('refresh-data', () => {
     updateRemindersUI();
 });
 
-ipcRenderer.on('focus-status-changed', (event, payload) => {
+reddIpc.on('focus-status-changed', (event, payload) => {
     if (isFocusPanelWindow) return;
     activeFocusTaskId = payload?.activeTaskId ?? null;
     renderTasks();
 });
 
-ipcRenderer.on('task-updated', (event, payload) => {
+reddIpc.on('task-updated', (event, payload) => {
     const taskId = payload?.taskId;
     const text = payload?.text;
     if (!taskId || typeof text !== 'string') return;
@@ -5186,7 +5310,58 @@ ipcRenderer.on('task-updated', (event, payload) => {
 });
 
 // Basecamp Authentication Logic
-ipcRenderer.on('basecamp-auth-success', async (event, data) => {
+
+// Handle deep link callback from Tauri (redddo://oauth-callback?...)
+if (reddIsTauri && typeof tauriAPI !== 'undefined') {
+    tauriAPI.onEvent('deep-link-received', async (url) => {
+        console.log('[Basecamp OAuth] Deep link received:', url);
+
+        try {
+            const parsed = new URL(url);
+            if (parsed.protocol !== 'redddo:' || parsed.hostname !== 'oauth-callback') {
+                console.log('[Basecamp OAuth] Ignoring non-OAuth deep link');
+                return;
+            }
+
+            // Check for error
+            const error = parsed.searchParams.get('error');
+            if (error) {
+                console.error('[Basecamp OAuth] Error from callback:', error);
+                const errorDesc = parsed.searchParams.get('error_description') || error;
+                alert(`Basecamp authentication failed: ${errorDesc}`);
+                return;
+            }
+
+            // Extract tokens
+            const accessToken = parsed.searchParams.get('access_token');
+            const refreshToken = parsed.searchParams.get('refresh_token');
+            const expiresIn = parsed.searchParams.get('expires_in');
+
+            if (accessToken) {
+                console.log('[Basecamp OAuth] SUCCESS - Tokens received via deep link');
+
+                basecampConfig.accessToken = accessToken;
+                basecampConfig.refreshToken = refreshToken;
+
+                // Fetch identity and save
+                try {
+                    await fetchBasecampIdentity();
+                    console.log('[Basecamp OAuth] Identity fetched, account ID:', basecampConfig.accountId);
+                    saveData();
+                    updateBasecampUI();
+                } catch (e) {
+                    console.error('[Basecamp OAuth] Failed to fetch identity:', e);
+                }
+            } else {
+                console.error('[Basecamp OAuth] No access token in callback');
+            }
+        } catch (e) {
+            console.error('[Basecamp OAuth] Error parsing deep link:', e);
+        }
+    });
+}
+
+reddIpc.on('basecamp-auth-success', async (event, data) => {
     console.log('[Basecamp OAuth] SUCCESS - Tokens received from main process');
     console.log('[Basecamp OAuth] Access token received:', !!data.access_token);
     console.log('[Basecamp OAuth] Refresh token received:', !!data.refresh_token);
@@ -5218,7 +5393,7 @@ ipcRenderer.on('basecamp-auth-success', async (event, data) => {
     }
 });
 
-ipcRenderer.on('basecamp-auth-error', (event, errorMessage) => {
+reddIpc.on('basecamp-auth-error', (event, errorMessage) => {
     console.error('[Basecamp OAuth] ERROR - Authentication failed:', errorMessage);
     alert('Authentication failed: ' + errorMessage);
     if (oauthConnectBtn) {
@@ -5295,15 +5470,24 @@ function loadData() {
 // New function to fetch identity/accounts
 async function fetchBasecampIdentity() {
     try {
-        const response = await fetch('https://launchpad.37signals.com/authorization.json', {
+
+        // Use Tauri HTTP client if available (bypasses CORS)
+        const fetchFn = (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.fetch)
+            ? tauriAPI.fetch.bind(tauriAPI)
+            : fetch;
+
+        const response = await fetchFn('https://launchpad.37signals.com/authorization.json', {
             headers: {
                 'Authorization': `Bearer ${basecampConfig.accessToken}`
             }
         });
 
+
+
         if (!response.ok) throw new Error('Failed to fetch identity');
 
         const data = await response.json();
+
         const accounts = data.accounts;
 
         if (accounts && accounts.length > 0) {
@@ -5312,12 +5496,12 @@ async function fetchBasecampIdentity() {
             const account = accounts[0];
             basecampConfig.accountId = account.id;
             basecampConfig.email = data.identity.email_address;
-            console.log(`Connected to account: ${account.name} (${account.id})`);
+            console.log(`[Basecamp] Connected to account: ${account.name} (${account.id})`);
         } else {
             throw new Error('No Basecamp accounts found for this user.');
         }
     } catch (e) {
-        console.error('Identity Error:', e);
+        console.error('[Basecamp] Identity Error:', e);
         alert('Could not fetch Basecamp account details. Please try again.');
     }
 }
@@ -5411,8 +5595,13 @@ async function basecampFetch(url, options = {}) {
     // Add Authorization header
     options.headers['Authorization'] = `Bearer ${basecampConfig.accessToken}`;
 
+    // Use Tauri HTTP client if available (bypasses CORS)
+    const fetchFn = (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.fetch)
+        ? tauriAPI.fetch.bind(tauriAPI)
+        : fetch;
+
     // First attempt
-    let response = await fetch(url, options);
+    let response = await fetchFn(url, options);
 
     // If 401, try to refresh
     if (response.status === 401) {
@@ -5423,7 +5612,7 @@ async function basecampFetch(url, options = {}) {
             // Update header with new token
             options.headers['Authorization'] = `Bearer ${basecampConfig.accessToken}`;
             // Retry request
-            response = await fetch(url, options);
+            response = await fetchFn(url, options);
         } else {
             console.error('Failed to refresh token or no refresh credentials available.');
         }
@@ -5931,7 +6120,7 @@ function updateRemindersUI() {
 
 async function fetchRemindersLists() {
     try {
-        const lists = await ipcRenderer.invoke('fetch-reminders-lists');
+        const lists = await reddIpc.invoke('fetch-reminders-lists');
         if (!Array.isArray(lists)) {
             console.warn('[Reminders] fetchRemindersLists expected array but got:', lists);
             return [];
@@ -5948,7 +6137,7 @@ async function syncRemindersList(tabId) {
     if (!tab || !tab.remindersListId || !remindersConfig.isConnected) return;
 
     try {
-        const remoteTasks = await ipcRenderer.invoke('fetch-reminders-tasks', tab.remindersListId);
+        const remoteTasks = await reddIpc.invoke('fetch-reminders-tasks', tab.remindersListId);
         if (!remoteTasks) return;
 
         let changes = false;
@@ -6119,7 +6308,7 @@ async function syncRemindersList(tabId) {
 
 async function updateRemindersCompletion(remindersId, completed) {
     try {
-        await ipcRenderer.invoke('update-reminders-status', remindersId, completed);
+        await reddIpc.invoke('update-reminders-status', remindersId, completed);
     } catch (e) {
         console.error('Failed to update Reminder status:', e);
     }
@@ -6127,7 +6316,7 @@ async function updateRemindersCompletion(remindersId, completed) {
 
 async function updateRemindersTitle(remindersId, title) {
     try {
-        await ipcRenderer.invoke('update-reminders-title', remindersId, title);
+        await reddIpc.invoke('update-reminders-title', remindersId, title);
     } catch (e) {
         console.error('Failed to update Reminder title:', e);
     }
@@ -6137,7 +6326,7 @@ async function updateRemindersNotes(remindersId, notes) {
     try {
         // Convert HTML to readable plain text since Apple Reminders only supports plain text
         const plainText = htmlToPlainText(notes || '');
-        await ipcRenderer.invoke('update-reminders-notes', remindersId, plainText);
+        await reddIpc.invoke('update-reminders-notes', remindersId, plainText);
     } catch (e) {
         console.error('Failed to update Reminder notes:', e);
     }
@@ -6188,7 +6377,7 @@ function htmlToPlainText(html) {
 
 async function createRemindersTask(listId, title) {
     try {
-        const result = await ipcRenderer.invoke('create-reminders-task', listId, title);
+        const result = await reddIpc.invoke('create-reminders-task', listId, title);
         return result?.id;
     } catch (e) {
         console.error('Failed to create Reminder:', e);
@@ -6198,22 +6387,47 @@ async function createRemindersTask(listId, title) {
 
 async function deleteRemindersTask(remindersId) {
     try {
-        await ipcRenderer.invoke('delete-reminders-task', remindersId);
+        await reddIpc.invoke('delete-reminders-task', remindersId);
     } catch (e) {
         console.error('Failed to delete Reminder:', e);
     }
 }
 
 // Data Management
+// Plan mode storage keys (must match plan.js)
+const PLAN_STORAGE_PREFIX = 'redd-do-plan-';
+const PLAN_STORAGE_KEYS = [
+    PLAN_STORAGE_PREFIX + 'freeform-notes',
+    PLAN_STORAGE_PREFIX + 'freeform-lines',
+    PLAN_STORAGE_PREFIX + 'groups',
+    PLAN_STORAGE_PREFIX + 'active-group',
+    PLAN_STORAGE_PREFIX + 'calendars',
+    PLAN_STORAGE_PREFIX + 'calendar-last-sync'
+];
+
 function exportData() {
     try {
-        const data = localStorage.getItem('redd-todo-data');
-        if (!data) {
+        const todoData = localStorage.getItem('redd-todo-data');
+        if (!todoData) {
             alert('No data to export!');
             return;
         }
 
-        const blob = new Blob([data], { type: 'application/json' });
+        // Parse the main data
+        const exportObj = JSON.parse(todoData);
+
+        // Add plan mode data
+        exportObj.planData = {};
+        PLAN_STORAGE_KEYS.forEach(key => {
+            const value = localStorage.getItem(key);
+            if (value) {
+                // Store with shortened key (without prefix) for cleaner export
+                const shortKey = key.replace(PLAN_STORAGE_PREFIX, '');
+                exportObj.planData[shortKey] = JSON.parse(value);
+            }
+        });
+
+        const blob = new Blob([JSON.stringify(exportObj)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
 
@@ -6253,11 +6467,23 @@ function importData(file) {
             );
 
             if (confirmRestore) {
-                // Save to localStorage
+                // Extract plan data before saving main data
+                const planData = data.planData;
+                delete data.planData; // Remove from main data object
+
+                // Save main to-do data to localStorage
                 localStorage.setItem('redd-todo-data', JSON.stringify(data));
 
                 // Clear old key too just in case to avoid confusion
                 localStorage.removeItem('redd-task-data');
+
+                // Restore plan mode data if present
+                if (planData) {
+                    Object.keys(planData).forEach(shortKey => {
+                        const fullKey = PLAN_STORAGE_PREFIX + shortKey;
+                        localStorage.setItem(fullKey, JSON.stringify(planData[shortKey]));
+                    });
+                }
 
                 alert('Backup restored successfully! The app will now reload.');
                 window.location.reload();
