@@ -307,6 +307,17 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.group-tab.dimmed {
+    opacity: 0.5;
+    filter: saturate(0.6) brightness(0.95);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.group-tab.dimmed:hover {
+    opacity: 0.85;
+    filter: saturate(0.8) brightness(0.98);
+}
+
 .group-tab.drag-over {
     background: rgba(102, 126, 234, 0.2);
     border: 1px dashed var(--accent-primary);
@@ -2821,4 +2832,31 @@ input:checked+.slider:before {
 .group-tab.active.tab-bg-pink,
 .group-tab.active.tab-bg-gray {
     font-weight: 600;
+}
+
+/* Dimmed group tabs with colors - ensure colors are properly muted */
+/* The general .group-tab.dimmed rule applies, but we ensure colored tabs also respect it */
+.group-tab.dimmed.tab-bg-red,
+.group-tab.dimmed.tab-bg-orange,
+.group-tab.dimmed.tab-bg-yellow,
+.group-tab.dimmed.tab-bg-green,
+.group-tab.dimmed.tab-bg-blue,
+.group-tab.dimmed.tab-bg-purple,
+.group-tab.dimmed.tab-bg-pink,
+.group-tab.dimmed.tab-bg-gray {
+    /* Inherits opacity and filter from .group-tab.dimmed, but ensure it applies */
+    opacity: 0.5;
+    filter: saturate(0.6) brightness(0.95);
+}
+
+[data-theme="dark"] .group-tab.dimmed.tab-bg-red,
+[data-theme="dark"] .group-tab.dimmed.tab-bg-orange,
+[data-theme="dark"] .group-tab.dimmed.tab-bg-yellow,
+[data-theme="dark"] .group-tab.dimmed.tab-bg-green,
+[data-theme="dark"] .group-tab.dimmed.tab-bg-blue,
+[data-theme="dark"] .group-tab.dimmed.tab-bg-purple,
+[data-theme="dark"] .group-tab.dimmed.tab-bg-pink,
+[data-theme="dark"] .group-tab.dimmed.tab-bg-gray {
+    opacity: 0.5;
+    filter: saturate(0.6) brightness(0.95);
 }
