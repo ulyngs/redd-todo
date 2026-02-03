@@ -17,7 +17,7 @@
         "minWidth": 400,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false,
+        "decorations": true,
         "hiddenTitle": true,
         "titleBarStyle": "Overlay",
         "transparent": false,
