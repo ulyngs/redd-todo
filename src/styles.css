@@ -8,8 +8,8 @@
 :root {
     /* Backgrounds */
     --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --app-bg: rgba(255, 255, 255, 0.95);
-    --app-bg-solid: #ffffff;
+    --app-bg: rgba(240, 244, 248, 0.95);
+    --app-bg-solid: #f0f4f8;
     --task-bg: rgba(255, 255, 255, 0.8);
     --hover-bg: rgba(0, 0, 0, 0.05);
     --active-bg: rgba(0, 0, 0, 0.08);
