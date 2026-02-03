@@ -127,6 +127,7 @@ let groups = {};
 let currentTabId = null;
 let tabs = {};
 let taskCounter = 0;
+let tabCounter = 0;
 let isFocusMode = false;
 let isDoneCollapsed = false; // New state for done section
 let doneMaxHeight = 140; // New state for done section resize
@@ -629,7 +630,7 @@ function switchToGroup(groupId) {
 
 // Tab management
 function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId = null) {
-    const tabId = `tab_${Date.now()}`;
+    const tabId = `tab_${++tabCounter}`;
     const tabName = name.trim() || 'New Tab';
 
     tabs[tabId] = {
@@ -1811,15 +1812,25 @@ async function handleModalCreate() {
             try {
                 // Fetch all todo lists from the project
                 const lists = await getBasecampTodoLists(bcProjectId);
+                console.log(`[Basecamp Import] Found ${lists.length} lists to import`);
 
                 // Create tabs for each list
                 // Use for...of to allow await if we needed sequential async operations, 
                 // but createNewTab is sync (except for the syncBasecampList call which is async background)
                 // We want to trigger sync for all of them.
 
+                const createdTabs = [];
                 for (const list of lists) {
-                    createNewTab(list.name, bcProjectId, list.id);
+                    try {
+                        const tabId = createNewTab(list.name, bcProjectId, list.id);
+                        createdTabs.push({ id: tabId, name: list.name });
+                        console.log(`[Basecamp Import] Created tab: ${list.name} (${tabId})`);
+                    } catch (e) {
+                        console.error(`[Basecamp Import] Failed to create tab for list "${list.name}":`, e);
+                    }
                 }
+
+                console.log(`[Basecamp Import] Successfully created ${createdTabs.length} out of ${lists.length} tabs`);
 
                 // After creating all tabs, we might want to re-render or switch to the first one?
                 // createNewTab already saves and renders.
@@ -1839,8 +1850,13 @@ async function handleModalCreate() {
                     switchToTab(groupTabs[0].id);
                 }
 
+                // Warn if not all lists were imported
+                if (createdTabs.length < lists.length) {
+                    console.warn(`[Basecamp Import] Warning: Only ${createdTabs.length} out of ${lists.length} lists were imported`);
+                }
+
             } catch (e) {
-                console.error('Import Error:', e);
+                console.error('[Basecamp Import] Import Error:', e);
                 alert('Failed to import all lists from Basecamp.');
             } finally {
                 createTabBtn.textContent = 'Create Group';
@@ -5530,6 +5546,7 @@ function saveData() {
         tabs: tabs,
         currentTabId: currentTabId,
         taskCounter: taskCounter,
+        tabCounter: tabCounter,
         basecampConfig: basecampConfig,
         isDoneCollapsed: isDoneCollapsed,
         doneMaxHeight: doneMaxHeight,
@@ -5561,6 +5578,23 @@ function loadData() {
             tabs = data.tabs || {};
             currentTabId = data.currentTabId || null;
             taskCounter = data.taskCounter || 0;
+            tabCounter = data.tabCounter || 0;
+            
+            // If tabCounter wasn't saved, initialize it from existing tabs
+            // Find the highest numeric ID from existing tabs (handles migration from Date.now() format)
+            if (tabCounter === 0 && Object.keys(tabs).length > 0) {
+                let maxTabNum = 0;
+                for (const tabId of Object.keys(tabs)) {
+                    // Try to extract number from tab_<number> or tab_<timestamp>
+                    const match = tabId.match(/^tab_(\d+)$/);
+                    if (match) {
+                        const num = parseInt(match[1], 10);
+                        if (num > maxTabNum) maxTabNum = num;
+                    }
+                }
+                tabCounter = maxTabNum;
+            }
+            
             basecampConfig = data.basecampConfig || {
                 accountId: null,
                 accessToken: null,
