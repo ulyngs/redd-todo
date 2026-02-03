@@ -1627,6 +1627,18 @@ body {
     transition: all 0.3s ease;
 }
 
+/* Rounded corners and styling for the focus panel window */
+body.focus-panel-window {
+    background: transparent;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+body.focus-panel-window .focus-container {
+    border-radius: 14px;
+    overflow: hidden;
+}
+
 .focus-bar {
     width: 100%;
     height: 48px;
@@ -1636,6 +1648,7 @@ body {
     padding: 0 14px;
     position: relative;
     flex-shrink: 0;
+    -webkit-app-region: drag;
 }
 
 /* Attention ring animation when focus mode opens */
