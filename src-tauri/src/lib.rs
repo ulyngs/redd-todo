@@ -8,13 +8,21 @@ use tauri::{Manager, Emitter};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_http::init());
+    
+    // Initialize NSPanel plugin for macOS
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.plugin(tauri_nspanel::init());
+    }
+    
+    builder
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             // Handle deep link URL passed to running instance
             if let Some(url) = argv.iter().find(|arg| arg.starts_with("redddo://")) {
@@ -66,6 +74,7 @@ pub fn run() {
             window_maximize,
             window_close,
             enter_focus_mode,
+            open_focus_window,
             exit_focus_mode,
             set_focus_window_size,
             set_focus_window_height,

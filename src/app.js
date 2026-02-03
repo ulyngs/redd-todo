@@ -39,11 +39,21 @@ const reddIpc = {
             // Map Electron channel names to Tauri commands
             const channelMap = {
                 'exit-focus-mode': () => tauriAPI.exitFocusMode(),
-                'open-focus-window': () => tauriAPI.enterFocusMode(),
+                'open-focus-window': () => tauriAPI.openFocusWindow(
+                    args[0]?.taskId,
+                    args[0]?.taskName,
+                    args[0]?.duration,
+                    args[0]?.initialTimeSpent
+                ),
                 'window-minimize': () => tauriAPI.windowMinimize(),
                 'window-maximize': () => tauriAPI.windowMaximize(),
                 'window-close': () => tauriAPI.windowClose(),
-                'enter-focus-mode': () => tauriAPI.enterFocusMode(),
+                'enter-focus-mode': () => tauriAPI.openFocusWindow(
+                    args[0]?.taskId,
+                    args[0]?.taskName || args[0],
+                    args[0]?.duration,
+                    args[0]?.initialTimeSpent
+                ),
                 'set-focus-window-size': () => tauriAPI.setFocusWindowSize(args[0]),
                 'set-focus-window-height': () => tauriAPI.setFocusWindowHeight(args[0]),
                 'enter-fullscreen-focus': () => tauriAPI.enterFullscreenFocus(),
@@ -120,6 +130,11 @@ const openExternal = async (url) => {
 };
 
 const isFocusPanelWindow = new URLSearchParams(window.location.search).get('focus') === '1';
+
+// Add body class for focus panel window styling (rounded corners, transparent background)
+if (isFocusPanelWindow) {
+    document.body.classList.add('focus-panel-window');
+}
 
 // Application state
 let currentGroupId = null;
@@ -513,10 +528,28 @@ function initApp() {
     loadData();
 
     // If this is the dedicated focus panel window (macOS), hide the full UI immediately.
-    // The main process will send an IPC "enter-focus-mode" with the task payload.
+    // Read task data from URL params and enter focus mode.
     if (isFocusPanelWindow) {
         normalMode.classList.add('hidden');
         focusMode.classList.remove('hidden');
+
+        // Read task data from URL params (passed by Rust when creating the panel)
+        const urlParams = new URLSearchParams(window.location.search);
+        const taskName = decodeURIComponent(urlParams.get('taskName') || 'Task');
+        const taskId = urlParams.get('taskId');
+        const duration = urlParams.get('duration') ? parseFloat(urlParams.get('duration')) : null;
+        const timeSpent = urlParams.get('timeSpent') ? parseFloat(urlParams.get('timeSpent')) : 0;
+
+        // Store the task ID for the focus panel
+        if (taskId) {
+            focusedTaskId = taskId;
+            activeFocusTaskId = taskId;
+        }
+
+        // Delay slightly to ensure DOM is ready
+        setTimeout(() => {
+            enterFocusMode(taskName, duration > 0 ? duration : null, timeSpent);
+        }, 100);
     }
 
     // Apply saved max height
@@ -1567,7 +1600,7 @@ function renderGroups() {
         const groupElement = document.createElement('div');
         const isSelected = group.id === currentGroupId;
         const isDimmed = currentGroupId && !isSelected;
-        
+
         let className = `group-tab ${isSelected ? 'active' : ''} ${isDimmed ? 'dimmed' : ''}`;
 
         // Add color class if present (or inline style for custom hex colors)
@@ -1704,17 +1737,17 @@ function showGroupModal() {
     // We need to know we are creating a group
     // Let's attach a temporary handler or flag
     tabNameModal.dataset.mode = 'group';
-    
+
     // Reset color picker and select next available color for groups
     const colorSwatches = document.querySelectorAll('.color-swatch');
     colorSwatches.forEach(swatch => {
         swatch.classList.remove('selected');
     });
-    
+
     // Find next color for all groups
     const usedColors = Object.values(groups).map(group => group.color).filter(Boolean);
     const nextColor = findNextColor(usedColors);
-    
+
     // Select the next color swatch
     const nextColorSwatch = Array.from(colorSwatches).find(swatch => swatch.dataset.color === nextColor);
     if (nextColorSwatch) {
@@ -4175,22 +4208,24 @@ function setupEventListeners() {
     }
 
     if (fullscreenFocusBtn) {
+        let preFullscreenWidth = 320; // Store width before entering fullscreen
+
         fullscreenFocusBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
 
             const focusContainer = document.querySelector('.focus-container');
             if (focusContainer.classList.contains('fullscreen')) {
-                // Exit fullscreen
+                // Exit fullscreen - restore previous width
                 focusContainer.classList.remove('fullscreen');
+                document.body.classList.remove('is-fullscreen');
                 updateFullscreenButtonState(false);
-                // Restore window size logic would be complex without knowing original state, 
-                // but we can rely on the standard focus mode sizing logic which runs on enter or resize
-                // Actually, we should probably just tell main process to exit kiosk/fullscreen
-                reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500)); // Restore standard width
+                reddIpc.send('set-focus-window-size', preFullscreenWidth);
             } else {
-                // Enter fullscreen
+                // Enter fullscreen - save current width first
+                preFullscreenWidth = focusContainer.offsetWidth || 320;
                 focusContainer.classList.add('fullscreen');
+                document.body.classList.add('is-fullscreen');
                 updateFullscreenButtonState(true);
                 reddIpc.send('enter-fullscreen-focus');
             }
@@ -4277,6 +4312,12 @@ function setupEventListeners() {
                                     }, 1000);
                                 }
                             }
+
+                            // Resize window to fit content as user types
+                            const focusBar = document.querySelector('.focus-bar');
+                            const barHeight = focusBar ? focusBar.offsetHeight : 48;
+                            const totalHeight = barHeight + focusNotesContainer.offsetHeight;
+                            reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 800));
                         });
 
                         focusQuillInstance.root.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -4540,6 +4581,14 @@ function exitFocusMode() {
         focusTimer.classList.remove('overtime');
     }
 
+    // If this is the focus panel window, just call the backend to close it
+    // Don't switch to normal mode as that would show main app content in the panel
+    if (isFocusPanelWindow) {
+        reddIpc.send('exit-focus-mode');
+        return;
+    }
+
+    // For main window, switch UI modes
     focusMode.classList.add('hidden');
     normalMode.classList.remove('hidden');
 
@@ -5215,19 +5264,19 @@ const COLOR_ORDER = ['blue', 'gray', 'green', 'yellow', 'pink', 'orange', 'red',
  */
 function findNextColor(usedColors) {
     // Filter to only include colors from our palette (exclude empty string and custom hex colors)
-    const usedPaletteColors = usedColors.filter(color => 
+    const usedPaletteColors = usedColors.filter(color =>
         color && !color.startsWith('#') && COLOR_ORDER.includes(color)
     );
-    
+
     if (usedPaletteColors.length === 0) {
         // No colors used, return first color
         return COLOR_ORDER[0];
     }
-    
+
     // Find the highest index used
     const usedIndices = usedPaletteColors.map(color => COLOR_ORDER.indexOf(color));
     const maxUsedIndex = Math.max(...usedIndices);
-    
+
     // Return the next color (wrap around if needed)
     const nextIndex = (maxUsedIndex + 1) % COLOR_ORDER.length;
     return COLOR_ORDER[nextIndex];
@@ -5292,7 +5341,7 @@ function showTabNameModal() {
     colorSwatches.forEach(swatch => {
         swatch.classList.remove('selected');
     });
-    
+
     // Find next color for tabs in current group
     let nextColor = '';
     if (enableGroups && currentGroupId) {
@@ -5308,7 +5357,7 @@ function showTabNameModal() {
         // No group selected, default to first color
         nextColor = COLOR_ORDER[0];
     }
-    
+
     // Select the next color swatch
     const nextColorSwatch = Array.from(colorSwatches).find(swatch => swatch.dataset.color === nextColor);
     if (nextColorSwatch) {
