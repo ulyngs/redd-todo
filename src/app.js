@@ -1564,7 +1564,10 @@ function renderGroups() {
 
     Object.values(groups).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(group => {
         const groupElement = document.createElement('div');
-        let className = `group-tab ${group.id === currentGroupId ? 'active' : ''}`;
+        const isSelected = group.id === currentGroupId;
+        const isDimmed = currentGroupId && !isSelected;
+        
+        let className = `group-tab ${isSelected ? 'active' : ''} ${isDimmed ? 'dimmed' : ''}`;
 
         // Add color class if present (or inline style for custom hex colors)
         if (group.color) {
