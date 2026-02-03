@@ -617,13 +617,13 @@ function initApp() {
     // Update plan button visibility based on settings
     updatePlanButtonVisibility();
 
-    // Show window controls on non-Mac platforms
-    if (platform !== 'darwin') {
-        const winControls = document.getElementById('window-controls');
-        if (winControls) {
-            winControls.classList.remove('hidden');
-        }
-    }
+//     // Show window controls on non-Mac platforms
+//     if (platform !== 'darwin') {
+//         const winControls = document.getElementById('window-controls');
+//         if (winControls) {
+//             winControls.classList.remove('hidden');
+//         }
+//     }
 
 }
 
