@@ -2560,133 +2560,133 @@ input:checked+.slider:before {
 
 /* Tab Border Colors (for grouped mode - bottom border only) */
 .tab.tab-border-red {
-    border-bottom-color: #f87171 !important;
+    border-bottom-color: #FF9E9E !important;
 }
 
 .tab.tab-border-orange {
-    border-bottom-color: #fb923c !important;
+    border-bottom-color: #FFC09F !important;
 }
 
 .tab.tab-border-yellow {
-    border-bottom-color: #facc15 !important;
+    border-bottom-color: #FFEE93 !important;
 }
 
 .tab.tab-border-green {
-    border-bottom-color: #4ade80 !important;
+    border-bottom-color: #ADF7B6 !important;
 }
 
 .tab.tab-border-blue {
-    border-bottom-color: #60a5fa !important;
+    border-bottom-color: #81B1D1 !important;
 }
 
 .tab.tab-border-purple {
-    border-bottom-color: #c084fc !important;
+    border-bottom-color: #B19CD9 !important;
 }
 
 .tab.tab-border-pink {
-    border-bottom-color: #f472b6 !important;
+    border-bottom-color: #FFD1DC !important;
 }
 
 .tab.tab-border-gray {
-    border-bottom-color: #9ca3af !important;
+    border-bottom-color: #A0CED9 !important;
 }
 
 /* Tab Background Colors */
 .tab.tab-bg-red {
-    background-color: #fee2e2;
-    border-color: #fecaca;
-    color: #991b1b;
+    background-color: #FF9E9E;
+    border-color: #FF9E9E;
+    color: #7f1d1d;
 }
 
 .tab.tab-bg-orange {
-    background-color: #ffedd5;
-    border-color: #fed7aa;
-    color: #9a3412;
+    background-color: #FFC09F;
+    border-color: #FFC09F;
+    color: #7c2d12;
 }
 
 .tab.tab-bg-yellow {
-    background-color: #fef9c3;
-    border-color: #fde047;
-    color: #854d0e;
+    background-color: #FFEE93;
+    border-color: #FFEE93;
+    color: #713f12;
 }
 
 .tab.tab-bg-green {
-    background-color: #dcfce7;
-    border-color: #bbf7d0;
-    color: #166534;
+    background-color: #ADF7B6;
+    border-color: #ADF7B6;
+    color: #14532d;
 }
 
 .tab.tab-bg-blue {
-    background-color: #dbeafe;
-    border-color: #bfdbfe;
-    color: #1e40af;
+    background-color: #81B1D1;
+    border-color: #81B1D1;
+    color: #1e3a8a;
 }
 
 .tab.tab-bg-purple {
-    background-color: #f3e8ff;
-    border-color: #e9d5ff;
-    color: #6b21a8;
+    background-color: #B19CD9;
+    border-color: #B19CD9;
+    color: #581c87;
 }
 
 .tab.tab-bg-pink {
-    background-color: #fce7f3;
-    border-color: #fbcfe8;
-    color: #9d174d;
+    background-color: #FFD1DC;
+    border-color: #FFD1DC;
+    color: #831843;
 }
 
 .tab.tab-bg-gray {
-    background-color: #f3f4f6;
-    border-color: #e5e7eb;
-    color: #374151;
+    background-color: #A0CED9;
+    border-color: #A0CED9;
+    color: #0f4a5a;
 }
 
 /* Dark Mode Overrides for Tabs */
 [data-theme="dark"] .tab.tab-bg-red {
-    background-color: #7f1d1d;
-    border-color: #991b1b;
-    color: #fecaca;
+    background-color: #B86A6A;
+    border-color: #D88A8A;
+    color: #FF9E9E;
 }
 
 [data-theme="dark"] .tab.tab-bg-orange {
-    background-color: #7c2d12;
-    border-color: #9a3412;
-    color: #fed7aa;
+    background-color: #B88A6A;
+    border-color: #D8A07F;
+    color: #FFC09F;
 }
 
 [data-theme="dark"] .tab.tab-bg-yellow {
-    background-color: #713f12;
-    border-color: #854d0e;
-    color: #fde047;
+    background-color: #B8A85A;
+    border-color: #D8C873;
+    color: #FFEE93;
 }
 
 [data-theme="dark"] .tab.tab-bg-green {
-    background-color: #14532d;
-    border-color: #166534;
-    color: #bbf7d0;
+    background-color: #6BA87A;
+    border-color: #8BC89A;
+    color: #ADF7B6;
 }
 
 [data-theme="dark"] .tab.tab-bg-blue {
-    background-color: #1e3a8a;
-    border-color: #1e40af;
-    color: #bfdbfe;
+    background-color: #4A6B8A;
+    border-color: #6B9BA8;
+    color: #81B1D1;
 }
 
 [data-theme="dark"] .tab.tab-bg-purple {
-    background-color: #581c87;
-    border-color: #6b21a8;
-    color: #e9d5ff;
+    background-color: #7A6BA8;
+    border-color: #9A8BC8;
+    color: #B19CD9;
 }
 
 [data-theme="dark"] .tab.tab-bg-pink {
-    background-color: #831843;
-    border-color: #9d174d;
-    color: #fbcfe8;
+    background-color: #B88A9A;
+    border-color: #D8A1B1;
+    color: #FFD1DC;
 }
 
 [data-theme="dark"] .tab.tab-bg-gray {
-    background-color: #374151;
-    border-color: #4b5563;
-    color: #e5e7eb;
+    background-color: #5B8A9A;
+    border-color: #7BA8B8;
+    color: #A0CED9;
 }
 
 /* Ensure active tab overrides still work/blend - but usually active tab has its own strong style. 
@@ -2715,100 +2715,100 @@ input:checked+.slider:before {
 
 /* Group Tab Background Colors - mirror the tab colors */
 .group-tab.tab-bg-red {
-    background-color: #fee2e2;
-    border-color: #fecaca;
-    color: #991b1b;
+    background-color: #FF9E9E;
+    border-color: #FF9E9E;
+    color: #7f1d1d;
 }
 
 .group-tab.tab-bg-orange {
-    background-color: #ffedd5;
-    border-color: #fed7aa;
-    color: #9a3412;
+    background-color: #FFC09F;
+    border-color: #FFC09F;
+    color: #7c2d12;
 }
 
 .group-tab.tab-bg-yellow {
-    background-color: #fef9c3;
-    border-color: #fde047;
-    color: #854d0e;
+    background-color: #FFEE93;
+    border-color: #FFEE93;
+    color: #713f12;
 }
 
 .group-tab.tab-bg-green {
-    background-color: #dcfce7;
-    border-color: #bbf7d0;
-    color: #166534;
+    background-color: #ADF7B6;
+    border-color: #ADF7B6;
+    color: #14532d;
 }
 
 .group-tab.tab-bg-blue {
-    background-color: #dbeafe;
-    border-color: #bfdbfe;
-    color: #1e40af;
+    background-color: #81B1D1;
+    border-color: #81B1D1;
+    color: #1e3a8a;
 }
 
 .group-tab.tab-bg-purple {
-    background-color: #f3e8ff;
-    border-color: #e9d5ff;
-    color: #6b21a8;
+    background-color: #B19CD9;
+    border-color: #B19CD9;
+    color: #581c87;
 }
 
 .group-tab.tab-bg-pink {
-    background-color: #fce7f3;
-    border-color: #fbcfe8;
-    color: #9d174d;
+    background-color: #FFD1DC;
+    border-color: #FFD1DC;
+    color: #831843;
 }
 
 .group-tab.tab-bg-gray {
-    background-color: #f3f4f6;
-    border-color: #e5e7eb;
-    color: #374151;
+    background-color: #A0CED9;
+    border-color: #A0CED9;
+    color: #0f4a5a;
 }
 
 /* Dark Mode Overrides for Group Tabs */
 [data-theme="dark"] .group-tab.tab-bg-red {
-    background-color: #7f1d1d;
-    border-color: #991b1b;
-    color: #fecaca;
+    background-color: #B86A6A;
+    border-color: #D88A8A;
+    color: #FF9E9E;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-orange {
-    background-color: #7c2d12;
-    border-color: #9a3412;
-    color: #fed7aa;
+    background-color: #B88A6A;
+    border-color: #D8A07F;
+    color: #FFC09F;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-yellow {
-    background-color: #713f12;
-    border-color: #854d0e;
-    color: #fde047;
+    background-color: #B8A85A;
+    border-color: #D8C873;
+    color: #FFEE93;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-green {
-    background-color: #14532d;
-    border-color: #166534;
-    color: #bbf7d0;
+    background-color: #6BA87A;
+    border-color: #8BC89A;
+    color: #ADF7B6;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-blue {
-    background-color: #1e3a8a;
-    border-color: #1e40af;
-    color: #bfdbfe;
+    background-color: #4A6B8A;
+    border-color: #6B9BA8;
+    color: #81B1D1;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-purple {
-    background-color: #581c87;
-    border-color: #6b21a8;
-    color: #e9d5ff;
+    background-color: #7A6BA8;
+    border-color: #9A8BC8;
+    color: #B19CD9;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-pink {
-    background-color: #831843;
-    border-color: #9d174d;
-    color: #fbcfe8;
+    background-color: #B88A9A;
+    border-color: #D8A1B1;
+    color: #FFD1DC;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-gray {
-    background-color: #374151;
-    border-color: #4b5563;
-    color: #e5e7eb;
+    background-color: #5B8A9A;
+    border-color: #7BA8B8;
+    color: #A0CED9;
 }
 
 /* Active group tabs with colors */
