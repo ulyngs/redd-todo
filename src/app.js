@@ -1679,6 +1679,27 @@ function showGroupModal() {
         basecampSelection.classList.add('hidden');
     }
 
+    // Handle Reminders visibility
+    if (remindersConfig.isConnected) {
+        remindersSelection.classList.remove('hidden');
+        remindersListSelect.innerHTML = '<option value="">Select a list...</option>';
+
+        fetchRemindersLists().then(lists => {
+            if (lists.length === 0) {
+                remindersListSelect.innerHTML = '<option value="">No lists found</option>';
+            } else {
+                lists.forEach(l => {
+                    const opt = document.createElement('option');
+                    opt.value = l.id;
+                    opt.textContent = l.name;
+                    remindersListSelect.appendChild(opt);
+                });
+            }
+        });
+    } else {
+        remindersSelection.classList.add('hidden');
+    }
+
     // We need to know we are creating a group
     // Let's attach a temporary handler or flag
     tabNameModal.dataset.mode = 'group';
