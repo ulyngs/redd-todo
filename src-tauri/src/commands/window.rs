@@ -181,8 +181,14 @@ pub fn exit_focus_mode(app: tauri::AppHandle, _width: Option<f64>, _height: Opti
 pub fn set_focus_window_size(app: tauri::AppHandle, width: f64) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        if let Ok(panel) = app.get_webview_panel("focus") {
+        // Try getting the focus window directly first
+        if let Some(window) = app.get_webview_window("focus") {
+            let _ = window.set_fullscreen(false);
+            let _ = window.set_size(tauri::LogicalSize::new(width, 48.0));
+        } else if let Ok(panel) = app.get_webview_panel("focus") {
+            // Fallback to panel API
             if let Some(window) = panel.to_window() {
+                let _ = window.set_fullscreen(false);
                 let _ = window.set_size(tauri::LogicalSize::new(width, 48.0));
             }
         }
@@ -204,7 +210,15 @@ pub fn set_focus_window_size(app: tauri::AppHandle, width: f64) -> Result<(), St
 pub fn set_focus_window_height(app: tauri::AppHandle, height: f64) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        if let Ok(panel) = app.get_webview_panel("focus") {
+        // Try getting the focus window directly first
+        if let Some(window) = app.get_webview_window("focus") {
+            if let Ok(size) = window.outer_size() {
+                let scale = window.scale_factor().unwrap_or(1.0);
+                let current_width = (size.width as f64) / scale;
+                let _ = window.set_size(tauri::LogicalSize::new(current_width, height));
+            }
+        } else if let Ok(panel) = app.get_webview_panel("focus") {
+            // Fallback to panel API
             if let Some(window) = panel.to_window() {
                 if let Ok(size) = window.outer_size() {
                     let scale = window.scale_factor().unwrap_or(1.0);
@@ -234,7 +248,12 @@ pub fn set_focus_window_height(app: tauri::AppHandle, height: f64) -> Result<(),
 pub fn enter_fullscreen_focus(app: tauri::AppHandle) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        if let Ok(panel) = app.get_webview_panel("focus") {
+        // Try getting the focus window directly first
+        if let Some(window) = app.get_webview_window("focus") {
+            let _ = window.set_resizable(true);
+            let _ = window.set_fullscreen(true);
+        } else if let Ok(panel) = app.get_webview_panel("focus") {
+            // Fallback to panel API
             if let Some(window) = panel.to_window() {
                 let _ = window.set_resizable(true);
                 let _ = window.set_fullscreen(true);

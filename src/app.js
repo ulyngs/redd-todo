@@ -4151,21 +4151,21 @@ function setupEventListeners() {
     }
 
     if (fullscreenFocusBtn) {
+        let preFullscreenWidth = 320; // Store width before entering fullscreen
+
         fullscreenFocusBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
 
             const focusContainer = document.querySelector('.focus-container');
             if (focusContainer.classList.contains('fullscreen')) {
-                // Exit fullscreen
+                // Exit fullscreen - restore previous width
                 focusContainer.classList.remove('fullscreen');
                 updateFullscreenButtonState(false);
-                // Restore window size logic would be complex without knowing original state, 
-                // but we can rely on the standard focus mode sizing logic which runs on enter or resize
-                // Actually, we should probably just tell main process to exit kiosk/fullscreen
-                reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500)); // Restore standard width
+                reddIpc.send('set-focus-window-size', preFullscreenWidth);
             } else {
-                // Enter fullscreen
+                // Enter fullscreen - save current width first
+                preFullscreenWidth = focusContainer.offsetWidth || 320;
                 focusContainer.classList.add('fullscreen');
                 updateFullscreenButtonState(true);
                 reddIpc.send('enter-fullscreen-focus');
@@ -4253,6 +4253,12 @@ function setupEventListeners() {
                                     }, 1000);
                                 }
                             }
+
+                            // Resize window to fit content as user types
+                            const focusBar = document.querySelector('.focus-bar');
+                            const barHeight = focusBar ? focusBar.offsetHeight : 48;
+                            const totalHeight = barHeight + focusNotesContainer.offsetHeight;
+                            reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 800));
                         });
 
                         focusQuillInstance.root.addEventListener('mousedown', (e) => e.stopPropagation());
