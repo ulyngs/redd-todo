@@ -4161,12 +4161,14 @@ function setupEventListeners() {
             if (focusContainer.classList.contains('fullscreen')) {
                 // Exit fullscreen - restore previous width
                 focusContainer.classList.remove('fullscreen');
+                document.body.classList.remove('is-fullscreen');
                 updateFullscreenButtonState(false);
                 reddIpc.send('set-focus-window-size', preFullscreenWidth);
             } else {
                 // Enter fullscreen - save current width first
                 preFullscreenWidth = focusContainer.offsetWidth || 320;
                 focusContainer.classList.add('fullscreen');
+                document.body.classList.add('is-fullscreen');
                 updateFullscreenButtonState(true);
                 reddIpc.send('enter-fullscreen-focus');
             }

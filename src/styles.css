@@ -1640,14 +1640,14 @@ body.focus-panel-window .focus-container {
 }
 
 /* In fullscreen mode, use solid background */
-body.focus-panel-window .focus-container.fullscreen {
+body.focus-panel-window.is-fullscreen .focus-container.fullscreen {
     border-radius: 0;
     background: var(--app-bg);
 }
 
-/* Ensure body covers entire viewport in fullscreen */
-body.focus-panel-window:has(.focus-container.fullscreen) {
-    background: var(--app-bg);
+/* Ensure body covers entire viewport in fullscreen using class toggled by JS */
+body.focus-panel-window.is-fullscreen {
+    background: var(--app-bg) !important;
     border-radius: 0;
 }
 

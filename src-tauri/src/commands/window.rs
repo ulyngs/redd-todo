@@ -1,7 +1,7 @@
 use tauri::{command, Emitter, Manager, WebviewUrl};
 
 #[cfg(target_os = "macos")]
-use tauri_nspanel::{tauri_panel, ManagerExt, PanelBuilder, PanelLevel};
+use tauri_nspanel::{tauri_panel, CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask};
 
 /// Minimize the main window
 #[command]
@@ -25,14 +25,16 @@ pub fn window_close(window: tauri::WebviewWindow) -> Result<(), String> {
     window.close().map_err(|e| e.to_string())
 }
 
-// Define the panel class for macOS
+// Define the panel class for macOS with fullscreen support
 #[cfg(target_os = "macos")]
 tauri_panel! {
     panel!(FocusPanel {
         config: {
             can_become_key_window: true,
             is_floating_panel: true,
-            is_non_activating_panel: true
+            is_non_activating_panel: true,
+            works_when_modal: true,
+            hides_on_deactivate: false
         }
     })
 }
@@ -81,24 +83,37 @@ pub fn open_focus_window(
             time_spent.unwrap_or(0.0)
         );
         
-        // Create a new panel
+        // Create panel - no style_mask to avoid KVO observer crash
         let panel = PanelBuilder::<_, FocusPanel>::new(&app, "focus")
             .url(WebviewUrl::App(url.into()))
-            .level(PanelLevel::Floating)
             .build()
             .map_err(|e| e.to_string())?;
+        
+        // Configure panel for fullscreen display (per tauri-nspanel fullscreen example)
+        // Set floating window level
+        panel.set_level(PanelLevel::Floating.value());
+        
+        // Allow panel to display over fullscreen windows and join all spaces
+        panel.set_collection_behavior(
+            CollectionBehavior::new()
+                .full_screen_auxiliary()
+                .can_join_all_spaces()
+                .ignores_cycle()
+                .into()
+        );
+        
+        // Prevent panel from hiding when app deactivates
+        panel.set_hides_on_deactivate(false);
         
         // Set the panel size after creation
         if let Some(window) = panel.to_window() {
             let _ = window.set_size(tauri::LogicalSize::new(320.0, 48.0));
             let _ = window.set_decorations(false);
-            let _ = window.set_resizable(true);
             // Set transparent background for rounded corners
             let _ = window.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)));
         }
         
-        // Position the panel in top-right corner of the screen
-        // The panel will position itself appropriately
+        // Show the panel
         panel.show();
         
         // Notify main window about focus status change
