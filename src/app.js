@@ -1679,6 +1679,28 @@ function showGroupModal() {
     // We need to know we are creating a group
     // Let's attach a temporary handler or flag
     tabNameModal.dataset.mode = 'group';
+    
+    // Reset color picker and select next available color for groups
+    const colorSwatches = document.querySelectorAll('.color-swatch');
+    colorSwatches.forEach(swatch => {
+        swatch.classList.remove('selected');
+    });
+    
+    // Find next color for all groups
+    const usedColors = Object.values(groups).map(group => group.color).filter(Boolean);
+    const nextColor = findNextColor(usedColors);
+    
+    // Select the next color swatch
+    const nextColorSwatch = Array.from(colorSwatches).find(swatch => swatch.dataset.color === nextColor);
+    if (nextColorSwatch) {
+        nextColorSwatch.classList.add('selected');
+    } else {
+        // Fallback to "none" if color not found
+        const noneSwatch = Array.from(colorSwatches).find(swatch => swatch.dataset.color === '');
+        if (noneSwatch) {
+            noneSwatch.classList.add('selected');
+        }
+    }
 
     tabNameInput.focus();
 }
@@ -5120,6 +5142,37 @@ function editTaskDuration(taskId, metaElement) {
     });
 }
 
+// Color selection helper functions
+// Color order matching the HTML order: blue, gray, green, yellow, pink, orange, red, purple
+const COLOR_ORDER = ['blue', 'gray', 'green', 'yellow', 'pink', 'orange', 'red', 'purple'];
+
+/**
+ * Finds the next color in sequence based on used colors.
+ * If colors 1, 2, 3 are used, returns color 4.
+ * If all colors are used, wraps around to color 1.
+ * @param {Array<string>} usedColors - Array of color names/values that are already used
+ * @returns {string} - The next color name in sequence, or '' if no colors available
+ */
+function findNextColor(usedColors) {
+    // Filter to only include colors from our palette (exclude empty string and custom hex colors)
+    const usedPaletteColors = usedColors.filter(color => 
+        color && !color.startsWith('#') && COLOR_ORDER.includes(color)
+    );
+    
+    if (usedPaletteColors.length === 0) {
+        // No colors used, return first color
+        return COLOR_ORDER[0];
+    }
+    
+    // Find the highest index used
+    const usedIndices = usedPaletteColors.map(color => COLOR_ORDER.indexOf(color));
+    const maxUsedIndex = Math.max(...usedIndices);
+    
+    // Return the next color (wrap around if needed)
+    const nextIndex = (maxUsedIndex + 1) % COLOR_ORDER.length;
+    return COLOR_ORDER[nextIndex];
+}
+
 // Modal functions
 function showTabNameModal() {
     renamingTabId = null;
@@ -5174,14 +5227,39 @@ function showTabNameModal() {
         remindersSelection.classList.add('hidden');
     }
 
-    // Reset color picker
+    // Reset color picker and select next available color
     const colorSwatches = document.querySelectorAll('.color-swatch');
     colorSwatches.forEach(swatch => {
         swatch.classList.remove('selected');
-        if (swatch.dataset.color === '') {
-            swatch.classList.add('selected'); // Default to none
-        }
     });
+    
+    // Find next color for tabs in current group
+    let nextColor = '';
+    if (enableGroups && currentGroupId) {
+        // Get all tabs in the current group
+        const tabsInGroup = Object.values(tabs).filter(tab => tab.groupId === currentGroupId);
+        const usedColors = tabsInGroup.map(tab => tab.color).filter(Boolean);
+        nextColor = findNextColor(usedColors);
+    } else if (!enableGroups) {
+        // Groups disabled - get all tabs
+        const usedColors = Object.values(tabs).map(tab => tab.color).filter(Boolean);
+        nextColor = findNextColor(usedColors);
+    } else {
+        // No group selected, default to first color
+        nextColor = COLOR_ORDER[0];
+    }
+    
+    // Select the next color swatch
+    const nextColorSwatch = Array.from(colorSwatches).find(swatch => swatch.dataset.color === nextColor);
+    if (nextColorSwatch) {
+        nextColorSwatch.classList.add('selected');
+    } else {
+        // Fallback to "none" if color not found
+        const noneSwatch = Array.from(colorSwatches).find(swatch => swatch.dataset.color === '');
+        if (noneSwatch) {
+            noneSwatch.classList.add('selected');
+        }
+    }
 
     tabNameInput.focus();
 }
