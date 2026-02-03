@@ -3540,7 +3540,7 @@ function setupEventListeners() {
     }
 
     // Basecamp Project Selection
-    bcProjectSelect.addEventListener('change', () => {
+    bcProjectSelect.addEventListener('change', async () => {
         const projectId = bcProjectSelect.value;
         const isGroupMode = tabNameModal.dataset.mode === 'group';
 
@@ -3551,26 +3551,38 @@ function setupEventListeners() {
                 if (projectOption && (!tabNameInput.value || tabNameInput.value === '')) {
                     tabNameInput.value = projectOption.text;
                 }
-                createTabBtn.textContent = 'Import to-do lists from project';
+                
+                // Fetch list count and update button text
+                createTabBtn.textContent = 'Loading...';
+                const listCount = await getBasecampTodoListsCount(projectId);
+                createTabBtn.textContent = `Import ${listCount} to-do list${listCount !== 1 ? 's' : ''} from project`;
+                
                 // Don't fetch lists into the dropdown for groups
                 bcListWrapper.classList.add('hidden');
             } else {
                 // Tab creation: fetch lists into dropdown
                 fetchBasecampTodoLists(projectId);
                 bcListWrapper.classList.remove('hidden');
+                // Reset button text when project changes in tab mode
+                createTabBtn.textContent = 'Create';
             }
         } else {
             bcListWrapper.classList.add('hidden');
             if (isGroupMode) {
                 createTabBtn.textContent = 'Create Group';
+            } else {
+                createTabBtn.textContent = 'Create';
             }
         }
     });
 
     // Auto-fill tab name when Basecamp list is selected
-    bcListSelect.addEventListener('change', () => {
+    bcListSelect.addEventListener('change', async () => {
         const selectedOption = bcListSelect.options[bcListSelect.selectedIndex];
-        if (selectedOption && bcListSelect.value) {
+        const listId = bcListSelect.value;
+        const projectId = bcProjectSelect.value;
+        
+        if (selectedOption && listId && projectId) {
             const projectOption = bcProjectSelect.options[bcProjectSelect.selectedIndex];
             let prefix = '';
 
@@ -3583,6 +3595,14 @@ function setupEventListeners() {
             }
 
             tabNameInput.value = prefix + selectedOption.text;
+            
+            // Fetch task count and update button text
+            createTabBtn.textContent = 'Loading...';
+            const taskCount = await getBasecampTodosCount(projectId, listId);
+            createTabBtn.textContent = `Import ${taskCount} task${taskCount !== 1 ? 's' : ''}`;
+        } else {
+            // Reset button text when no list is selected
+            createTabBtn.textContent = 'Create';
         }
     });
 
@@ -5809,6 +5829,42 @@ async function fetchBasecampTodoLists(projectId) {
         opt.textContent = list.name;
         bcListSelect.appendChild(opt);
     });
+}
+
+// Get count of todo lists in a Basecamp project
+async function getBasecampTodoListsCount(projectId) {
+    try {
+        const lists = await getBasecampTodoLists(projectId);
+        return lists.length;
+    } catch (e) {
+        console.error('Basecamp Lists Count Error:', e);
+        return 0;
+    }
+}
+
+// Get count of todos in a Basecamp list
+async function getBasecampTodosCount(projectId, listId) {
+    if (!basecampConfig.isConnected || !projectId || !listId) return 0;
+    
+    try {
+        const baseUrl = `https://3.basecampapi.com/${basecampConfig.accountId}/buckets/${projectId}/todolists/${listId}/todos.json`;
+        
+        // Fetch both active and completed todos to get total count
+        const [activeResp, completedResp] = await Promise.all([
+            basecampFetch(baseUrl),
+            basecampFetch(`${baseUrl}?completed=true`)
+        ]);
+        
+        const activeTodos = await activeResp.json();
+        const completedTodos = await completedResp.json();
+        
+        // Return total count (active + completed)
+        return (Array.isArray(activeTodos) ? activeTodos.length : 0) + 
+               (Array.isArray(completedTodos) ? completedTodos.length : 0);
+    } catch (e) {
+        console.error('Basecamp Todos Count Error:', e);
+        return 0;
+    }
 }
 
 async function syncBasecampList(tabId) {
