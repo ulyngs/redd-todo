@@ -217,6 +217,7 @@ let draggedTabId = null;
 let draggedGroupId = null; // Track dragged group
 let focusedTaskId = null; // To track which task is currently in focus mode
 let activeFocusTaskIds = new Set(); // Used to style focused tasks in the main window
+let preFocusMainWindowSize = null; // Restore size after Windows in-window focus mode
 let currentView = 'lists'; // 'lists', 'favourites', or 'plan'
 let favouritesOrder = []; // Order of favourite task IDs for custom sorting
 let planModuleLoaded = false; // Track if plan module has been initialized
@@ -1418,6 +1419,12 @@ function focusTask(taskId, anchorElement = null) {
         // Windows fallback: multi-window focus mode can open an inert/blank
         // secondary webview in Tauri dev. Keep focus mode in the main window.
         if (platform === 'win32') {
+            if (!preFocusMainWindowSize) {
+                preFocusMainWindowSize = {
+                    width: window.outerWidth,
+                    height: window.outerHeight
+                };
+            }
             focusedTaskId = taskId;
             activeFocusTaskIds.add(taskId);
             renderTasks();
@@ -4807,7 +4814,7 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
 
     // Calculate appropriate window width based on content
     setTimeout(() => {
-        if (container && isFocusPanelWindow && !isNativeFullscreenFocusWindow && !preserveWindowGeometry) {
+        if (container && (isFocusPanelWindow || (platform === 'win32' && !isFocusPanelWindow)) && !isNativeFullscreenFocusWindow && !preserveWindowGeometry) {
             const containerWidth = Math.min(Math.max(container.offsetWidth, 280), 500);
             console.log('Calculated container width:', containerWidth);
             reddIpc.send('set-focus-window-size', containerWidth);
@@ -4860,6 +4867,14 @@ function exitFocusMode() {
     // For main window, switch UI modes
     focusMode.classList.add('hidden');
     normalMode.classList.remove('hidden');
+
+    // Restore the previous main-window size after Windows fallback focus mode.
+    if (platform === 'win32' && preFocusMainWindowSize) {
+        const { width, height } = preFocusMainWindowSize;
+        reddIpc.send('set-focus-window-size', width);
+        reddIpc.send('set-focus-window-height', height);
+        preFocusMainWindowSize = null;
+    }
 
     reddIpc.send('exit-focus-mode', { taskId: closingTaskId });
 }
