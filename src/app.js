@@ -4288,6 +4288,10 @@ function setupEventListeners() {
     const focusNotesWrapper = document.querySelector('.focus-notes-editor-wrapper');
     const focusNotesDoneBtn = document.getElementById('focus-notes-done-btn');
     let focusQuillInstance = null;
+    const canResizeFocusWindowHeight = () => {
+        const container = document.querySelector('.focus-container');
+        return !!container && !container.classList.contains('fullscreen') && !isNativeFullscreenFocusWindow;
+    };
 
     if (notesFocusBtn && focusNotesContainer) {
         notesFocusBtn.addEventListener('click', (e) => {
@@ -4302,8 +4306,10 @@ function setupEventListeners() {
                 notesFocusBtn.classList.remove('active');
                 if (focusNotesWrapper) focusNotesWrapper.classList.remove('active');
 
-                // Resize window back to normal height, preserving width
-                reddIpc.send('set-focus-window-height', 48);
+                // Only resize when not in fullscreen mode.
+                if (canResizeFocusWindowHeight()) {
+                    reddIpc.send('set-focus-window-height', 48);
+                }
             } else {
                 // Open notes
                 focusNotesContainer.classList.remove('hidden');
@@ -4337,7 +4343,9 @@ function setupEventListeners() {
                                 const focusBar = document.querySelector('.focus-bar');
                                 const barHeight = focusBar ? focusBar.offsetHeight : 48;
                                 const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                                reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
+                                if (canResizeFocusWindowHeight()) {
+                                    reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
+                                }
                             }, 50);
                         });
 
@@ -4367,7 +4375,9 @@ function setupEventListeners() {
                             const focusBar = document.querySelector('.focus-bar');
                             const barHeight = focusBar ? focusBar.offsetHeight : 48;
                             const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                            reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 800));
+                            if (canResizeFocusWindowHeight()) {
+                                reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 800));
+                            }
                         });
 
                         focusQuillInstance.root.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -4393,7 +4403,9 @@ function setupEventListeners() {
                     const focusBar = document.querySelector('.focus-bar');
                     const barHeight = focusBar ? focusBar.offsetHeight : 48;
                     const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                    reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
+                    if (canResizeFocusWindowHeight()) {
+                        reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
+                    }
                 }, 50);
             }
         });
