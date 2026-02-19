@@ -5734,6 +5734,7 @@ function saveData() {
         currentTabId: currentTabId,
         taskCounter: taskCounter,
         basecampConfig: basecampConfig,
+        remindersConfig: remindersConfig,
         isDoneCollapsed: isDoneCollapsed,
         doneMaxHeight: doneMaxHeight,
         groups: groups,
