@@ -3911,7 +3911,9 @@ function setupEventListeners() {
                 focusContainer.classList.remove('fullscreen');
                 updateFullscreenButtonState(false);
                 // Restore standard width (similar to logic in fullscreen button handler)
-                reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+                if (isFocusPanelWindow) {
+                    reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+                }
             }
         }
     });
@@ -4268,8 +4270,10 @@ function setupEventListeners() {
             // First exit fullscreen locally
             focusContainer.classList.remove('fullscreen');
             document.body.classList.remove('is-fullscreen');
-            // Restore standard width so IPC doesn't get confused
-            reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+            // Restore panel width only for dedicated focus windows.
+            if (isFocusPanelWindow) {
+                reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+            }
             // Then continue to standard exit
         }
 
@@ -4285,8 +4289,10 @@ function setupEventListeners() {
         if (focusContainer && focusContainer.classList.contains('fullscreen')) {
             // First exit fullscreen locally
             focusContainer.classList.remove('fullscreen');
-            // Restore standard width so IPC doesn't get confused
-            reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+            // Restore panel width only for dedicated focus windows.
+            if (isFocusPanelWindow) {
+                reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+            }
         }
 
         // Calculate elapsed time
@@ -4445,7 +4451,9 @@ function setupEventListeners() {
                 focusContainer.classList.remove('fullscreen');
                 document.body.classList.remove('is-fullscreen');
                 updateFullscreenButtonState(false);
-                reddIpc.send('set-focus-window-size', preFullscreenWidth);
+                if (isFocusPanelWindow) {
+                    reddIpc.send('set-focus-window-size', preFullscreenWidth);
+                }
             } else {
                 if (reddIsTauri && platform === 'darwin' && isFocusPanelWindow && !isNativeFullscreenFocusWindow && focusedTaskId) {
                     reddIpc.send('enter-fullscreen-focus-handoff', {
@@ -4461,7 +4469,9 @@ function setupEventListeners() {
                 focusContainer.classList.add('fullscreen');
                 document.body.classList.add('is-fullscreen');
                 updateFullscreenButtonState(true);
-                reddIpc.send('enter-fullscreen-focus');
+                if (isFocusPanelWindow) {
+                    reddIpc.send('enter-fullscreen-focus');
+                }
             }
         });
     }
@@ -4491,7 +4501,7 @@ function setupEventListeners() {
                 if (focusNotesWrapper) focusNotesWrapper.classList.remove('active');
 
                 // Only resize when not in fullscreen mode.
-                if (canResizeFocusWindowHeight()) {
+                if (isFocusPanelWindow && canResizeFocusWindowHeight()) {
                     reddIpc.send('set-focus-window-height', 48);
                 }
             } else {
@@ -4527,7 +4537,7 @@ function setupEventListeners() {
                                 const focusBar = document.querySelector('.focus-bar');
                                 const barHeight = focusBar ? focusBar.offsetHeight : 48;
                                 const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                                if (canResizeFocusWindowHeight()) {
+                                if (isFocusPanelWindow && canResizeFocusWindowHeight()) {
                                     reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
                                 }
                             }, 50);
@@ -4559,7 +4569,7 @@ function setupEventListeners() {
                             const focusBar = document.querySelector('.focus-bar');
                             const barHeight = focusBar ? focusBar.offsetHeight : 48;
                             const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                            if (canResizeFocusWindowHeight()) {
+                            if (isFocusPanelWindow && canResizeFocusWindowHeight()) {
                                 reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 800));
                             }
                         });
@@ -4587,7 +4597,7 @@ function setupEventListeners() {
                     const focusBar = document.querySelector('.focus-bar');
                     const barHeight = focusBar ? focusBar.offsetHeight : 48;
                     const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                    if (canResizeFocusWindowHeight()) {
+                        if (isFocusPanelWindow && canResizeFocusWindowHeight()) {
                         reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
                     }
                 }, 50);
@@ -4797,7 +4807,7 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
 
     // Calculate appropriate window width based on content
     setTimeout(() => {
-        if (container && !isNativeFullscreenFocusWindow && !preserveWindowGeometry) {
+        if (container && isFocusPanelWindow && !isNativeFullscreenFocusWindow && !preserveWindowGeometry) {
             const containerWidth = Math.min(Math.max(container.offsetWidth, 280), 500);
             console.log('Calculated container width:', containerWidth);
             reddIpc.send('set-focus-window-size', containerWidth);
