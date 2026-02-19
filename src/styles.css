@@ -2473,13 +2473,19 @@ body.focus-panel-window.is-fullscreen {
     border-radius: 6px;
     cursor: pointer;
     font-size: 13px;
-    margin-top: 10px;
+    margin-top: 4px;
     transition: all 0.2s ease;
     width: 100%;
 }
 
 .disconnect-btn:hover {
     background: rgba(239, 68, 68, 0.1);
+}
+
+/* Integrations spacing: tighten above and add breathing room below Reminders disconnect */
+#disconnect-reminders-btn {
+    margin-top: -2px;
+    margin-bottom: 20px;
 }
 
 .manual-update-btn {
