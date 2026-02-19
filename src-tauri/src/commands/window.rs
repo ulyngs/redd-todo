@@ -269,15 +269,9 @@ pub fn open_focus_window(
             return Ok(());
         }
 
-        // Use hash params for non-macOS focus windows. On Windows, query-style
-        // WebviewUrl::App values can resolve to a blank page.
-        let url = format!(
-            "index.html#focus=1&taskId={}&taskName={}&duration={}&timeSpent={}",
-            urlencoding::encode(&task_id),
-            urlencoding::encode(&task_name),
-            duration.unwrap_or(0.0),
-            time_spent.unwrap_or(0.0)
-        );
+        // Keep non-macOS focus windows on a simple route and send the task
+        // payload via events to avoid Windows URL resolution edge cases.
+        let url = "index.html?focus=1".to_string();
 
         let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
             .zoom_hotkeys_enabled(true)
@@ -291,13 +285,27 @@ pub fn open_focus_window(
         position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
         let _ = window.show();
         let _ = window.set_focus();
-        let _ = window.emit("enter-focus-mode", serde_json::json!({
+        let payload = serde_json::json!({
             "taskId": task_id,
             "taskName": task_name,
             "duration": duration,
             "initialTimeSpent": time_spent.unwrap_or(0.0),
             "preserveWindowGeometry": preserve_window_geometry
-        }));
+        });
+        let _ = window.emit("enter-focus-mode", payload.clone());
+
+        // The first emit can race initial JS listener setup on some platforms.
+        // Retry shortly after creation to ensure focus UI is initialized.
+        {
+            let app_handle = app.clone();
+            let label_for_emit = label.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(160));
+                if let Some(retry_window) = app_handle.get_webview_window(&label_for_emit) {
+                    let _ = retry_window.emit("enter-focus-mode", payload);
+                }
+            });
+        }
 
         if let Some(main_window) = app.get_webview_window("main") {
             let _ = main_window.emit("focus-status-changed", serde_json::json!({
