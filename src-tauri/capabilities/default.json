@@ -11,6 +11,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
+    "core:webview:allow-set-webview-zoom",
     "shell:default",
     "opener:default",
     "deep-link:default",

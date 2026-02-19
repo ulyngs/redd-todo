@@ -21,6 +21,7 @@
         "decorations": true,
         "hiddenTitle": true,
         "titleBarStyle": "Overlay",
+        "zoomHotkeysEnabled": true,
         "transparent": false,
         "alwaysOnTop": false,
         "visible": true,
