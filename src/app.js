@@ -352,6 +352,14 @@ function snapDurationToStep(value, direction, step = 5) {
     return (n % step === 0) ? (n - step) : (Math.floor(n / step) * step);
 }
 
+function generateUniqueCollectionId(prefix, collection) {
+    let candidate = `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    while (collection[candidate]) {
+        candidate = `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    }
+    return candidate;
+}
+
 // Done section elements
 const doneContainer = document.getElementById('done-container');
 const doneTasksContainer = document.querySelector('.done-tasks');
@@ -664,7 +672,7 @@ function initApp() {
 
 // Group Management
 function createGroup(name) {
-    const groupId = `group_${Date.now()}`;
+    const groupId = generateUniqueCollectionId('group', groups);
     const groupName = name.trim() || 'New Group';
 
     groups[groupId] = {
@@ -697,8 +705,8 @@ function switchToGroup(groupId) {
 }
 
 // Tab management
-function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId = null) {
-    const tabId = `tab_${Date.now()}`;
+function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId = null, groupIdOverride = null) {
+    const tabId = generateUniqueCollectionId('tab', tabs);
     const tabName = name.trim() || 'New Tab';
 
     tabs[tabId] = {
@@ -708,7 +716,7 @@ function createNewTab(name, bcProjectId = null, bcListId = null, remindersListId
         basecampProjectId: bcProjectId,
         basecampListId: bcListId,
         remindersListId: remindersListId, // Reminders List ID
-        groupId: currentGroupId // Assign to current group
+        groupId: groupIdOverride || currentGroupId // Assign to explicit group or current group
     };
 
     renderTabs();
@@ -1920,7 +1928,7 @@ async function handleModalCreate() {
                 // We want to trigger sync for all of them.
 
                 for (const list of lists) {
-                    createNewTab(list.name, bcProjectId, list.id);
+                    createNewTab(list.name, bcProjectId, list.id, null, groupId);
                 }
 
                 // After creating all tabs, we might want to re-render or switch to the first one?
@@ -1951,7 +1959,7 @@ async function handleModalCreate() {
         } else if (isImportingReminders) {
             try {
                 for (const list of selectedRemindersGroup.lists) {
-                    createNewTab(list.name, null, null, list.id);
+                    createNewTab(list.name, null, null, list.id, groupId);
                 }
 
                 const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
