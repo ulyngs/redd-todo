@@ -3613,6 +3613,8 @@ version = "2.0.0"
 dependencies = [
  "dotenvy",
  "log",
+ "objc2",
+ "objc2-foundation",
  "open",
  "reqwest",
  "serde",
