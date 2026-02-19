@@ -7,6 +7,10 @@ use tauri::{command, Manager};
 pub struct RemindersList {
     pub id: String,
     pub name: String,
+    #[serde(rename = "groupName", default)]
+    pub group_name: Option<String>,
+    #[serde(rename = "sourceName", default)]
+    pub source_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -88,7 +92,22 @@ fn jxa_lists_output() -> Result<String, String> {
 var app = Application('Reminders');
 try {
   var lists = app.lists();
-  var out = lists.map(function(l) { return { id: l.id(), name: l.name() }; });
+  var out = lists.map(function(l) {
+    var groupName = "";
+    var sourceName = "";
+    try {
+      if (l.container && l.container()) {
+        groupName = l.container().name() || "";
+      }
+    } catch (e) {}
+    try {
+      if (l.account && l.account()) {
+        sourceName = l.account().name() || "";
+      }
+    } catch (e) {}
+    if (!sourceName) sourceName = groupName;
+    return { id: l.id(), name: l.name(), groupName: groupName, sourceName: sourceName };
+  });
   JSON.stringify(out);
 } catch (e) {
   JSON.stringify({ error: String(e) });

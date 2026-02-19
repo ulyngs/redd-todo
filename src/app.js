@@ -389,6 +389,7 @@ const remindersConnectBtn = document.getElementById('reminders-connect-btn');
 const remindersStatus = document.getElementById('reminders-status');
 const remindersSelection = document.getElementById('reminders-selection');
 const remindersListSelect = document.getElementById('reminders-list-select');
+const remindersSelectionLabel = remindersSelection ? remindersSelection.querySelector('.bc-label') : null;
 const disconnectRemindersBtn = document.getElementById('disconnect-reminders-btn');
 // New elements
 const oauthConnectBtn = document.getElementById('oauth-connect-btn');
@@ -419,6 +420,7 @@ const closeUndoBtn = document.getElementById('close-undo-btn');
 let renamingTabId = null;
 // Track which group is being renamed
 let renamingGroupId = null;
+let remindersGroupsForImport = new Map(); // key => { name, lists[] }
 // Track which tab is pending deletion
 let pendingDeleteTabId = null;
 // Track which group is pending deletion
@@ -1732,6 +1734,7 @@ function showGroupModal() {
     tabNameInput.value = '';
     tabNameInput.placeholder = 'My Group';
     tabNameModal.classList.remove('hidden');
+    tabNameModal.dataset.mode = 'group';
 
     // Handle Basecamp visibility
     if (basecampConfig.isConnected) {
@@ -1755,9 +1758,45 @@ function showGroupModal() {
         basecampSelection.classList.add('hidden');
     }
 
-    // We need to know we are creating a group
-    // Let's attach a temporary handler or flag
-    tabNameModal.dataset.mode = 'group';
+    // In group mode, Reminders selection means importing all lists from a list-group/account.
+    remindersGroupsForImport = new Map();
+    if (remindersConfig.isConnected) {
+        remindersSelection.classList.remove('hidden');
+        if (remindersSelectionLabel) remindersSelectionLabel.textContent = 'Reminders List Group';
+        remindersListSelect.innerHTML = '<option value="">Select a list group...</option>';
+
+        fetchRemindersLists().then(lists => {
+            // Group by groupName/sourceName when provided by backend, otherwise fallback to "All Lists".
+            const grouped = new Map();
+            lists.forEach(list => {
+                const groupName = (list.groupName || list.sourceName || 'All Lists').trim();
+                if (!grouped.has(groupName)) grouped.set(groupName, []);
+                grouped.get(groupName).push(list);
+            });
+
+            remindersGroupsForImport = new Map();
+            if (grouped.size === 0) {
+                remindersListSelect.innerHTML = '<option value="">No list groups found</option>';
+                updateGroupImportButtonLabel();
+                return;
+            }
+
+            remindersListSelect.innerHTML = '<option value="">Select a list group...</option>';
+            let idx = 0;
+            grouped.forEach((groupLists, groupName) => {
+                const key = `group_${idx++}`;
+                remindersGroupsForImport.set(key, { name: groupName, lists: groupLists });
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = `${groupName} (${groupLists.length} lists)`;
+                remindersListSelect.appendChild(opt);
+            });
+
+            updateGroupImportButtonLabel();
+        });
+    } else {
+        remindersSelection.classList.add('hidden');
+    }
 
     // Reset color picker and select next available color for groups
     const colorSwatches = document.querySelectorAll('.color-swatch');
@@ -1793,6 +1832,7 @@ function showGroupRenameModal(groupId) {
         tabNameInput.value = group.name;
         tabNameModal.classList.remove('hidden');
         basecampSelection.classList.add('hidden');
+        remindersSelection.classList.add('hidden');
         tabNameModal.dataset.mode = 'group-rename';
 
         // Select logic for color
@@ -1846,9 +1886,16 @@ async function handleModalCreate() {
 
         // Check if Basecamp project is selected
         const bcProjectId = bcProjectSelect.value;
-        const isImporting = bcProjectId && basecampConfig.isConnected;
+        const remindersGroupKey = remindersListSelect.value;
+        const selectedRemindersGroup = remindersGroupsForImport.get(remindersGroupKey);
 
-        if (isImporting) {
+        const isImportingBasecamp = bcProjectId && basecampConfig.isConnected;
+        const isImportingReminders = !!selectedRemindersGroup && remindersConfig.isConnected;
+
+        if (isImportingBasecamp) {
+            createTabBtn.textContent = 'Importing...';
+            createTabBtn.disabled = true;
+        } else if (isImportingReminders) {
             createTabBtn.textContent = 'Importing...';
             createTabBtn.disabled = true;
         }
@@ -1862,7 +1909,7 @@ async function handleModalCreate() {
             renderGroups();
         }
 
-        if (isImporting) {
+        if (isImportingBasecamp) {
             try {
                 // Fetch all todo lists from the project
                 const lists = await getBasecampTodoLists(bcProjectId);
@@ -1897,6 +1944,23 @@ async function handleModalCreate() {
             } catch (e) {
                 console.error('Import Error:', e);
                 alert('Failed to import all lists from Basecamp.');
+            } finally {
+                createTabBtn.textContent = 'Create Group';
+                createTabBtn.disabled = false;
+            }
+        } else if (isImportingReminders) {
+            try {
+                for (const list of selectedRemindersGroup.lists) {
+                    createNewTab(list.name, null, null, list.id);
+                }
+
+                const groupTabs = Object.values(tabs).filter(t => t.groupId === groupId);
+                if (groupTabs.length > 0) {
+                    switchToTab(groupTabs[0].id);
+                }
+            } catch (e) {
+                console.error('Reminders import Error:', e);
+                alert('Failed to import all lists from Apple Reminders group.');
             } finally {
                 createTabBtn.textContent = 'Create Group';
                 createTabBtn.disabled = false;
@@ -3701,14 +3765,16 @@ function setupEventListeners() {
 
         if (projectId) {
             if (isGroupMode) {
+                // In group mode, keep Basecamp and Reminders-group imports mutually exclusive.
+                if (remindersListSelect) remindersListSelect.value = '';
                 // Group creation: Pre-fill name and change button text
                 const projectOption = bcProjectSelect.options[bcProjectSelect.selectedIndex];
                 if (projectOption && (!tabNameInput.value || tabNameInput.value === '')) {
                     tabNameInput.value = projectOption.text;
                 }
-                createTabBtn.textContent = 'Import to-do lists from project';
                 // Don't fetch lists into the dropdown for groups
                 bcListWrapper.classList.add('hidden');
+                updateGroupImportButtonLabel();
             } else {
                 // Tab creation: fetch lists into dropdown
                 fetchBasecampTodoLists(projectId);
@@ -3717,7 +3783,7 @@ function setupEventListeners() {
         } else {
             bcListWrapper.classList.add('hidden');
             if (isGroupMode) {
-                createTabBtn.textContent = 'Create Group';
+                updateGroupImportButtonLabel();
             }
         }
     });
@@ -3744,7 +3810,21 @@ function setupEventListeners() {
     // Auto-fill name when Reminders list is selected
     if (remindersListSelect) {
         remindersListSelect.addEventListener('change', () => {
+            const isGroupMode = tabNameModal.dataset.mode === 'group';
             const selectedOption = remindersListSelect.options[remindersListSelect.selectedIndex];
+
+            if (isGroupMode) {
+                if (remindersListSelect.value && bcProjectSelect.value) {
+                    bcProjectSelect.value = '';
+                    bcListWrapper.classList.add('hidden');
+                }
+                if (selectedOption && remindersListSelect.value && (!tabNameInput.value || tabNameInput.value === '')) {
+                    tabNameInput.value = selectedOption.text.replace(/\s+\(\d+\s+lists?\)\s*$/, '');
+                }
+                updateGroupImportButtonLabel();
+                return;
+            }
+
             if (selectedOption && (!tabNameInput.value || tabNameInput.value === '')) {
                 tabNameInput.value = selectedOption.text;
             }
@@ -5454,6 +5534,8 @@ function showTabNameModal() {
     // Handle Reminders visibility
     if (remindersConfig.isConnected) {
         remindersSelection.classList.remove('hidden');
+        if (remindersSelectionLabel) remindersSelectionLabel.textContent = 'Reminders List';
+        remindersGroupsForImport = new Map();
         remindersListSelect.innerHTML = '<option value="">Select a list...</option>';
 
         fetchRemindersLists().then(lists => {
@@ -5507,6 +5589,21 @@ function showTabNameModal() {
     }
 
     tabNameInput.focus();
+}
+
+function updateGroupImportButtonLabel() {
+    if (tabNameModal.dataset.mode !== 'group') return;
+
+    const hasBasecampProject = !!bcProjectSelect.value;
+    const hasRemindersGroup = !!remindersListSelect.value;
+
+    if (hasBasecampProject) {
+        createTabBtn.textContent = 'Import to-do lists from project';
+    } else if (hasRemindersGroup) {
+        createTabBtn.textContent = 'Import to-do lists from reminders group';
+    } else {
+        createTabBtn.textContent = 'Create Group';
+    }
 }
 
 function showRenameModal(tabId) {

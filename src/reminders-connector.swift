@@ -100,9 +100,14 @@ func checkAccess() {
 func fetchLists() {
     let calendars = store.calendars(for: .reminder)
     let result = calendars.map { cal in
+        let sourceTitle = cal.source.title
         return [
             "id": cal.calendarIdentifier,
-            "name": cal.title
+            "name": cal.title,
+            // EventKit does not expose custom Reminders "List Group" directly;
+            // source title is the best available grouping key (e.g. iCloud/account).
+            "groupName": sourceTitle,
+            "sourceName": sourceTitle
         ]
     }
     output(result)
