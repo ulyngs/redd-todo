@@ -269,8 +269,10 @@ pub fn open_focus_window(
             return Ok(());
         }
 
+        // Use hash params for non-macOS focus windows. On Windows, query-style
+        // WebviewUrl::App values can resolve to a blank page.
         let url = format!(
-            "index.html?focus=1&taskId={}&taskName={}&duration={}&timeSpent={}",
+            "index.html#focus=1&taskId={}&taskName={}&duration={}&timeSpent={}",
             urlencoding::encode(&task_id),
             urlencoding::encode(&task_name),
             duration.unwrap_or(0.0),

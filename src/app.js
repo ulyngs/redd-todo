@@ -150,9 +150,24 @@ const openExternal = async (url) => {
     }
 };
 
-const urlParams = new URLSearchParams(window.location.search);
-const isFocusPanelWindow = urlParams.get('focus') === '1';
-const isNativeFullscreenFocusWindow = isFocusPanelWindow && urlParams.get('fullscreen') === '1';
+function getLaunchParams() {
+    const params = new URLSearchParams(window.location.search || '');
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+    if (!hash) return params;
+
+    const hashParams = new URLSearchParams(hash);
+    // Fill missing keys from hash so query params still take precedence.
+    hashParams.forEach((value, key) => {
+        if (!params.has(key)) {
+            params.set(key, value);
+        }
+    });
+    return params;
+}
+
+const launchParams = getLaunchParams();
+const isFocusPanelWindow = launchParams.get('focus') === '1';
+const isNativeFullscreenFocusWindow = isFocusPanelWindow && launchParams.get('fullscreen') === '1';
 
 // Add body class for focus panel window styling (rounded corners, transparent background)
 if (isFocusPanelWindow) {
@@ -567,11 +582,10 @@ function initApp() {
         focusMode.classList.remove('hidden');
 
         // Read task data from URL params (passed by Rust when creating the panel)
-        const focusUrlParams = new URLSearchParams(window.location.search);
-        const taskName = decodeURIComponent(focusUrlParams.get('taskName') || 'Task');
-        const taskId = focusUrlParams.get('taskId');
-        const duration = focusUrlParams.get('duration') ? parseFloat(focusUrlParams.get('duration')) : null;
-        const timeSpent = focusUrlParams.get('timeSpent') ? parseFloat(focusUrlParams.get('timeSpent')) : 0;
+        const taskName = launchParams.get('taskName') || 'Task';
+        const taskId = launchParams.get('taskId');
+        const duration = launchParams.get('duration') ? parseFloat(launchParams.get('duration')) : null;
+        const timeSpent = launchParams.get('timeSpent') ? parseFloat(launchParams.get('timeSpent')) : 0;
 
         // Store the task ID for the focus panel
         if (taskId) {
