@@ -28,6 +28,12 @@
         },
         {
           "url": "https://redd-todo.netlify.app/.netlify/functions/auth"
+        },
+        {
+          "url": "https://*"
+        },
+        {
+          "url": "http://*"
         }
       ]
     }

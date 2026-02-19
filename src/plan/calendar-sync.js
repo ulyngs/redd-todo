@@ -203,7 +203,21 @@ const CalendarSync = (function () {
             const separator = fetchUrl.includes('?') ? '&' : '?';
             fetchUrl += `${separator}_=${new Date().getTime()}`;
 
-            const response = await fetch(fetchUrl);
+            const tauriFetch =
+                (typeof tauriAPI !== 'undefined' && tauriAPI && typeof tauriAPI.fetch === 'function')
+                    ? tauriAPI.fetch.bind(tauriAPI)
+                    : (typeof window !== 'undefined'
+                        && window.__TAURI__
+                        && window.__TAURI__.http
+                        && typeof window.__TAURI__.http.fetch === 'function')
+                        ? window.__TAURI__.http.fetch.bind(window.__TAURI__.http)
+                        : null;
+
+            const fetchFn = tauriFetch || fetch;
+
+            const response = await fetchFn(fetchUrl, {
+                method: 'GET'
+            });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }

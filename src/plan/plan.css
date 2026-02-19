@@ -905,12 +905,16 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     position: absolute;
     top: 60px;
     right: 24px;
+    left: auto;
     background: white;
     border: 1px solid var(--plan-border-color);
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     z-index: 1100;
-    min-width: 320px;
+    width: min(420px, calc(100vw - 32px));
+    min-width: 0;
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
 }
 
 [data-theme="dark"] #plan-mode .plan-calendar-popover {
@@ -920,6 +924,15 @@ body.dark-mode #plan-mode .plan-modal-dialog {
 
 #plan-mode .plan-calendar-popover.hidden {
     display: none;
+}
+
+@media (max-width: 720px) {
+    #plan-mode .plan-calendar-popover {
+        right: 8px;
+        left: 8px;
+        width: auto;
+        max-width: none;
+    }
 }
 
 #plan-mode .plan-calendar-popover-header {
