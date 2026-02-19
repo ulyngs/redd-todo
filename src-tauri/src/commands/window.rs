@@ -316,6 +316,12 @@ pub fn exit_focus_mode(
     _width: Option<f64>,
     _height: Option<f64>,
 ) -> Result<(), String> {
+    if let Some(id) = &task_id {
+        if let Ok(mut store) = fullscreen_handoff_geometry().lock() {
+            store.remove(id);
+        }
+    }
+
     let target_label = if let Some(id) = &task_id {
         focus_window_label(id)
     } else if window.label().starts_with("focus-") {
@@ -558,6 +564,51 @@ pub fn exit_fullscreen_focus_handoff(
         let _ = task_name;
         let _ = duration;
         let _ = time_spent;
+        Ok(())
+    }
+}
+
+#[command]
+pub fn exit_fullscreen_focus_to_home(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    task_id: String,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(mut store) = fullscreen_handoff_geometry().lock() {
+            store.remove(&task_id);
+        }
+
+        if window.label().starts_with("focusfs-") {
+            let _ = window.close();
+        } else if let Some(fullscreen_window) = app.get_webview_window(&fullscreen_focus_window_label(&task_id)) {
+            let _ = fullscreen_window.close();
+        }
+
+        let target_label = focus_window_label(&task_id);
+        if let Ok(panel) = app.get_webview_panel(&target_label) {
+            panel.hide();
+        }
+        if let Some(panel_window) = app.get_webview_window(&target_label) {
+            let _ = panel_window.hide();
+        }
+
+        if let Some(main_window) = app.get_webview_window("main") {
+            let _ = main_window.emit("focus-status-changed", serde_json::json!({
+                "activeTaskId": Option::<String>::None,
+                "closedTaskId": task_id
+            }));
+            let _ = main_window.set_focus();
+        }
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        let _ = window;
+        let _ = task_id;
         Ok(())
     }
 }

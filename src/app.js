@@ -75,6 +75,9 @@ const reddIpc = {
                     args[0]?.duration,
                     args[0]?.initialTimeSpent
                 ),
+                'exit-fullscreen-focus-to-home': () => tauriAPI.exitFullscreenFocusToHome(
+                    args[0]?.taskId
+                ),
                 'refresh-main-window': () => tauriAPI.refreshMainWindow(),
                 'task-updated': () => tauriAPI.taskUpdated(args[0]?.taskId, args[0]?.text),
                 'start-basecamp-auth': async () => {
@@ -4075,15 +4078,22 @@ function setupEventListeners() {
     }
 
     // Focus mode events
-    exitFocusBtn.addEventListener('click', (e) => {
+    exitFocusBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
 
         // Check if we are in fullscreen mode
         const focusContainer = document.querySelector('.focus-container');
         if (focusContainer && focusContainer.classList.contains('fullscreen')) {
+            if (reddIsTauri && platform === 'darwin' && isNativeFullscreenFocusWindow && focusedTaskId) {
+                // Match the user's expected behavior:
+                // "exit fullscreen first, then home".
+                await reddIpc.send('exit-fullscreen-focus-to-home', { taskId: focusedTaskId });
+                return;
+            }
             // First exit fullscreen locally
             focusContainer.classList.remove('fullscreen');
+            document.body.classList.remove('is-fullscreen');
             // Restore standard width so IPC doesn't get confused
             reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
             // Then continue to standard exit

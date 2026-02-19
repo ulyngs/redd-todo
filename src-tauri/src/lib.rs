@@ -77,6 +77,7 @@ pub fn run() {
             enter_fullscreen_focus,
             enter_fullscreen_focus_handoff,
             exit_fullscreen_focus_handoff,
+            exit_fullscreen_focus_to_home,
             refresh_main_window,
             task_updated,
             focus_status_changed,
