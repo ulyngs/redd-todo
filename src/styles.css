@@ -450,7 +450,7 @@ body {
 }
 
 .tab.tab-colorized {
-    border-bottom-width: 1px;
+    border-bottom-width: 2px;
 }
 
 .tab.tab-colorized:not(.active) {
