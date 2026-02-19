@@ -640,6 +640,16 @@ function initApp() {
     // Update plan button visibility based on settings
     updatePlanButtonVisibility();
 
+    // Restore preferred view after data/UI initialization.
+    const savedView = localStorage.getItem('currentView');
+    if (savedView === 'plan' && enablePlan) {
+        switchView('plan');
+    } else if (savedView === 'favourites') {
+        switchView('favourites');
+    } else {
+        switchView('lists');
+    }
+
     // Show window controls on non-Mac platforms
     if (platform !== 'darwin') {
         const winControls = document.getElementById('window-controls');
@@ -6741,16 +6751,62 @@ async function deleteRemindersTask(remindersId) {
 }
 
 // Data Management
-// Plan mode storage keys (must match plan.js)
+// Plan mode storage prefix (must match plan.js)
 const PLAN_STORAGE_PREFIX = 'redd-do-plan-';
-const PLAN_STORAGE_KEYS = [
-    PLAN_STORAGE_PREFIX + 'freeform-notes',
-    PLAN_STORAGE_PREFIX + 'freeform-lines',
-    PLAN_STORAGE_PREFIX + 'groups',
-    PLAN_STORAGE_PREFIX + 'active-group',
-    PLAN_STORAGE_PREFIX + 'calendars',
-    PLAN_STORAGE_PREFIX + 'calendar-last-sync'
-];
+
+function safeParseStorageValue(rawValue) {
+    if (rawValue == null) return null;
+    try {
+        return JSON.parse(rawValue);
+    } catch {
+        return rawValue;
+    }
+}
+
+function collectPlanDataForBackup() {
+    const planData = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const fullKey = localStorage.key(i);
+        if (!fullKey || !fullKey.startsWith(PLAN_STORAGE_PREFIX)) continue;
+        const shortKey = fullKey.slice(PLAN_STORAGE_PREFIX.length);
+        planData[shortKey] = safeParseStorageValue(localStorage.getItem(fullKey));
+    }
+    return planData;
+}
+
+function clearAllPlanStorage() {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(PLAN_STORAGE_PREFIX)) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+}
+
+function collectUiPrefsForBackup() {
+    return {
+        theme: localStorage.getItem('theme') || 'system',
+        language: localStorage.getItem('language') || 'en',
+        // Keep current view preference even if key does not exist yet.
+        currentView: localStorage.getItem('currentView') || currentView || 'lists'
+    };
+}
+
+function restoreUiPrefsFromBackup(uiPrefs) {
+    if (!uiPrefs || typeof uiPrefs !== 'object') return;
+
+    if (typeof uiPrefs.theme === 'string' && uiPrefs.theme.length > 0) {
+        localStorage.setItem('theme', uiPrefs.theme);
+    }
+    if (typeof uiPrefs.language === 'string' && uiPrefs.language.length > 0) {
+        localStorage.setItem('language', uiPrefs.language);
+    }
+    if (typeof uiPrefs.currentView === 'string' && uiPrefs.currentView.length > 0) {
+        localStorage.setItem('currentView', uiPrefs.currentView);
+    }
+}
 
 function exportData() {
     try {
@@ -6763,16 +6819,10 @@ function exportData() {
         // Parse the main data
         const exportObj = JSON.parse(todoData);
 
-        // Add plan mode data
-        exportObj.planData = {};
-        PLAN_STORAGE_KEYS.forEach(key => {
-            const value = localStorage.getItem(key);
-            if (value) {
-                // Store with shortened key (without prefix) for cleaner export
-                const shortKey = key.replace(PLAN_STORAGE_PREFIX, '');
-                exportObj.planData[shortKey] = JSON.parse(value);
-            }
-        });
+        // Add all plan mode data (manual notes/lines/groups and calendar sync config).
+        exportObj.planData = collectPlanDataForBackup();
+        // Add UI preferences.
+        exportObj.uiPrefs = collectUiPrefsForBackup();
 
         const blob = new Blob([JSON.stringify(exportObj)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -6816,7 +6866,9 @@ function importData(file) {
             if (confirmRestore) {
                 // Extract plan data before saving main data
                 const planData = data.planData;
+                const uiPrefs = data.uiPrefs;
                 delete data.planData; // Remove from main data object
+                delete data.uiPrefs; // Remove from main data object
 
                 // Save main to-do data to localStorage
                 localStorage.setItem('redd-todo-data', JSON.stringify(data));
@@ -6825,12 +6877,20 @@ function importData(file) {
                 localStorage.removeItem('redd-task-data');
 
                 // Restore plan mode data if present
+                clearAllPlanStorage();
                 if (planData) {
                     Object.keys(planData).forEach(shortKey => {
                         const fullKey = PLAN_STORAGE_PREFIX + shortKey;
-                        localStorage.setItem(fullKey, JSON.stringify(planData[shortKey]));
+                        const value = planData[shortKey];
+                        localStorage.setItem(
+                            fullKey,
+                            typeof value === 'string' ? value : JSON.stringify(value)
+                        );
                     });
                 }
+
+                // Restore UI preferences if present
+                restoreUiPrefsFromBackup(uiPrefs);
 
                 alert('Backup restored successfully! The app will now reload.');
                 window.location.reload();
