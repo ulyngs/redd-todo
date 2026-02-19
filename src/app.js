@@ -1415,6 +1415,16 @@ function focusTask(taskId, anchorElement = null) {
 
     // Use a dedicated floating window for focus mode across platforms.
     if (!isFocusPanelWindow) {
+        // Windows fallback: multi-window focus mode can open an inert/blank
+        // secondary webview in Tauri dev. Keep focus mode in the main window.
+        if (platform === 'win32') {
+            focusedTaskId = taskId;
+            activeFocusTaskIds.add(taskId);
+            renderTasks();
+            enterFocusMode(task.text, task.expectedDuration, task.timeSpent || 0);
+            return;
+        }
+
         const anchorRect = anchorElement?.getBoundingClientRect?.();
         // Send viewport-relative coordinates. Backend resolves these against the
         // main window position to avoid OS/browser screen-coordinate drift.
