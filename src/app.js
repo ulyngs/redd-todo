@@ -5872,15 +5872,26 @@ function updateBasecampUI() {
     }
 }
 
+let basecampRefreshPromise = null;
+
 async function refreshBasecampToken() {
+    if (basecampRefreshPromise) {
+        return basecampRefreshPromise;
+    }
+
+    basecampRefreshPromise = (async () => {
     if (!basecampConfig.refreshToken) {
         console.warn('Cannot refresh token: Missing refresh token.');
         return false;
     }
 
     try {
+        const fetchFn = (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.fetch)
+            ? tauriAPI.fetch.bind(tauriAPI)
+            : fetch;
+
         // Use Netlify function to refresh token (keeps client_secret server-side)
-        const response = await fetch('https://redd-todo.netlify.app/.netlify/functions/auth', {
+        const response = await fetchFn('https://redd-todo.netlify.app/.netlify/functions/auth', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -5911,6 +5922,13 @@ async function refreshBasecampToken() {
         console.error('Error refreshing Basecamp token:', e);
     }
     return false;
+    })();
+
+    try {
+        return await basecampRefreshPromise;
+    } finally {
+        basecampRefreshPromise = null;
+    }
 }
 
 async function basecampFetch(url, options = {}) {

@@ -204,7 +204,8 @@ const tauriAPI = {
             // Tauri 2.x http plugin's fetch returns a Response object similar to browser fetch
             const response = await window.__TAURI__.http.fetch(url, {
                 method: options.method || 'GET',
-                headers: options.headers || {}
+                headers: options.headers || {},
+                body: options.body
             });
 
             // Tauri 2 http.fetch should return a standard Response object
