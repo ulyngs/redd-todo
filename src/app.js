@@ -4762,6 +4762,8 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
 }
 
 function exitFocusMode() {
+    const closingTaskId = focusedTaskId;
+
     // Save progress if we have a focused task
     if (focusedTaskId && currentTabId && isFocusMode && focusStartTime) {
         const elapsed = Date.now() - focusStartTime;
@@ -4790,7 +4792,7 @@ function exitFocusMode() {
     // If this is the focus panel window, just call the backend to close it
     // Don't switch to normal mode as that would show main app content in the panel
     if (isFocusPanelWindow) {
-        reddIpc.send('exit-focus-mode', { taskId: focusedTaskId });
+        reddIpc.send('exit-focus-mode', { taskId: closingTaskId });
         return;
     }
 
@@ -4798,7 +4800,7 @@ function exitFocusMode() {
     focusMode.classList.add('hidden');
     normalMode.classList.remove('hidden');
 
-    reddIpc.send('exit-focus-mode', { taskId: focusedTaskId });
+    reddIpc.send('exit-focus-mode', { taskId: closingTaskId });
 }
 
 function startFocusTimer(initialTimeSpent = 0) {
