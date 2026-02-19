@@ -5,10 +5,12 @@
   "main": "main.js",
   "scripts": {
     "dev": "tauri dev",
-    "build": "tauri build",
-    "build:mac": "tauri build --target universal-apple-darwin",
-    "build:win": "tauri build --target x86_64-pc-windows-msvc",
-    "build:linux": "tauri build --target x86_64-unknown-linux-gnu",
+    "tauri:build:mas-app": "CI=true tauri build --target universal-apple-darwin --bundles app --config src-tauri/tauri.appstore.temp.conf.json",
+    "build": "tauri build && node scripts/collect-distribution-artifacts.js",
+    "build:mac": "tauri build --target universal-apple-darwin && node scripts/collect-distribution-artifacts.js --target universal-apple-darwin && node scripts/build-mas-package.js --skip-tauri-build --optional",
+    "build:mas": "node scripts/build-mas-package.js",
+    "build:win": "tauri build --target x86_64-pc-windows-msvc --bundles appx,nsis,msi && node scripts/collect-distribution-artifacts.js --target x86_64-pc-windows-msvc && node scripts/verify-windows-store-artifacts.js",
+    "build:linux": "tauri build --target x86_64-unknown-linux-gnu && node scripts/collect-distribution-artifacts.js --target x86_64-unknown-linux-gnu",
     "electron:start": "electron .",
     "electron:dev": "electron . --dev",
     "electron:build": "node build.js"

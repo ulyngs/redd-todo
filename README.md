@@ -79,10 +79,32 @@ We use `electron-builder` to create native installers.
 npm run build
 
 # Build for specific platform
-npm run build:mac   # Creates .dmg / .zip (Universal)
-npm run build:win   # Creates .exe (x64)
+npm run build:mac   # Creates .dmg / .zip (Universal) and tries to create App Store .pkg (skips with warning if App Store prerequisites are not met)
+npm run build:mas   # Creates only App Store .pkg for Transporter (macOS only)
+npm run build:win   # Creates NSIS/MSI + Windows Store package (APPX/MSIX) when available
 npm run build:linux # Creates .AppImage / .deb
 ```
+
+After each build, release artifacts are copied into:
+
+`for-distribution/<target-triple>/`
+
+Example targets:
+- `for-distribution/universal-apple-darwin/`
+- `for-distribution/x86_64-pc-windows-msvc/`
+- `for-distribution/x86_64-unknown-linux-gnu/`
+
+For Mac App Store submission, `npm run build:mas` writes:
+- `for-distribution/universal-apple-darwin/mas/ReDD Do.pkg`
+
+`build:mas` requires:
+- macOS
+- `APPLE_INSTALLER_IDENTITY` set (e.g. `3rd Party Mac Developer Installer: ...`)
+- `src-tauri/tauri.conf.json` with `app.macOSPrivateApi` set to `false` (App Store requirement)
+
+For Microsoft Store submission, `npm run build:win` now verifies that at least one Store package exists
+(`.appx`, `.msix`, `.appxbundle`, `.msixbundle`, `.appxupload`, or `.msixupload`) in:
+- `for-distribution/x86_64-pc-windows-msvc/`
 
 Note: To build with custom icons, place your icon files in the `assets/` directory:
 *   `assets/icon.icns` (Mac)

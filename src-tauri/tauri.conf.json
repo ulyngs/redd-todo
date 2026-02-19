@@ -7,7 +7,7 @@
     "frontendDist": "../src"
   },
   "app": {
-    "macOSPrivateApi": true,
+    "macOSPrivateApi": false,
     "withGlobalTauri": true,
     "windows": [
       {
