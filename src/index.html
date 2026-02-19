@@ -195,16 +195,15 @@
                             style="background-color: #FF9E9E;"></button>
                         <button type="button" class="color-swatch" data-color="purple" title="Lavender"
                             style="background-color: #B19CD9;"></button>
-                        <button type="button" class="color-swatch color-swatch-custom" data-color="custom"
-                            title="Custom color">
+                        <label class="color-swatch color-swatch-custom" data-color="custom" title="Custom color">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <path d="M12 8v8"></path>
                                 <path d="M8 12h8"></path>
                             </svg>
-                        </button>
-                        <input type="color" id="custom-color-input" value="#667eea" style="display: none;">
+                            <input type="color" id="custom-color-input" value="#667eea" aria-label="Custom tab color">
+                        </label>
                     </div>
                 </div>
 

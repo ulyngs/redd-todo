@@ -3149,14 +3149,18 @@ function setupEventListeners() {
         const swatch = e.target.closest('.color-swatch');
         if (swatch) {
             console.log('[Color Swatch] Clicked:', swatch.dataset.color);
-            e.preventDefault();
-            e.stopPropagation();
+            const isCustomSwatch = swatch.dataset.color === 'custom';
 
-            // If custom color swatch, open color picker
-            if (swatch.dataset.color === 'custom') {
-                customColorInput.click();
+            if (isCustomSwatch) {
+                // Mark custom swatch selected immediately for visual feedback.
+                document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+                swatch.classList.add('selected');
+                // Native picker is opened directly by the real color input inside the swatch label.
                 return;
             }
+
+            e.preventDefault();
+            e.stopPropagation();
 
             // Remove selected from all swatches
             document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
