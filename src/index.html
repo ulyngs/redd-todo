@@ -241,7 +241,10 @@
         <!-- Settings Modal -->
         <div id="settings-modal" class="modal-overlay hidden">
             <div class="modal-content">
-                <h3 data-i18n="settings">Settings</h3>
+                <div class="settings-header">
+                    <h3 data-i18n="settings">Settings</h3>
+                    <span id="current-app-version" class="settings-version">Your version: ...</span>
+                </div>
 
                 <div class="settings-section">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -295,7 +298,7 @@
                     <h4 data-i18n="dataManagement">Data Management</h4>
                     <p data-i18n="dataManagementDesc" class="settings-desc" style="margin-bottom: 12px;">Backup or
                         restore your data.</p>
-                    <div style="display: flex; gap: 10px;">
+                    <div id="export-buttons-container" style="display: flex; gap: 10px;">
                         <button id="export-data-btn" class="modal-btn"
                             style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color-medium); color: var(--text-primary);">
                             Export Backup
@@ -427,10 +430,6 @@
                         <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden"
                             data-i18n="disconnect">Disconnect</button>
                     </div>
-                </div>
-
-                <div style="font-size: 13px; color: #999; margin-bottom: 8px;">
-                    <span id="current-app-version">Your version: ...</span>
                 </div>
 
                 <div class="modal-buttons">
