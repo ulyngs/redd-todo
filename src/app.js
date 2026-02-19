@@ -63,6 +63,18 @@ const reddIpc = {
                 'set-focus-window-size': () => tauriAPI.setFocusWindowSize(args[0]),
                 'set-focus-window-height': () => tauriAPI.setFocusWindowHeight(args[0]),
                 'enter-fullscreen-focus': () => tauriAPI.enterFullscreenFocus(),
+                'enter-fullscreen-focus-handoff': () => tauriAPI.enterFullscreenFocusHandoff(
+                    args[0]?.taskId,
+                    args[0]?.taskName,
+                    args[0]?.duration,
+                    args[0]?.initialTimeSpent
+                ),
+                'exit-fullscreen-focus-handoff': () => tauriAPI.exitFullscreenFocusHandoff(
+                    args[0]?.taskId,
+                    args[0]?.taskName,
+                    args[0]?.duration,
+                    args[0]?.initialTimeSpent
+                ),
                 'refresh-main-window': () => tauriAPI.refreshMainWindow(),
                 'task-updated': () => tauriAPI.taskUpdated(args[0]?.taskId, args[0]?.text),
                 'start-basecamp-auth': async () => {
@@ -135,7 +147,9 @@ const openExternal = async (url) => {
     }
 };
 
-const isFocusPanelWindow = new URLSearchParams(window.location.search).get('focus') === '1';
+const urlParams = new URLSearchParams(window.location.search);
+const isFocusPanelWindow = urlParams.get('focus') === '1';
+const isNativeFullscreenFocusWindow = isFocusPanelWindow && urlParams.get('fullscreen') === '1';
 
 // Add body class for focus panel window styling (rounded corners, transparent background)
 if (isFocusPanelWindow) {
@@ -540,11 +554,11 @@ function initApp() {
         focusMode.classList.remove('hidden');
 
         // Read task data from URL params (passed by Rust when creating the panel)
-        const urlParams = new URLSearchParams(window.location.search);
-        const taskName = decodeURIComponent(urlParams.get('taskName') || 'Task');
-        const taskId = urlParams.get('taskId');
-        const duration = urlParams.get('duration') ? parseFloat(urlParams.get('duration')) : null;
-        const timeSpent = urlParams.get('timeSpent') ? parseFloat(urlParams.get('timeSpent')) : 0;
+        const focusUrlParams = new URLSearchParams(window.location.search);
+        const taskName = decodeURIComponent(focusUrlParams.get('taskName') || 'Task');
+        const taskId = focusUrlParams.get('taskId');
+        const duration = focusUrlParams.get('duration') ? parseFloat(focusUrlParams.get('duration')) : null;
+        const timeSpent = focusUrlParams.get('timeSpent') ? parseFloat(focusUrlParams.get('timeSpent')) : 0;
 
         // Store the task ID for the focus panel
         if (taskId) {
@@ -4231,13 +4245,33 @@ function setupEventListeners() {
             e.stopPropagation();
 
             const focusContainer = document.querySelector('.focus-container');
+            const currentTimeSpent = focusStartTime ? (Date.now() - focusStartTime) : 0;
+            const currentTaskName = (focusTaskName?.textContent || '').trim() || 'Task';
             if (focusContainer.classList.contains('fullscreen')) {
+                if (reddIsTauri && platform === 'darwin' && isNativeFullscreenFocusWindow && focusedTaskId) {
+                    reddIpc.send('exit-fullscreen-focus-handoff', {
+                        taskId: focusedTaskId,
+                        taskName: currentTaskName,
+                        duration: focusDuration ?? null,
+                        initialTimeSpent: currentTimeSpent
+                    });
+                    return;
+                }
                 // Exit fullscreen - restore previous width
                 focusContainer.classList.remove('fullscreen');
                 document.body.classList.remove('is-fullscreen');
                 updateFullscreenButtonState(false);
                 reddIpc.send('set-focus-window-size', preFullscreenWidth);
             } else {
+                if (reddIsTauri && platform === 'darwin' && isFocusPanelWindow && !isNativeFullscreenFocusWindow && focusedTaskId) {
+                    reddIpc.send('enter-fullscreen-focus-handoff', {
+                        taskId: focusedTaskId,
+                        taskName: currentTaskName,
+                        duration: focusDuration ?? null,
+                        initialTimeSpent: currentTimeSpent
+                    });
+                    return;
+                }
                 // Enter fullscreen - save current width first
                 preFullscreenWidth = focusContainer.offsetWidth || 320;
                 focusContainer.classList.add('fullscreen');
@@ -4525,7 +4559,7 @@ function updateFullscreenButtonState(isFullscreen) {
     }
 }
 
-function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
+function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserveWindowGeometry = false) {
     console.log('enterFocusMode called with taskName:', taskName, 'duration:', duration, 'initialTimeSpent:', initialTimeSpent);
     // If we re-enter focus mode (e.g. switching tasks), avoid duplicating timer intervals.
     stopFocusTimer();
@@ -4539,8 +4573,15 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
     // Reset fullscreen state if present (ensure we start fresh)
     const container = document.querySelector('.focus-container');
     if (container) {
-        container.classList.remove('fullscreen');
-        updateFullscreenButtonState(false);
+        if (isNativeFullscreenFocusWindow) {
+            container.classList.add('fullscreen');
+            document.body.classList.add('is-fullscreen');
+            updateFullscreenButtonState(true);
+        } else {
+            container.classList.remove('fullscreen');
+            document.body.classList.remove('is-fullscreen');
+            updateFullscreenButtonState(false);
+        }
 
         // Draw attention to the focus window location (useful when it pops up).
         container.classList.remove('attention-ring');
@@ -4560,7 +4601,7 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
 
     // Calculate appropriate window width based on content
     setTimeout(() => {
-        if (container) {
+        if (container && !isNativeFullscreenFocusWindow && !preserveWindowGeometry) {
             const containerWidth = Math.min(Math.max(container.offsetWidth, 280), 500);
             console.log('Calculated container width:', containerWidth);
             reddIpc.send('set-focus-window-size', containerWidth);
@@ -5470,7 +5511,12 @@ reddIpc.on('enter-focus-mode', (event, payload) => {
         if (payload.taskId) {
             focusedTaskId = payload.taskId;
         }
-        enterFocusMode(payload.taskName, payload.duration ?? null, payload.initialTimeSpent ?? 0);
+        enterFocusMode(
+            payload.taskName,
+            payload.duration ?? null,
+            payload.initialTimeSpent ?? 0,
+            payload.preserveWindowGeometry ?? false
+        );
         return;
     }
 

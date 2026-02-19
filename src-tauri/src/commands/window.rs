@@ -1,6 +1,7 @@
 use tauri::{command, Emitter, LogicalPosition, Manager, WebviewUrl};
-#[cfg(not(target_os = "macos"))]
 use tauri::WebviewWindowBuilder;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask};
 
@@ -21,6 +22,24 @@ fn focus_window_label(task_id: &str) -> String {
     // Tauri labels should avoid special characters.
     let safe = urlencoding::encode(task_id).replace('%', "_");
     format!("focus-{safe}")
+}
+
+fn fullscreen_focus_window_label(task_id: &str) -> String {
+    let safe = urlencoding::encode(task_id).replace('%', "_");
+    format!("focusfs-{safe}")
+}
+
+#[derive(Clone, Copy)]
+struct FocusWindowGeometry {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+fn fullscreen_handoff_geometry() -> &'static Mutex<HashMap<String, FocusWindowGeometry>> {
+    static STORE: OnceLock<Mutex<HashMap<String, FocusWindowGeometry>>> = OnceLock::new();
+    STORE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn position_focus_window(
@@ -121,8 +140,10 @@ pub fn open_focus_window(
     anchor_left: Option<f64>,
     anchor_right: Option<f64>,
     anchor_top: Option<f64>,
+    preserve_window_geometry: Option<bool>,
 ) -> Result<(), String> {
     let label = focus_window_label(&task_id);
+    let preserve_window_geometry = preserve_window_geometry.unwrap_or(false);
 
     #[cfg(target_os = "macos")]
     {
@@ -151,7 +172,8 @@ pub fn open_focus_window(
                 "taskId": task_id,
                 "taskName": task_name,
                 "duration": duration,
-                "initialTimeSpent": time_spent.unwrap_or(0.0)
+                "initialTimeSpent": time_spent.unwrap_or(0.0),
+                "preserveWindowGeometry": preserve_window_geometry
             }));
             
             // Notify main window about focus status change
@@ -199,6 +221,15 @@ pub fn open_focus_window(
         if let Some(window) = app.get_webview_window(&label) {
             let _ = window.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)));
             position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
+            if preserve_window_geometry {
+                let _ = window.emit("enter-focus-mode", serde_json::json!({
+                    "taskId": task_id,
+                    "taskName": task_name,
+                    "duration": duration,
+                    "initialTimeSpent": time_spent.unwrap_or(0.0),
+                    "preserveWindowGeometry": true
+                }));
+            }
         }
         
         // Notify main window about focus status change
@@ -224,7 +255,8 @@ pub fn open_focus_window(
                 "taskId": task_id,
                 "taskName": task_name,
                 "duration": duration,
-                "initialTimeSpent": time_spent.unwrap_or(0.0)
+                "initialTimeSpent": time_spent.unwrap_or(0.0),
+                "preserveWindowGeometry": preserve_window_geometry
             }));
 
             if let Some(main_window) = app.get_webview_window("main") {
@@ -260,7 +292,8 @@ pub fn open_focus_window(
             "taskId": task_id,
             "taskName": task_name,
             "duration": duration,
-            "initialTimeSpent": time_spent.unwrap_or(0.0)
+            "initialTimeSpent": time_spent.unwrap_or(0.0),
+            "preserveWindowGeometry": preserve_window_geometry
         }));
 
         if let Some(main_window) = app.get_webview_window("main") {
@@ -293,6 +326,10 @@ pub fn exit_focus_mode(
 
     #[cfg(target_os = "macos")]
     {
+        if window.label().starts_with("focusfs-") {
+            let _ = window.close();
+        }
+
         // Hide panel instead of closing NSPanel-backed window.
         // Closing can throw Objective-C exceptions across FFI boundaries.
         if let Ok(panel) = app.get_webview_panel(&target_label) {
@@ -336,7 +373,9 @@ pub fn exit_focus_mode(
 /// Set focus window size (width only, height stays at 48)
 #[command]
 pub fn set_focus_window_size(window: tauri::WebviewWindow, width: f64) -> Result<(), String> {
+    #[cfg(not(target_os = "macos"))]
     let _ = window.set_fullscreen(false);
+
     let _ = window.set_size(tauri::LogicalSize::new(width, 48.0));
     Ok(())
 }
@@ -356,9 +395,171 @@ pub fn set_focus_window_height(window: tauri::WebviewWindow, height: f64) -> Res
 #[command]
 pub fn enter_fullscreen_focus(window: tauri::WebviewWindow) -> Result<(), String> {
     let _ = window.set_resizable(true);
-    let _ = window.set_fullscreen(true);
     let _ = window.set_always_on_top(true);
+
+    #[cfg(target_os = "macos")]
+    {
+        // Avoid native fullscreen on NSPanel-backed focus windows.
+        // Toggling style masks can crash WebKit observer bookkeeping on macOS.
+        let scale = window.scale_factor().unwrap_or(1.0);
+        if let Ok(Some(monitor)) = window.current_monitor() {
+            let pos = monitor.position().to_logical::<f64>(scale);
+            let size = monitor.size().to_logical::<f64>(scale);
+            let _ = window.set_position(LogicalPosition::new(pos.x, pos.y));
+            let _ = window.set_size(tauri::LogicalSize::new(size.width, size.height));
+        } else {
+            // Safe fallback if monitor info is unavailable.
+            let _ = window.set_position(LogicalPosition::new(0.0, 0.0));
+            let _ = window.set_size(tauri::LogicalSize::new(1440.0, 900.0));
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = window.set_fullscreen(true);
+    }
+
     Ok(())
+}
+
+#[command]
+pub fn enter_fullscreen_focus_handoff(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    task_id: String,
+    task_name: String,
+    duration: Option<f64>,
+    time_spent: Option<f64>,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let fullscreen_label = fullscreen_focus_window_label(&task_id);
+        let panel_label = focus_window_label(&task_id);
+        let scale = window.scale_factor().unwrap_or(1.0);
+        if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
+            let geometry = FocusWindowGeometry {
+                x: (pos.x as f64) / scale,
+                y: (pos.y as f64) / scale,
+                width: (size.width as f64) / scale,
+                height: (size.height as f64) / scale,
+            };
+            if let Ok(mut store) = fullscreen_handoff_geometry().lock() {
+                store.insert(task_id.clone(), geometry);
+            }
+        }
+
+        if app.get_webview_window(&fullscreen_label).is_none() {
+            let url = format!(
+                "index.html?focus=1&fullscreen=1&taskId={}&taskName={}&duration={}&timeSpent={}",
+                urlencoding::encode(&task_id),
+                urlencoding::encode(&task_name),
+                duration.unwrap_or(0.0),
+                time_spent.unwrap_or(0.0)
+            );
+
+            let fullscreen_window =
+                WebviewWindowBuilder::new(&app, &fullscreen_label, WebviewUrl::App(url.into()))
+                    .always_on_top(true)
+                    .decorations(false)
+                    .resizable(true)
+                    .fullscreen(true)
+                    .build()
+                    .map_err(|e| e.to_string())?;
+
+            let _ = fullscreen_window.emit(
+                "enter-focus-mode",
+                serde_json::json!({
+                    "taskId": task_id,
+                    "taskName": task_name,
+                    "duration": duration,
+                    "initialTimeSpent": time_spent.unwrap_or(0.0)
+                }),
+            );
+            let _ = fullscreen_window.set_focus();
+        } else if let Some(fullscreen_window) = app.get_webview_window(&fullscreen_label) {
+            let _ = fullscreen_window.set_fullscreen(true);
+            let _ = fullscreen_window.show();
+            let _ = fullscreen_window.set_focus();
+            let _ = fullscreen_window.emit(
+                "enter-focus-mode",
+                serde_json::json!({
+                    "taskId": task_id,
+                    "taskName": task_name,
+                    "duration": duration,
+                    "initialTimeSpent": time_spent.unwrap_or(0.0)
+                }),
+            );
+        }
+
+        if let Ok(panel) = app.get_webview_panel(&panel_label) {
+            panel.hide();
+        }
+        let _ = window.hide();
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        let _ = window;
+        let _ = task_id;
+        let _ = task_name;
+        let _ = duration;
+        let _ = time_spent;
+        Ok(())
+    }
+}
+
+#[command]
+pub fn exit_fullscreen_focus_handoff(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    task_id: String,
+    task_name: String,
+    duration: Option<f64>,
+    time_spent: Option<f64>,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        open_focus_window(
+            app.clone(),
+            task_id.clone(),
+            task_name,
+            duration,
+            time_spent,
+            None,
+            None,
+            None,
+            Some(true),
+        )?;
+
+        if let Ok(mut store) = fullscreen_handoff_geometry().lock() {
+            if let Some(geometry) = store.remove(&task_id) {
+                if let Some(restored_window) = app.get_webview_window(&focus_window_label(&task_id)) {
+                    let _ = restored_window.set_size(tauri::LogicalSize::new(geometry.width, geometry.height));
+                    let _ = restored_window.set_position(LogicalPosition::new(geometry.x, geometry.y));
+                }
+            }
+        }
+
+        if window.label().starts_with("focusfs-") {
+            let _ = window.close();
+        } else if let Some(fullscreen_window) = app.get_webview_window(&fullscreen_focus_window_label(&task_id)) {
+            let _ = fullscreen_window.close();
+        }
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        let _ = window;
+        let _ = task_id;
+        let _ = task_name;
+        let _ = duration;
+        let _ = time_spent;
+        Ok(())
+    }
 }
 
 /// Emit refresh event to main window (for panel window to trigger main refresh)

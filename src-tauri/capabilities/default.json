@@ -5,7 +5,8 @@
   "windows": [
     "main",
     "focus",
-    "focus-*"
+    "focus-*",
+    "focusfs-*"
   ],
   "permissions": [
     "core:default",
