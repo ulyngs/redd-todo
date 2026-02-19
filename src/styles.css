@@ -1072,7 +1072,7 @@ body {
     align-items: center;
     border: 2px solid var(--border-color-medium);
     border-radius: 8px;
-    background: var(--app-bg-solid);
+    background: #ffffff;
     transition: border-color 0.2s ease;
     padding-right: 6px;
 }
