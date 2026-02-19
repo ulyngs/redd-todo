@@ -76,17 +76,20 @@ const tauriAPI = {
         return this.invoke('enter_focus_mode');
     },
 
-    async openFocusWindow(taskId, taskName, duration, timeSpent) {
+    async openFocusWindow(taskId, taskName, duration, timeSpent, anchorLeft = null, anchorRight = null, anchorTop = null) {
         return this.invoke('open_focus_window', {
             taskId,
             taskName,
             duration: duration || null,
-            timeSpent: timeSpent || 0
+            timeSpent: timeSpent || 0,
+            anchorLeft,
+            anchorRight,
+            anchorTop
         });
     },
 
-    async exitFocusMode(width, height) {
-        return this.invoke('exit_focus_mode', { width, height });
+    async exitFocusMode(taskId = null) {
+        return this.invoke('exit_focus_mode', { taskId });
     },
 
     async setFocusWindowSize(width) {

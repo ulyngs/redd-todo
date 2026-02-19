@@ -1628,14 +1628,25 @@ body {
 }
 
 /* Rounded corners and styling for the focus panel window */
+html.focus-panel-window {
+    background: transparent;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
 body.focus-panel-window {
     background: transparent;
-    border-radius: 14px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+body.focus-panel-window .app-container {
+    border-radius: 8px;
     overflow: hidden;
 }
 
 body.focus-panel-window .focus-container {
-    border-radius: 14px;
+    border-radius: 8px;
     overflow: hidden;
 }
 
@@ -1661,6 +1672,8 @@ body.focus-panel-window.is-fullscreen {
     position: relative;
     flex-shrink: 0;
     -webkit-app-region: drag;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 /* Attention ring animation when focus mode opens */
@@ -1910,6 +1923,9 @@ body.focus-panel-window.is-fullscreen {
     text-overflow: ellipsis;
     white-space: nowrap;
     margin-right: 8px;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-app-region: drag;
 }
 
 .focus-task-name.completed {
@@ -1930,6 +1946,9 @@ body.focus-panel-window.is-fullscreen {
     /* Minimum width to prevent jumping */
     margin-left: auto;
     transition: opacity 0.2s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-app-region: drag;
 }
 
 /* Focus Mode Toast */

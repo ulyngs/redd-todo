@@ -38,12 +38,15 @@ const reddIpc = {
         if (reddIsTauri && typeof tauriAPI !== 'undefined') {
             // Map Electron channel names to Tauri commands
             const channelMap = {
-                'exit-focus-mode': () => tauriAPI.exitFocusMode(),
+                'exit-focus-mode': () => tauriAPI.exitFocusMode(args[0]?.taskId ?? null),
                 'open-focus-window': () => tauriAPI.openFocusWindow(
                     args[0]?.taskId,
                     args[0]?.taskName,
                     args[0]?.duration,
-                    args[0]?.initialTimeSpent
+                    args[0]?.initialTimeSpent,
+                    args[0]?.anchorLeft ?? null,
+                    args[0]?.anchorRight ?? null,
+                    args[0]?.anchorTop ?? null
                 ),
                 'window-minimize': () => tauriAPI.windowMinimize(),
                 'window-maximize': () => tauriAPI.windowMaximize(),
@@ -52,7 +55,10 @@ const reddIpc = {
                     args[0]?.taskId,
                     args[0]?.taskName || args[0],
                     args[0]?.duration,
-                    args[0]?.initialTimeSpent
+                    args[0]?.initialTimeSpent,
+                    args[0]?.anchorLeft ?? null,
+                    args[0]?.anchorRight ?? null,
+                    args[0]?.anchorTop ?? null
                 ),
                 'set-focus-window-size': () => tauriAPI.setFocusWindowSize(args[0]),
                 'set-focus-window-height': () => tauriAPI.setFocusWindowHeight(args[0]),
@@ -133,6 +139,7 @@ const isFocusPanelWindow = new URLSearchParams(window.location.search).get('focu
 
 // Add body class for focus panel window styling (rounded corners, transparent background)
 if (isFocusPanelWindow) {
+    document.documentElement.classList.add('focus-panel-window');
     document.body.classList.add('focus-panel-window');
 }
 
@@ -156,7 +163,7 @@ let draggedTaskId = null;
 let draggedTabId = null;
 let draggedGroupId = null; // Track dragged group
 let focusedTaskId = null; // To track which task is currently in focus mode
-let activeFocusTaskId = null; // Used to style the focused task in the main window
+let activeFocusTaskIds = new Set(); // Used to style focused tasks in the main window
 let currentView = 'lists'; // 'lists', 'favourites', or 'plan'
 let favouritesOrder = []; // Order of favourite task IDs for custom sorting
 let planModuleLoaded = false; // Track if plan module has been initialized
@@ -542,7 +549,7 @@ function initApp() {
         // Store the task ID for the focus panel
         if (taskId) {
             focusedTaskId = taskId;
-            activeFocusTaskId = taskId;
+            activeFocusTaskIds.add(taskId);
         }
 
         // Delay slightly to ensure DOM is ready
@@ -1309,7 +1316,7 @@ function toggleTask(taskId) {
     }, 300);
 }
 
-function focusTask(taskId) {
+function focusTask(taskId, anchorElement = null) {
     console.log('focusTask called with taskId:', taskId);
 
     const context = getTaskContext(taskId);
@@ -1321,28 +1328,38 @@ function focusTask(taskId) {
     const { task } = context;
 
     // If this task is already focused (as indicated in the main window), clicking the icon exits focus mode.
-    if (!isFocusPanelWindow && activeFocusTaskId === taskId) {
-        reddIpc.send('exit-focus-mode');
-        activeFocusTaskId = null;
+    if (!isFocusPanelWindow && activeFocusTaskIds.has(taskId)) {
+        reddIpc.send('exit-focus-mode', { taskId });
+        activeFocusTaskIds.delete(taskId);
         renderTasks();
         return;
     }
 
     // Use a dedicated floating window for focus mode across platforms.
     if (!isFocusPanelWindow) {
-        activeFocusTaskId = taskId;
+        const anchorRect = anchorElement?.getBoundingClientRect?.();
+        // Send viewport-relative coordinates. Backend resolves these against the
+        // main window position to avoid OS/browser screen-coordinate drift.
+        const anchorLeft = anchorRect ? anchorRect.left : null;
+        const anchorRight = anchorRect ? anchorRect.right : null;
+        const anchorTop = anchorRect ? anchorRect.top : null;
+
+        activeFocusTaskIds.add(taskId);
         renderTasks();
         reddIpc.send('open-focus-window', {
             taskId,
             taskName: task.text,
             duration: task.expectedDuration ?? null,
-            initialTimeSpent: task.timeSpent || 0
+            initialTimeSpent: task.timeSpent || 0,
+            anchorLeft,
+            anchorRight,
+            anchorTop
         });
         return;
     }
 
     focusedTaskId = taskId;
-    activeFocusTaskId = taskId;
+    activeFocusTaskIds.add(taskId);
     console.log('Entering focus mode for task:', task.text);
     enterFocusMode(task.text, task.expectedDuration, task.timeSpent || 0);
 }
@@ -2750,7 +2767,7 @@ function createTaskElement(task) {
 
     let alwaysVisibleButtons = '';
     if (!task.completed) {
-        const isActiveFocusTask = activeFocusTaskId === task.id;
+        const isActiveFocusTask = activeFocusTaskIds.has(task.id);
         alwaysVisibleButtons = `
             ${alwaysMeta}
             ${favBtnHtml}
@@ -2996,29 +3013,86 @@ function createTaskElement(task) {
 
 // Event listeners
 function setupEventListeners() {
-    // Custom Window Drag Logic for Focus Window
+    // Focus window dragging in Tauri:
+    // - non-interactive areas drag immediately
+    // - interactive controls (buttons/inputs/editors) still click normally,
+    //   but press-and-hold starts window drag.
+    const focusBar = document.querySelector('.focus-bar');
     const focusContainer = document.querySelector('.focus-container');
-    if (focusContainer) {
+    if (isFocusPanelWindow && focusBar && focusContainer) {
+        // Ensure attribute exists even if template is changed later.
+        focusBar.setAttribute('data-tauri-drag-region', '');
+
+        let suppressClickUntil = 0;
+        const HOLD_TO_DRAG_MS = 170;
+        const MOVE_CANCEL_PX = 6;
+
         focusContainer.addEventListener('mousedown', (e) => {
-            // Check if clicking on an interactive element (buttons, etc.)
-            if (e.target.closest('button') || e.target.closest('.focus-buttons-container button')) {
-                return;
-            }
+            if (e.button !== 0) return;
 
-            // Start custom drag
-            reddIpc.send('window-drag-start');
-            document.body.style.cursor = 'grabbing';
-            focusContainer.style.cursor = 'grabbing';
+            const target = e.target;
+            const interactiveEl = target.closest('button, a, input, textarea, select, [contenteditable="true"], .ql-editor, .ql-toolbar');
+            const startX = e.clientX;
+            const startY = e.clientY;
+            let dragStarted = false;
+            let holdTimer = null;
 
-            const handleMouseUp = () => {
-                reddIpc.send('window-drag-end');
-                document.body.style.cursor = '';
-                focusContainer.style.cursor = 'grab';
-                window.removeEventListener('mouseup', handleMouseUp);
+            const cleanup = () => {
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    holdTimer = null;
+                }
+                window.removeEventListener('mousemove', onMove, true);
+                window.removeEventListener('mouseup', onUp, true);
             };
 
-            window.addEventListener('mouseup', handleMouseUp);
-        });
+            const startWindowDrag = async () => {
+                if (dragStarted) return;
+                dragStarted = true;
+                // Prevent the pending click from firing after a hold-to-drag gesture.
+                suppressClickUntil = Date.now() + 400;
+                cleanup();
+                try {
+                    await tauriAPI.startDrag();
+                } catch (err) {
+                    console.warn('Failed to start focus-window drag:', err);
+                }
+            };
+
+            const onMove = (moveEvent) => {
+                const dx = Math.abs(moveEvent.clientX - startX);
+                const dy = Math.abs(moveEvent.clientY - startY);
+                if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) {
+                    // If user moves before hold threshold on an interactive control,
+                    // switch to dragging immediately for a natural "click-and-drag".
+                    if (interactiveEl) {
+                        startWindowDrag();
+                    } else {
+                        cleanup();
+                    }
+                }
+            };
+
+            const onUp = () => {
+                cleanup();
+            };
+
+            window.addEventListener('mousemove', onMove, true);
+            window.addEventListener('mouseup', onUp, true);
+
+            if (interactiveEl) {
+                holdTimer = setTimeout(startWindowDrag, HOLD_TO_DRAG_MS);
+            } else {
+                startWindowDrag();
+            }
+        }, true);
+
+        focusContainer.addEventListener('click', (e) => {
+            if (Date.now() < suppressClickUntil) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
     }
 
     // View Switcher Listeners
@@ -3756,7 +3830,7 @@ function setupEventListeners() {
             if (menu) menu.classList.add('hidden');
         }
         else if (e.target.classList.contains('focus-btn') || e.target.closest('.focus-btn')) {
-            focusTask(taskId);
+            focusTask(taskId, e.target.closest('.focus-btn'));
         } else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
             toggleTask(taskId);
         } else if (e.target.classList.contains('task-text')) {
@@ -4493,8 +4567,12 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0) {
         }
     }, 50); // Small delay to ensure DOM is updated
 
-    console.log('Sending enter-focus-mode IPC');
-    reddIpc.send('enter-focus-mode', taskName);
+    // Legacy Electron compatibility path; in Tauri this causes an invalid
+    // open_focus_window invoke without taskId, so skip it.
+    if (!reddIsTauri) {
+        console.log('Sending enter-focus-mode IPC');
+        reddIpc.send('enter-focus-mode', taskName);
+    }
 }
 
 function exitFocusMode() {
@@ -4513,7 +4591,7 @@ function exitFocusMode() {
     // Only clear the "active focus" indicator in this window if we're not the main window on macOS.
     // On macOS the main process will broadcast focus-status-changed when the panel closes.
     if (!isFocusPanelWindow && platform !== 'darwin') {
-        activeFocusTaskId = null;
+        activeFocusTaskIds.clear();
     }
     focusDuration = null; // Reset duration
     stopFocusTimer();
@@ -4526,7 +4604,7 @@ function exitFocusMode() {
     // If this is the focus panel window, just call the backend to close it
     // Don't switch to normal mode as that would show main app content in the panel
     if (isFocusPanelWindow) {
-        reddIpc.send('exit-focus-mode');
+        reddIpc.send('exit-focus-mode', { taskId: focusedTaskId });
         return;
     }
 
@@ -4534,7 +4612,7 @@ function exitFocusMode() {
     focusMode.classList.add('hidden');
     normalMode.classList.remove('hidden');
 
-    reddIpc.send('exit-focus-mode');
+    reddIpc.send('exit-focus-mode', { taskId: focusedTaskId });
 }
 
 function startFocusTimer(initialTimeSpent = 0) {
@@ -5418,7 +5496,14 @@ reddIpc.on('refresh-data', () => {
 
 reddIpc.on('focus-status-changed', (event, payload) => {
     if (isFocusPanelWindow) return;
-    activeFocusTaskId = payload?.activeTaskId ?? null;
+    const openedTaskId = payload?.openedTaskId;
+    const closedTaskId = payload?.closedTaskId;
+
+    if (openedTaskId) activeFocusTaskIds.add(openedTaskId);
+    if (closedTaskId) activeFocusTaskIds.delete(closedTaskId);
+    if (!openedTaskId && !closedTaskId && payload?.activeTaskId == null) {
+        activeFocusTaskIds.clear();
+    }
     renderTasks();
 });
 

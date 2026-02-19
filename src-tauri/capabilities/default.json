@@ -4,7 +4,8 @@
   "description": "Default permissions for ReDD Do",
   "windows": [
     "main",
-    "focus"
+    "focus",
+    "focus-*"
   ],
   "permissions": [
     "core:default",

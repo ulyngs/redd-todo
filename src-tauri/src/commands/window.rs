@@ -1,4 +1,4 @@
-use tauri::{command, Emitter, Manager, WebviewUrl};
+use tauri::{command, Emitter, LogicalPosition, Manager, WebviewUrl};
 #[cfg(not(target_os = "macos"))]
 use tauri::WebviewWindowBuilder;
 #[cfg(target_os = "macos")]
@@ -15,6 +15,77 @@ tauri_nspanel::tauri_panel! {
             is_floating_panel: true
         }
     })
+}
+
+fn focus_window_label(task_id: &str) -> String {
+    // Tauri labels should avoid special characters.
+    let safe = urlencoding::encode(task_id).replace('%', "_");
+    format!("focus-{safe}")
+}
+
+fn position_focus_window(
+    app: &tauri::AppHandle,
+    window: &tauri::WebviewWindow,
+    anchor_left: Option<f64>,
+    anchor_right: Option<f64>,
+    anchor_top: Option<f64>,
+) {
+    let offset_step = 28.0;
+    let focus_count = app
+        .webview_windows()
+        .keys()
+        .filter(|label| label.starts_with("focus-"))
+        .count()
+        .saturating_sub(1) as f64;
+    let cascade = focus_count * offset_step;
+
+    if let Some(main_window) = app.get_webview_window("main") {
+        if let Ok(main_pos) = main_window.outer_position() {
+            let scale = main_window.scale_factor().unwrap_or(1.0);
+            let main_x = (main_pos.x as f64) / scale;
+            let main_y = (main_pos.y as f64) / scale;
+            let window_width = window
+                .outer_size()
+                .ok()
+                .map(|size| (size.width as f64) / scale)
+                .unwrap_or(320.0);
+
+            if let (Some(left), Some(right)) = (anchor_left, anchor_right) {
+                // Anchor values are sent as coordinates relative to the main window
+                // viewport to avoid cross-monitor/screen-coordinate mismatches.
+                let left_abs = main_x + left;
+                let right_abs = main_x + right;
+                let mut x = left_abs + 12.0;
+
+                if let Ok(Some(monitor)) = main_window.current_monitor() {
+                    let monitor_pos = monitor.position().to_logical::<f64>(scale);
+                    let monitor_size = monitor.size().to_logical::<f64>(scale);
+                    let min_x = monitor_pos.x;
+                    let max_x = monitor_pos.x + monitor_size.width - window_width;
+
+                    if x > max_x {
+                        x = right_abs - 12.0 - window_width;
+                    }
+
+                    x = x.clamp(min_x, max_x.max(min_x));
+                } else if x + window_width > right_abs + 12.0 {
+                    // Without monitor bounds we can still enforce the requested fallback.
+                    x = right_abs - 12.0 - window_width;
+                }
+
+                let y = anchor_top.map(|top| main_y + top).unwrap_or(main_y + 32.0) + cascade;
+                let _ = window.set_position(LogicalPosition::new(x, y));
+                return;
+            }
+
+            let x = main_x + 32.0 + cascade;
+            let y = main_y + 32.0 + cascade;
+            let _ = window.set_position(LogicalPosition::new(x, y));
+            return;
+        }
+    }
+
+    let _ = window.set_position(LogicalPosition::new(120.0 + cascade, 120.0 + cascade));
 }
 
 /// Minimize the main window
@@ -47,7 +118,12 @@ pub fn open_focus_window(
     task_name: String,
     duration: Option<f64>,
     time_spent: Option<f64>,
+    anchor_left: Option<f64>,
+    anchor_right: Option<f64>,
+    anchor_top: Option<f64>,
 ) -> Result<(), String> {
+    let label = focus_window_label(&task_id);
+
     #[cfg(target_os = "macos")]
     {
         let panel_behavior = CollectionBehavior::new()
@@ -57,16 +133,18 @@ pub fn open_focus_window(
             .ignores_cycle();
 
         // Check if window already exists
-        if let Some(window) = app.get_webview_window("focus") {
+        if let Some(window) = app.get_webview_window(&label) {
             // Drive visibility from the panel handle first. Mixing only WebviewWindow
             // APIs can lose some NSPanel-specific behavior across space transitions.
-            if let Ok(panel) = app.get_webview_panel("focus") {
+            if let Ok(panel) = app.get_webview_panel(&label) {
                 panel.show_and_make_key();
                 panel.set_floating_panel(true);
                 panel.set_level(PanelLevel::Floating.value());
                 panel.set_collection_behavior(panel_behavior.value());
+                panel.set_corner_radius(8.0);
                 panel.order_front_regardless();
             }
+            position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
             
             // Emit event to the window with task data
             let _ = window.emit("enter-focus-mode", serde_json::json!({
@@ -79,7 +157,8 @@ pub fn open_focus_window(
             // Notify main window about focus status change
             if let Some(main_window) = app.get_webview_window("main") {
                 let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                    "activeTaskId": task_id
+                    "activeTaskId": task_id,
+                    "openedTaskId": task_id
                 }));
             }
             
@@ -95,7 +174,7 @@ pub fn open_focus_window(
         );
 
         // Build a true NSPanel for reliable fullscreen overlay behavior.
-        let panel = PanelBuilder::<_, FocusModePanel>::new(&app, "focus")
+        let panel = PanelBuilder::<_, FocusModePanel>::new(&app, &label)
             .url(WebviewUrl::App(url.into()))
             .level(PanelLevel::Floating)
             .floating(true)
@@ -103,6 +182,7 @@ pub fn open_focus_window(
             .movable_by_window_background(true)
             .collection_behavior(panel_behavior)
             .style_mask(StyleMask::empty().borderless().nonactivating_panel())
+            .corner_radius(8.0)
             .transparent(true)
             .with_window(|window| {
                 window
@@ -116,14 +196,16 @@ pub fn open_focus_window(
         panel.show_and_make_key();
         panel.order_front_regardless();
 
-        if let Some(window) = app.get_webview_window("focus") {
+        if let Some(window) = app.get_webview_window(&label) {
             let _ = window.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)));
+            position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
         }
         
         // Notify main window about focus status change
         if let Some(main_window) = app.get_webview_window("main") {
             let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                "activeTaskId": task_id
+                "activeTaskId": task_id,
+                "openedTaskId": task_id
             }));
         }
         
@@ -132,8 +214,9 @@ pub fn open_focus_window(
     
     #[cfg(not(target_os = "macos"))]
     {
-        if let Some(window) = app.get_webview_window("focus") {
+        if let Some(window) = app.get_webview_window(&label) {
             let _ = window.set_always_on_top(true);
+            position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
             let _ = window.show();
             let _ = window.set_focus();
 
@@ -146,7 +229,8 @@ pub fn open_focus_window(
 
             if let Some(main_window) = app.get_webview_window("main") {
                 let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                    "activeTaskId": task_id
+                    "activeTaskId": task_id,
+                    "openedTaskId": task_id
                 }));
             }
 
@@ -161,7 +245,7 @@ pub fn open_focus_window(
             time_spent.unwrap_or(0.0)
         );
 
-        let window = WebviewWindowBuilder::new(&app, "focus", WebviewUrl::App(url.into()))
+        let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
             .always_on_top(true)
             .decorations(false)
             .resizable(true)
@@ -169,12 +253,20 @@ pub fn open_focus_window(
             .build()
             .map_err(|e| e.to_string())?;
 
+        position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
         let _ = window.show();
         let _ = window.set_focus();
+        let _ = window.emit("enter-focus-mode", serde_json::json!({
+            "taskId": task_id,
+            "taskName": task_name,
+            "duration": duration,
+            "initialTimeSpent": time_spent.unwrap_or(0.0)
+        }));
 
         if let Some(main_window) = app.get_webview_window("main") {
             let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                "activeTaskId": task_id
+                "activeTaskId": task_id,
+                "openedTaskId": task_id
             }));
         }
 
@@ -184,22 +276,37 @@ pub fn open_focus_window(
 
 /// Exit focus mode and hide/close the dedicated focus window.
 #[command]
-pub fn exit_focus_mode(app: tauri::AppHandle, _width: Option<f64>, _height: Option<f64>) -> Result<(), String> {
+pub fn exit_focus_mode(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    task_id: Option<String>,
+    _width: Option<f64>,
+    _height: Option<f64>,
+) -> Result<(), String> {
+    let target_label = if let Some(id) = &task_id {
+        focus_window_label(id)
+    } else if window.label().starts_with("focus-") {
+        window.label().to_string()
+    } else {
+        return Ok(());
+    };
+
     #[cfg(target_os = "macos")]
     {
         // Hide panel instead of closing NSPanel-backed window.
         // Closing can throw Objective-C exceptions across FFI boundaries.
-        if let Ok(panel) = app.get_webview_panel("focus") {
+        if let Ok(panel) = app.get_webview_panel(&target_label) {
             panel.hide();
         }
-        if let Some(window) = app.get_webview_window("focus") {
+        if let Some(window) = app.get_webview_window(&target_label) {
             let _ = window.hide();
         }
         
         // Notify main window that focus mode ended and bring it to front
         if let Some(main_window) = app.get_webview_window("main") {
             let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                "activeTaskId": Option::<String>::None
+                "activeTaskId": Option::<String>::None,
+                "closedTaskId": task_id
             }));
             // Bring main window to front
             let _ = main_window.set_focus();
@@ -210,13 +317,14 @@ pub fn exit_focus_mode(app: tauri::AppHandle, _width: Option<f64>, _height: Opti
     
     #[cfg(not(target_os = "macos"))]
     {
-        if let Some(window) = app.get_webview_window("focus") {
+        if let Some(window) = app.get_webview_window(&target_label) {
             let _ = window.close();
         }
 
         if let Some(main_window) = app.get_webview_window("main") {
             let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                "activeTaskId": Option::<String>::None
+                "activeTaskId": Option::<String>::None,
+                "closedTaskId": task_id
             }));
             let _ = main_window.set_focus();
         }
@@ -227,75 +335,30 @@ pub fn exit_focus_mode(app: tauri::AppHandle, _width: Option<f64>, _height: Opti
 
 /// Set focus window size (width only, height stays at 48)
 #[command]
-pub fn set_focus_window_size(app: tauri::AppHandle, width: f64) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        if let Some(window) = app.get_webview_window("focus") {
-            let _ = window.set_fullscreen(false);
-            let _ = window.set_size(tauri::LogicalSize::new(width, 48.0));
-        }
-        Ok(())
-    }
-    
-    #[cfg(not(target_os = "macos"))]
-    {
-        if let Some(window) = app.get_webview_window("focus") {
-            let _ = window.set_fullscreen(false);
-            let _ = window.set_size(tauri::LogicalSize::new(width, 48.0));
-        }
-        Ok(())
-    }
+pub fn set_focus_window_size(window: tauri::WebviewWindow, width: f64) -> Result<(), String> {
+    let _ = window.set_fullscreen(false);
+    let _ = window.set_size(tauri::LogicalSize::new(width, 48.0));
+    Ok(())
 }
 
 /// Set focus window height (for notes panel)
 #[command]
-pub fn set_focus_window_height(app: tauri::AppHandle, height: f64) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        if let Some(window) = app.get_webview_window("focus") {
-            if let Ok(size) = window.outer_size() {
-                let scale = window.scale_factor().unwrap_or(1.0);
-                let current_width = (size.width as f64) / scale;
-                let _ = window.set_size(tauri::LogicalSize::new(current_width, height));
-            }
-        }
-        Ok(())
+pub fn set_focus_window_height(window: tauri::WebviewWindow, height: f64) -> Result<(), String> {
+    if let Ok(size) = window.outer_size() {
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let current_width = (size.width as f64) / scale;
+        let _ = window.set_size(tauri::LogicalSize::new(current_width, height));
     }
-    
-    #[cfg(not(target_os = "macos"))]
-    {
-        if let Some(window) = app.get_webview_window("focus") {
-            if let Ok(size) = window.outer_size() {
-                let scale = window.scale_factor().unwrap_or(1.0);
-                let current_width = (size.width as f64) / scale;
-                let _ = window.set_size(tauri::LogicalSize::new(current_width, height));
-            }
-        }
-        Ok(())
-    }
+    Ok(())
 }
 
 /// Enter fullscreen focus mode
 #[command]
-pub fn enter_fullscreen_focus(app: tauri::AppHandle) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        if let Some(window) = app.get_webview_window("focus") {
-            let _ = window.set_resizable(true);
-            let _ = window.set_fullscreen(true);
-        }
-        Ok(())
-    }
-    
-    #[cfg(not(target_os = "macos"))]
-    {
-        if let Some(window) = app.get_webview_window("focus") {
-            let _ = window.set_resizable(true);
-            let _ = window.set_fullscreen(true);
-            let _ = window.set_always_on_top(true);
-        }
-        Ok(())
-    }
+pub fn enter_fullscreen_focus(window: tauri::WebviewWindow) -> Result<(), String> {
+    let _ = window.set_resizable(true);
+    let _ = window.set_fullscreen(true);
+    let _ = window.set_always_on_top(true);
+    Ok(())
 }
 
 /// Emit refresh event to main window (for panel window to trigger main refresh)
