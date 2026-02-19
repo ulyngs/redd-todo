@@ -1,6 +1,6 @@
 [package]
 name = "redd-do"
-version = "2.0.0"
+version = "2.0.1"
 description = "ReDD Do - keep your goals in sight and get back to what you wanted to do"
 authors = ["The Reduce Digital Distraction Project <team@reddfocus.org>"]
 license = "CC-BY-NC-ND-3.0"

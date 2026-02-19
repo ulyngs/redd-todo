@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "ReDD Do",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "identifier": "com.redd.todo",
   "build": {
     "frontendDist": "../src"
@@ -21,6 +21,7 @@
         "decorations": true,
         "hiddenTitle": true,
         "titleBarStyle": "Overlay",
+        "zoomHotkeysEnabled": true,
         "transparent": false,
         "alwaysOnTop": false,
         "visible": true,

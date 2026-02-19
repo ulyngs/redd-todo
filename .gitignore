@@ -4,6 +4,7 @@ node_modules/
 # Production
 dist/
 release/
+for-distribution/
 build/ReDD_Todo_New.provisionprofile
 
 # System Files
