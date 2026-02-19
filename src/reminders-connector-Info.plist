@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>reminders-connector</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.redd.todo.reminders-connector</string>
+  <key>NSRemindersUsageDescription</key>
+  <string>ReDD Do needs Reminders access to sync your to-do lists.</string>
+  <key>NSRemindersFullAccessUsageDescription</key>
+  <string>ReDD Do needs full Reminders access to read and update your tasks.</string>
+</dict>
+</plist>

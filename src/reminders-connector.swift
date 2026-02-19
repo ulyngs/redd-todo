@@ -23,23 +23,78 @@ func outputError(_ message: String) {
     output(err)
 }
 
-func checkAccess() {
+func authorizationStatusString(_ status: EKAuthorizationStatus) -> String {
     if #available(macOS 14.0, *) {
-        store.requestFullAccessToReminders { granted, error in
-            if !granted {
-                outputError("Permission denied")
-            }
-            semaphore.signal()
+        switch status {
+        case .notDetermined: return "notDetermined"
+        case .restricted: return "restricted"
+        case .denied: return "denied"
+        case .authorized: return "authorized"
+        case .fullAccess: return "fullAccess"
+        case .writeOnly: return "writeOnly"
+        @unknown default: return "unknown"
         }
     } else {
-        store.requestAccess(to: .reminder) { granted, error in
-            if !granted {
-                outputError("Permission denied")
-            }
-            semaphore.signal()
+        switch status {
+        case .notDetermined: return "notDetermined"
+        case .restricted: return "restricted"
+        case .denied: return "denied"
+        case .authorized: return "authorized"
+        case .fullAccess: return "fullAccess"
+        case .writeOnly: return "writeOnly"
+        @unknown default: return "unknown"
         }
     }
-    semaphore.wait()
+}
+
+func checkAccess() {
+    let initialStatus = EKEventStore.authorizationStatus(for: .reminder)
+
+    if #available(macOS 14.0, *) {
+        switch initialStatus {
+        case .fullAccess:
+            return
+        case .restricted, .denied:
+            outputError("Permission denied (\(authorizationStatusString(initialStatus)))")
+        case .notDetermined:
+            store.requestFullAccessToReminders { _, _ in
+                semaphore.signal()
+            }
+            semaphore.wait()
+
+            let finalStatus = EKEventStore.authorizationStatus(for: .reminder)
+            if finalStatus != .fullAccess {
+                outputError("Permission denied (\(authorizationStatusString(finalStatus)))")
+            }
+        default:
+            let finalStatus = EKEventStore.authorizationStatus(for: .reminder)
+            if finalStatus != .fullAccess {
+                outputError("Permission denied (\(authorizationStatusString(finalStatus)))")
+            }
+        }
+    } else {
+        switch initialStatus {
+        case .authorized:
+            return
+        case .restricted, .denied:
+            outputError("Permission denied (\(authorizationStatusString(initialStatus)))")
+        case .notDetermined:
+            store.requestAccess(to: .reminder) { _, _ in
+                semaphore.signal()
+            }
+            semaphore.wait()
+
+            let finalStatus = EKEventStore.authorizationStatus(for: .reminder)
+            if finalStatus != .authorized {
+                outputError("Permission denied (\(authorizationStatusString(finalStatus)))")
+            }
+        default:
+            let finalStatus = EKEventStore.authorizationStatus(for: .reminder)
+            if finalStatus != .authorized {
+                outputError("Permission denied (\(authorizationStatusString(finalStatus)))")
+            }
+        }
+    }
 }
 
 func fetchLists() {

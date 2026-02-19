@@ -3408,6 +3408,30 @@ function setupEventListeners() {
             // Let's modify the text to be clear
             remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders (macOS only)';
         } else {
+            const remindersErrorMessage = (error) => {
+                if (typeof error === 'string') return error;
+                if (error && typeof error.message === 'string') return error.message;
+                if (error && typeof error.toString === 'function') return error.toString();
+                return '';
+            };
+
+            const isRemindersPermissionDenied = (error) =>
+                /permission denied/i.test(remindersErrorMessage(error));
+
+            const handleRemindersPermissionDenied = async () => {
+                alert(
+                    'Reminders access is currently denied.\n\n' +
+                    'I will open macOS Privacy settings now. Enable access for this app, then click "Connect Reminders" again.'
+                );
+                if (reddIsTauri && typeof tauriAPI !== 'undefined') {
+                    try {
+                        await tauriAPI.openRemindersPrivacySettings();
+                    } catch (settingsError) {
+                        console.error('Failed to open Reminders privacy settings:', settingsError);
+                    }
+                }
+            };
+
             remindersConnectBtn.addEventListener('click', async () => {
                 try {
                     console.log('[Reminders] Connect clicked');
@@ -3422,21 +3446,36 @@ function setupEventListeners() {
                         keys: (lists && typeof lists === 'object' && !Array.isArray(lists)) ? Object.keys(lists) : undefined
                     });
 
-                    // Only treat as connected if we actually got a list array back.
-                    if (Array.isArray(lists)) {
+                    // Only treat as connected if we got at least one list.
+                    if (Array.isArray(lists) && lists.length > 0) {
                         remindersConfig.isConnected = true;
                         saveData();
                         updateRemindersUI();
                         updateSyncButtonState();
                     } else {
+                        if (Array.isArray(lists) && lists.length === 0) {
+                            alert(
+                                'Connected, but no Reminders lists were returned.\n\n' +
+                                'This usually means macOS has not granted this dev process access yet. ' +
+                                'Please re-open Reminders privacy settings and ensure access is enabled for the current app/process.'
+                            );
+                        }
                         const errMsg = (lists && typeof lists === 'object' && lists.error) ? lists.error : null;
-                        alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
+                        if (isRemindersPermissionDenied(errMsg || '')) {
+                            await handleRemindersPermissionDenied();
+                        } else {
+                            alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
+                        }
                         remindersConnectBtn.disabled = false;
                         remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
                     }
                 } catch (error) {
                     console.error(error);
-                    alert('Failed to connect to Reminders: ' + error);
+                    if (isRemindersPermissionDenied(error)) {
+                        await handleRemindersPermissionDenied();
+                    } else {
+                        alert('Failed to connect to Reminders: ' + error);
+                    }
                     remindersConnectBtn.disabled = false;
                     remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
                 }
@@ -6010,7 +6049,10 @@ async function syncBasecampList(tabId) {
 
         const activeTodos = await activeResp.json();
         const completedTodos = await completedResp.json();
-        const remoteTodos = [...activeTodos, ...completedTodos];
+        const remoteTodos = [
+            ...(Array.isArray(activeTodos) ? activeTodos : []),
+            ...(Array.isArray(completedTodos) ? completedTodos : [])
+        ];
 
         // Merge logic: 
         // 1. Add new remote todos to local

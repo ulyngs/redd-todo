@@ -65,6 +65,7 @@ pub fn run() {
             update_reminders_notes,
             delete_reminders_task,
             create_reminders_task,
+            open_reminders_privacy_settings,
             // Window commands
             window_minimize,
             window_maximize,

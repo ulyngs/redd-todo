@@ -59,6 +59,10 @@ const tauriAPI = {
         return this.invoke('create_reminders_task', { listId, title });
     },
 
+    async openRemindersPrivacySettings() {
+        return this.invoke('open_reminders_privacy_settings');
+    },
+
     // Window commands
     async windowMinimize() {
         return this.invoke('window_minimize');
