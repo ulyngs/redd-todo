@@ -166,13 +166,34 @@ function getLaunchParams() {
 }
 
 const launchParams = getLaunchParams();
-const isFocusPanelWindow = launchParams.get('focus') === '1';
-const isNativeFullscreenFocusWindow = isFocusPanelWindow && launchParams.get('fullscreen') === '1';
+let isFocusPanelWindow = launchParams.get('focus') === '1';
+let isNativeFullscreenFocusWindow = isFocusPanelWindow && launchParams.get('fullscreen') === '1';
 
 // Add body class for focus panel window styling (rounded corners, transparent background)
 if (isFocusPanelWindow) {
     document.documentElement.classList.add('focus-panel-window');
     document.body.classList.add('focus-panel-window');
+}
+
+function markAsFocusPanelWindow() {
+    if (isFocusPanelWindow) return;
+    isFocusPanelWindow = true;
+    isNativeFullscreenFocusWindow = launchParams.get('fullscreen') === '1';
+    document.documentElement.classList.add('focus-panel-window');
+    document.body.classList.add('focus-panel-window');
+}
+
+function detectFocusPanelByWindowLabel() {
+    if (!reddIsTauri || typeof window === 'undefined' || !window.__TAURI__ || !window.__TAURI__.window) {
+        return false;
+    }
+    try {
+        const current = window.__TAURI__.window.getCurrentWindow?.();
+        const label = typeof current?.label === 'function' ? current.label() : current?.label;
+        return typeof label === 'string' && (label.startsWith('focus-') || label.startsWith('focusfs-'));
+    } catch (_) {
+        return false;
+    }
 }
 
 // Application state
@@ -572,6 +593,12 @@ if (languageSelect) {
 
 // Initialize app
 function initApp() {
+    // Windows fallback: in some cases the focus window can be launched without
+    // URL params. If the window label indicates focus mode, force panel mode.
+    if (!isFocusPanelWindow && detectFocusPanelByWindowLabel()) {
+        markAsFocusPanelWindow();
+    }
+
     // Load saved data or create default tab
     loadData();
 

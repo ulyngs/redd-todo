@@ -246,27 +246,9 @@ pub fn open_focus_window(
     #[cfg(not(target_os = "macos"))]
     {
         if let Some(window) = app.get_webview_window(&label) {
-            let _ = window.set_always_on_top(true);
-            position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
-            let _ = window.show();
-            let _ = window.set_focus();
-
-            let _ = window.emit("enter-focus-mode", serde_json::json!({
-                "taskId": task_id,
-                "taskName": task_name,
-                "duration": duration,
-                "initialTimeSpent": time_spent.unwrap_or(0.0),
-                "preserveWindowGeometry": preserve_window_geometry
-            }));
-
-            if let Some(main_window) = app.get_webview_window("main") {
-                let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                    "activeTaskId": task_id,
-                    "openedTaskId": task_id
-                }));
-            }
-
-            return Ok(());
+            // If a stale/inert focus window exists (observed on Windows dev),
+            // replace it instead of reusing the same webview instance.
+            let _ = window.close();
         }
 
         // Keep non-macOS focus windows on a simple route and send the task
@@ -278,6 +260,7 @@ pub fn open_focus_window(
             .always_on_top(true)
             .decorations(false)
             .resizable(true)
+            .focused(true)
             .inner_size(320.0, 48.0)
             .build()
             .map_err(|e| e.to_string())?;
@@ -371,8 +354,27 @@ pub fn exit_focus_mode(
     
     #[cfg(not(target_os = "macos"))]
     {
+        let mut closed_any = false;
         if let Some(window) = app.get_webview_window(&target_label) {
             let _ = window.close();
+            closed_any = true;
+        }
+
+        // Fallback cleanup for any dangling focus windows if the expected label
+        // isn't present. This keeps the UI in sync when a stale window survives.
+        if !closed_any {
+            let labels_to_close: Vec<String> = app
+                .webview_windows()
+                .keys()
+                .filter(|label| label.starts_with("focus-"))
+                .cloned()
+                .collect();
+            for label in labels_to_close {
+                if let Some(window) = app.get_webview_window(&label) {
+                    let _ = window.close();
+                    closed_any = true;
+                }
+            }
         }
 
         if let Some(main_window) = app.get_webview_window("main") {
