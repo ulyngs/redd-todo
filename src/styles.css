@@ -449,6 +449,19 @@ body {
     -webkit-app-region: no-drag;
 }
 
+.tab.tab-colorized {
+    border-bottom-width: 1px;
+}
+
+.tab.tab-colorized:not(.active) {
+    border-bottom-color: var(--tab-color-inactive) !important;
+}
+
+.tab.tab-colorized.active {
+    border-bottom-width: 4px;
+    border-bottom-color: var(--tab-color-active) !important;
+}
+
 .tab.dragging {
     opacity: 0.5;
     cursor: grabbing;

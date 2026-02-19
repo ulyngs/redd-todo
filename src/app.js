@@ -2171,38 +2171,20 @@ function renderTabs() {
         const tabElement = document.createElement('div');
         let className = `tab ${tab.id === currentTabId ? 'active' : ''}`;
 
-        // Add color class if present (or inline style for custom hex colors)
+        // List tabs use border-only color styling:
+        // - active: thick, full-color border
+        // - inactive: thin, faded-color border
         if (tab.color) {
-            const isActive = tab.id === currentTabId;
+            const activeColor = resolveTabColorHex(tab.color);
+            const inactiveColor = activeColor ? hexToRgba(activeColor, 0.45) : null;
 
-            // When groups are enabled:
-            // - Active tab: show full background color
-            // - Non-active tabs: show color as bottom border only
-            if (enableGroups) {
-                if (isActive) {
-                    // Active tab - full background color
-                    if (tab.color.startsWith('#')) {
-                        tabElement.style.backgroundColor = tab.color;
-                        tabElement.style.borderColor = tab.color;
-                    } else {
-                        className += ` tab-bg-${tab.color}`;
-                    }
-                } else {
-                    // Non-active tab - bottom border only
-                    if (tab.color.startsWith('#')) {
-                        tabElement.style.borderBottomColor = tab.color;
-                    } else {
-                        className += ` tab-border-${tab.color}`;
-                    }
-                }
-            } else {
-                // Groups disabled - full background color for all
-                if (tab.color.startsWith('#')) {
-                    tabElement.style.backgroundColor = tab.color;
-                    tabElement.style.borderColor = tab.color;
-                } else {
-                    className += ` tab-bg-${tab.color}`;
-                }
+            if (activeColor && inactiveColor) {
+                className += ' tab-colorized';
+                tabElement.style.setProperty('--tab-color-active', activeColor);
+                tabElement.style.setProperty('--tab-color-inactive', inactiveColor);
+            } else if (!tab.color.startsWith('#')) {
+                // Fallback for unknown named colors
+                className += ` tab-border-${tab.color}`;
             }
         }
 
@@ -5470,6 +5452,40 @@ function editTaskDuration(taskId, metaElement) {
 // Color selection helper functions
 // Color order matching the HTML order: blue, gray, green, yellow, pink, orange, red, purple
 const COLOR_ORDER = ['blue', 'gray', 'green', 'yellow', 'pink', 'orange', 'red', 'purple'];
+const TAB_COLOR_HEX = {
+    red: '#FF9E9E',
+    orange: '#FFC09F',
+    yellow: '#FFEE93',
+    green: '#ADF7B6',
+    blue: '#81B1D1',
+    purple: '#B19CD9',
+    pink: '#FFD1DC',
+    gray: '#A0CED9'
+};
+
+function normalizeHexColor(color) {
+    if (typeof color !== 'string' || !color.startsWith('#')) return null;
+    let hex = color.slice(1).trim();
+    if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('');
+    if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null;
+    return `#${hex.toUpperCase()}`;
+}
+
+function resolveTabColorHex(color) {
+    if (!color) return null;
+    if (color.startsWith('#')) return normalizeHexColor(color);
+    return TAB_COLOR_HEX[color] || null;
+}
+
+function hexToRgba(hex, alpha) {
+    const normalized = normalizeHexColor(hex);
+    if (!normalized) return null;
+    const raw = normalized.slice(1);
+    const r = parseInt(raw.slice(0, 2), 16);
+    const g = parseInt(raw.slice(2, 4), 16);
+    const b = parseInt(raw.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 /**
  * Finds the next color in sequence based on used colors.
