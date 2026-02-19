@@ -1,4 +1,6 @@
 use tauri::{command, Emitter, Manager, WebviewUrl};
+#[cfg(not(target_os = "macos"))]
+use tauri::WebviewWindowBuilder;
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask};
 
@@ -37,7 +39,7 @@ pub fn window_close(window: tauri::WebviewWindow) -> Result<(), String> {
     window.close().map_err(|e| e.to_string())
 }
 
-/// Open focus mode - create a separate floating panel window (macOS) or resize main window (other platforms)
+/// Open focus mode in a separate window.
 #[command]
 pub fn open_focus_window(
     app: tauri::AppHandle,
@@ -130,26 +132,57 @@ pub fn open_focus_window(
     
     #[cfg(not(target_os = "macos"))]
     {
-        // On non-macOS platforms, fall back to modifying the main window
-        if let Some(window) = app.get_webview_window("main") {
-            window.set_size(tauri::LogicalSize::new(320.0, 48.0)).map_err(|e| e.to_string())?;
-            window.set_resizable(true).map_err(|e| e.to_string())?;
-            window.set_always_on_top(true).map_err(|e| e.to_string())?;
-            window.set_minimizable(false).map_err(|e| e.to_string())?;
-            
-            // Emit enter-focus-mode event
+        if let Some(window) = app.get_webview_window("focus") {
+            let _ = window.set_always_on_top(true);
+            let _ = window.show();
+            let _ = window.set_focus();
+
             let _ = window.emit("enter-focus-mode", serde_json::json!({
                 "taskId": task_id,
                 "taskName": task_name,
                 "duration": duration,
                 "initialTimeSpent": time_spent.unwrap_or(0.0)
             }));
+
+            if let Some(main_window) = app.get_webview_window("main") {
+                let _ = main_window.emit("focus-status-changed", serde_json::json!({
+                    "activeTaskId": task_id
+                }));
+            }
+
+            return Ok(());
         }
+
+        let url = format!(
+            "index.html?focus=1&taskId={}&taskName={}&duration={}&timeSpent={}",
+            urlencoding::encode(&task_id),
+            urlencoding::encode(&task_name),
+            duration.unwrap_or(0.0),
+            time_spent.unwrap_or(0.0)
+        );
+
+        let window = WebviewWindowBuilder::new(&app, "focus", WebviewUrl::App(url.into()))
+            .always_on_top(true)
+            .decorations(false)
+            .resizable(true)
+            .inner_size(320.0, 48.0)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let _ = window.show();
+        let _ = window.set_focus();
+
+        if let Some(main_window) = app.get_webview_window("main") {
+            let _ = main_window.emit("focus-status-changed", serde_json::json!({
+                "activeTaskId": task_id
+            }));
+        }
+
         Ok(())
     }
 }
 
-/// Exit focus mode - close the focus panel (macOS) or restore main window (other platforms)
+/// Exit focus mode and hide/close the dedicated focus window.
 #[command]
 pub fn exit_focus_mode(app: tauri::AppHandle, _width: Option<f64>, _height: Option<f64>) -> Result<(), String> {
     #[cfg(target_os = "macos")]
@@ -177,17 +210,17 @@ pub fn exit_focus_mode(app: tauri::AppHandle, _width: Option<f64>, _height: Opti
     
     #[cfg(not(target_os = "macos"))]
     {
-        // On non-macOS, restore the main window
-        if let Some(window) = app.get_webview_window("main") {
-            window.set_fullscreen(false).map_err(|e| e.to_string())?;
-            let w = _width.unwrap_or(450.0);
-            let h = _height.unwrap_or(600.0);
-            window.set_size(tauri::LogicalSize::new(w, h)).map_err(|e| e.to_string())?;
-            window.set_resizable(true).map_err(|e| e.to_string())?;
-            window.set_always_on_top(false).map_err(|e| e.to_string())?;
-            window.set_minimizable(true).map_err(|e| e.to_string())?;
+        if let Some(window) = app.get_webview_window("focus") {
+            let _ = window.close();
         }
-        
+
+        if let Some(main_window) = app.get_webview_window("main") {
+            let _ = main_window.emit("focus-status-changed", serde_json::json!({
+                "activeTaskId": Option::<String>::None
+            }));
+            let _ = main_window.set_focus();
+        }
+
         Ok(())
     }
 }
@@ -206,9 +239,9 @@ pub fn set_focus_window_size(app: tauri::AppHandle, width: f64) -> Result<(), St
     
     #[cfg(not(target_os = "macos"))]
     {
-        if let Some(window) = app.get_webview_window("main") {
-            window.set_fullscreen(false).map_err(|e| e.to_string())?;
-            window.set_size(tauri::LogicalSize::new(width, 48.0)).map_err(|e| e.to_string())?;
+        if let Some(window) = app.get_webview_window("focus") {
+            let _ = window.set_fullscreen(false);
+            let _ = window.set_size(tauri::LogicalSize::new(width, 48.0));
         }
         Ok(())
     }
@@ -231,12 +264,12 @@ pub fn set_focus_window_height(app: tauri::AppHandle, height: f64) -> Result<(),
     
     #[cfg(not(target_os = "macos"))]
     {
-        if let Some(window) = app.get_webview_window("main") {
-            window.set_fullscreen(false).map_err(|e| e.to_string())?;
-            let size = window.outer_size().map_err(|e| e.to_string())?;
-            let scale = window.scale_factor().unwrap_or(1.0);
-            let current_width = (size.width as f64) / scale;
-            window.set_size(tauri::LogicalSize::new(current_width, height)).map_err(|e| e.to_string())?;
+        if let Some(window) = app.get_webview_window("focus") {
+            if let Ok(size) = window.outer_size() {
+                let scale = window.scale_factor().unwrap_or(1.0);
+                let current_width = (size.width as f64) / scale;
+                let _ = window.set_size(tauri::LogicalSize::new(current_width, height));
+            }
         }
         Ok(())
     }
@@ -256,10 +289,10 @@ pub fn enter_fullscreen_focus(app: tauri::AppHandle) -> Result<(), String> {
     
     #[cfg(not(target_os = "macos"))]
     {
-        if let Some(window) = app.get_webview_window("main") {
-            window.set_resizable(true).map_err(|e| e.to_string())?;
-            window.set_fullscreen(true).map_err(|e| e.to_string())?;
-            window.set_always_on_top(true).map_err(|e| e.to_string())?;
+        if let Some(window) = app.get_webview_window("focus") {
+            let _ = window.set_resizable(true);
+            let _ = window.set_fullscreen(true);
+            let _ = window.set_always_on_top(true);
         }
         Ok(())
     }
@@ -291,17 +324,6 @@ pub fn focus_status_changed(app: tauri::AppHandle, active_task_id: Option<String
 // Keep the old enter_focus_mode for backwards compatibility (delegates to open_focus_window on macOS)
 #[command]
 pub fn enter_focus_mode(_app: tauri::AppHandle) -> Result<(), String> {
-    // This is a legacy command - on macOS, the JS side should use open_focus_window instead
-    // For non-macOS, we still need to handle this
-    #[cfg(not(target_os = "macos"))]
-    {
-        if let Some(window) = _app.get_webview_window("main") {
-            window.set_size(tauri::LogicalSize::new(320.0, 48.0)).map_err(|e| e.to_string())?;
-            window.set_resizable(true).map_err(|e| e.to_string())?;
-            window.set_always_on_top(true).map_err(|e| e.to_string())?;
-            window.set_minimizable(false).map_err(|e| e.to_string())?;
-        }
-    }
-    
+    // Legacy no-op: focus mode is opened through open_focus_window with task payload.
     Ok(())
 }

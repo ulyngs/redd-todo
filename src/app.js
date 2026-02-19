@@ -1321,16 +1321,15 @@ function focusTask(taskId) {
     const { task } = context;
 
     // If this task is already focused (as indicated in the main window), clicking the icon exits focus mode.
-    if (platform === 'darwin' && !isFocusPanelWindow && activeFocusTaskId === taskId) {
+    if (!isFocusPanelWindow && activeFocusTaskId === taskId) {
         reddIpc.send('exit-focus-mode');
         activeFocusTaskId = null;
         renderTasks();
         return;
     }
 
-    // On macOS, use a dedicated floating panel window (NSPanel) for focus mode.
-    // This is what allows the focus window to float above fullscreen Spaces.
-    if (platform === 'darwin' && !isFocusPanelWindow) {
+    // Use a dedicated floating window for focus mode across platforms.
+    if (!isFocusPanelWindow) {
         activeFocusTaskId = taskId;
         renderTasks();
         reddIpc.send('open-focus-window', {
@@ -5386,10 +5385,8 @@ function hideDeleteConfirmModal() {
 
 // IPC listeners
 reddIpc.on('enter-focus-mode', (event, payload) => {
-    // On macOS, focus mode runs in a dedicated panel window.
-    // Ignore this event in the main window to avoid main UI switching
-    // into focus-mode content when the panel is reopened.
-    if (platform === 'darwin' && !isFocusPanelWindow) return;
+    // Focus-mode events are for the dedicated focus window only.
+    if (!isFocusPanelWindow) return;
 
     if (payload && typeof payload === 'object') {
         if (payload.taskId) {
@@ -5404,7 +5401,7 @@ reddIpc.on('enter-focus-mode', (event, payload) => {
 });
 
 reddIpc.on('exit-focus-mode', () => {
-    if (platform === 'darwin' && !isFocusPanelWindow) return;
+    if (!isFocusPanelWindow) return;
     exitFocusMode();
 });
 
