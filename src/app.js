@@ -5386,6 +5386,11 @@ function hideDeleteConfirmModal() {
 
 // IPC listeners
 reddIpc.on('enter-focus-mode', (event, payload) => {
+    // On macOS, focus mode runs in a dedicated panel window.
+    // Ignore this event in the main window to avoid main UI switching
+    // into focus-mode content when the panel is reopened.
+    if (platform === 'darwin' && !isFocusPanelWindow) return;
+
     if (payload && typeof payload === 'object') {
         if (payload.taskId) {
             focusedTaskId = payload.taskId;
@@ -5399,6 +5404,7 @@ reddIpc.on('enter-focus-mode', (event, payload) => {
 });
 
 reddIpc.on('exit-focus-mode', () => {
+    if (platform === 'darwin' && !isFocusPanelWindow) return;
     exitFocusMode();
 });
 

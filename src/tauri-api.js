@@ -116,7 +116,18 @@ const tauriAPI = {
     // Event listeners - matches Electron's ipcRenderer.on(channel, (event, data) => ...)
     onEvent(eventName, callback) {
         if (!this.isTauri) return () => { };
-        const unlisten = window.__TAURI__.event.listen(eventName, (event) => {
+        // Prefer per-window listener so events emitted to one window do not
+        // accidentally fan out to all windows in multi-window mode.
+        const windowApi = window.__TAURI__.window;
+        const currentWindow = windowApi && typeof windowApi.getCurrentWindow === 'function'
+            ? windowApi.getCurrentWindow()
+            : null;
+
+        const listen = currentWindow && typeof currentWindow.listen === 'function'
+            ? currentWindow.listen.bind(currentWindow)
+            : window.__TAURI__.event.listen;
+
+        const unlisten = listen(eventName, (event) => {
             // Call callback with (null, payload) to match Electron's (event, data) signature
             callback(null, event.payload);
         });
