@@ -4430,7 +4430,7 @@ function setupEventListeners() {
             focusTaskName.classList.add('completed');
         }
 
-        if (!completingFromNativeFullscreen) {
+        if (!completingViaHome) {
             if (focusedTaskId) {
                 // Always resolve the task across tabs (focus panel may not share currentTabId)
                 const context = getTaskContext(focusedTaskId);
@@ -4893,8 +4893,13 @@ function closeFocusTaskSwitchMenu() {
         focusTaskSwitchMenu.classList.add('hidden');
     }
 
-    // Restore the exact panel height from before opening the switch menu.
-    if (isFocusPanelWindow && !isNativeFullscreenFocusWindow) {
+    // Restore the exact window height from before opening the switch menu.
+    // - dedicated focus panel windows (macOS)
+    // - in-window focus mode (non-macOS)
+    const canResizeFocusWindowForSwitchMenu =
+        !isNativeFullscreenFocusWindow &&
+        (isFocusPanelWindow || platform !== 'darwin');
+    if (canResizeFocusWindowForSwitchMenu) {
         if (preTaskSwitchMenuHeight != null) {
             reddIpc.send('set-focus-window-height', preTaskSwitchMenuHeight);
             preTaskSwitchMenuHeight = null;
@@ -4940,7 +4945,11 @@ function renderFocusTaskSwitchMenu() {
 }
 
 function expandFocusWindowForTaskSwitchMenu() {
-    if (!isFocusPanelWindow || isNativeFullscreenFocusWindow || !focusTaskSwitchMenu) return;
+    const canResizeFocusWindowForSwitchMenu =
+        !isNativeFullscreenFocusWindow &&
+        (isFocusPanelWindow || platform !== 'darwin');
+    if (!canResizeFocusWindowForSwitchMenu || !focusTaskSwitchMenu) return;
+
     if (preTaskSwitchMenuHeight == null) {
         const focusContainer = document.querySelector('.focus-container');
         const currentHeight = focusContainer
