@@ -1973,7 +1973,7 @@ body.focus-panel-window.is-fullscreen {
 
 .focus-timer {
     font-size: 17px;
-    font-weight: 600;
+    font-weight: 550;
     color: var(--text-primary);
     text-align: right;
     -webkit-app-region: no-drag;
