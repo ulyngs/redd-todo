@@ -78,6 +78,7 @@ const reddIpc = {
                 'exit-fullscreen-focus-to-home': () => tauriAPI.exitFullscreenFocusToHome(
                     args[0]?.taskId
                 ),
+                'set-focus-mode-window-state': () => tauriAPI.setFocusModeWindowState(!!args[0]),
                 'refresh-main-window': () => tauriAPI.refreshMainWindow(),
                 'task-updated': () => tauriAPI.taskUpdated(args[0]?.taskId, args[0]?.text),
                 'start-basecamp-auth': async () => {
@@ -217,7 +218,7 @@ let draggedTabId = null;
 let draggedGroupId = null; // Track dragged group
 let focusedTaskId = null; // To track which task is currently in focus mode
 let activeFocusTaskIds = new Set(); // Used to style focused tasks in the main window
-let preFocusMainWindowSize = null; // Restore size after Windows in-window focus mode
+let preFocusMainWindowSize = null; // Restore size after in-window focus mode
 let currentView = 'lists'; // 'lists', 'favourites', or 'plan'
 let favouritesOrder = []; // Order of favourite task IDs for custom sorting
 let planModuleLoaded = false; // Track if plan module has been initialized
@@ -1408,48 +1409,54 @@ function focusTask(taskId, anchorElement = null) {
 
     // If this task is already focused (as indicated in the main window), clicking the icon exits focus mode.
     if (!isFocusPanelWindow && activeFocusTaskIds.has(taskId)) {
+        if (platform !== 'darwin') {
+            reddIpc.send('set-focus-mode-window-state', false);
+        }
         reddIpc.send('exit-focus-mode', { taskId });
         activeFocusTaskIds.delete(taskId);
         renderTasks();
         return;
     }
 
-    // Use a dedicated floating window for focus mode across platforms.
+    // Main-window behavior is platform-specific:
+    // - macOS: dedicated NSPanel focus window
+    // - others: in-window focus mode
     if (!isFocusPanelWindow) {
-        // Windows fallback: multi-window focus mode can open an inert/blank
-        // secondary webview in Tauri dev. Keep focus mode in the main window.
-        if (platform === 'win32') {
-            if (!preFocusMainWindowSize) {
-                preFocusMainWindowSize = {
-                    width: window.outerWidth,
-                    height: window.outerHeight
-                };
-            }
-            focusedTaskId = taskId;
+        if (platform === 'darwin') {
+            const anchorRect = anchorElement?.getBoundingClientRect?.();
+            const anchorLeft = anchorRect ? anchorRect.left : null;
+            const anchorRight = anchorRect ? anchorRect.right : null;
+            const anchorTop = anchorRect ? anchorRect.top : null;
+
+            activeFocusTaskIds.clear();
             activeFocusTaskIds.add(taskId);
             renderTasks();
-            enterFocusMode(task.text, task.expectedDuration, task.timeSpent || 0);
+            reddIpc.send('open-focus-window', {
+                taskId,
+                taskName: task.text,
+                duration: task.expectedDuration ?? null,
+                initialTimeSpent: task.timeSpent || 0,
+                anchorLeft,
+                anchorRight,
+                anchorTop
+            });
             return;
         }
 
-        const anchorRect = anchorElement?.getBoundingClientRect?.();
-        // Send viewport-relative coordinates. Backend resolves these against the
-        // main window position to avoid OS/browser screen-coordinate drift.
-        const anchorLeft = anchorRect ? anchorRect.left : null;
-        const anchorRight = anchorRect ? anchorRect.right : null;
-        const anchorTop = anchorRect ? anchorRect.top : null;
+        if (!preFocusMainWindowSize) {
+            preFocusMainWindowSize = {
+                width: window.outerWidth,
+                height: window.outerHeight
+            };
+        }
 
+        // Only one focused task at a time in in-window focus mode.
+        activeFocusTaskIds.clear();
         activeFocusTaskIds.add(taskId);
         renderTasks();
-        reddIpc.send('open-focus-window', {
-            taskId,
-            taskName: task.text,
-            duration: task.expectedDuration ?? null,
-            initialTimeSpent: task.timeSpent || 0,
-            anchorLeft,
-            anchorRight,
-            anchorTop
-        });
+        focusedTaskId = taskId;
+        console.log('Entering focus mode for task:', task.text);
+        enterFocusMode(task.text, task.expectedDuration, task.timeSpent || 0);
         return;
     }
 
@@ -3158,7 +3165,7 @@ function setupEventListeners() {
     //   but press-and-hold starts window drag.
     const focusBar = document.querySelector('.focus-bar');
     const focusContainer = document.querySelector('.focus-container');
-    if (isFocusPanelWindow && focusBar && focusContainer) {
+    if (isFocusPanelWindow && focusBar && focusContainer && platform !== 'darwin') {
         // Ensure attribute exists even if template is changed later.
         focusBar.setAttribute('data-tauri-drag-region', '');
 
@@ -3231,6 +3238,52 @@ function setupEventListeners() {
                 e.preventDefault();
                 e.stopPropagation();
             }
+        }, true);
+    }
+
+    // macOS: drag should work from anywhere (including text/buttons) but clicks
+    // must still activate controls on first press.
+    if (isFocusPanelWindow && focusBar && focusContainer && platform === 'darwin') {
+        focusBar.removeAttribute('data-tauri-drag-region');
+
+        const MOVE_TO_DRAG_PX = 4;
+        focusContainer.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+
+            const target = e.target;
+            const ignoreEl = target.closest('input, textarea, select, [contenteditable="true"], .ql-editor, .ql-toolbar');
+            if (ignoreEl) return;
+
+            const startX = e.clientX;
+            const startY = e.clientY;
+            let dragging = false;
+
+            const cleanup = () => {
+                window.removeEventListener('mousemove', onMove, true);
+                window.removeEventListener('mouseup', onUp, true);
+            };
+
+            const onMove = async (moveEvent) => {
+                if (dragging) return;
+                const dx = Math.abs(moveEvent.clientX - startX);
+                const dy = Math.abs(moveEvent.clientY - startY);
+                if (dx >= MOVE_TO_DRAG_PX || dy >= MOVE_TO_DRAG_PX) {
+                    dragging = true;
+                    cleanup();
+                    try {
+                        await tauriAPI.startDrag();
+                    } catch (err) {
+                        console.warn('Failed to start mac focus-window drag:', err);
+                    }
+                }
+            };
+
+            const onUp = () => {
+                cleanup();
+            };
+
+            window.addEventListener('mousemove', onMove, true);
+            window.addEventListener('mouseup', onUp, true);
         }, true);
     }
 
@@ -4782,6 +4835,9 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
     console.log('Hiding normal mode, showing focus mode');
     normalMode.classList.add('hidden');
     focusMode.classList.remove('hidden');
+    if (!isFocusPanelWindow && platform !== 'darwin') {
+        reddIpc.send('set-focus-mode-window-state', true);
+    }
 
     // Reset fullscreen state if present (ensure we start fresh)
     const container = document.querySelector('.focus-container');
@@ -4814,7 +4870,7 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
 
     // Calculate appropriate window width based on content
     setTimeout(() => {
-        if (container && (isFocusPanelWindow || (platform === 'win32' && !isFocusPanelWindow)) && !isNativeFullscreenFocusWindow && !preserveWindowGeometry) {
+        if (container && !isNativeFullscreenFocusWindow && !preserveWindowGeometry) {
             const containerWidth = Math.min(Math.max(container.offsetWidth, 280), 500);
             console.log('Calculated container width:', containerWidth);
             reddIpc.send('set-focus-window-size', containerWidth);
@@ -4844,9 +4900,7 @@ function exitFocusMode() {
 
     isFocusMode = false;
     focusedTaskId = null; // Clear focused task ID
-    // Only clear the "active focus" indicator in this window if we're not the main window on macOS.
-    // On macOS the main process will broadcast focus-status-changed when the panel closes.
-    if (!isFocusPanelWindow && platform !== 'darwin') {
+    if (!isFocusPanelWindow) {
         activeFocusTaskIds.clear();
     }
     focusDuration = null; // Reset duration
@@ -4868,14 +4922,17 @@ function exitFocusMode() {
     focusMode.classList.add('hidden');
     normalMode.classList.remove('hidden');
 
-    // Restore the previous main-window size after Windows fallback focus mode.
-    if (platform === 'win32' && preFocusMainWindowSize) {
+    // Restore the previous main-window size after in-window focus mode.
+    if (!isFocusPanelWindow && platform !== 'darwin' && preFocusMainWindowSize) {
         const { width, height } = preFocusMainWindowSize;
         reddIpc.send('set-focus-window-size', width);
         reddIpc.send('set-focus-window-height', height);
         preFocusMainWindowSize = null;
     }
 
+    if (platform !== 'darwin') {
+        reddIpc.send('set-focus-mode-window-state', false);
+    }
     reddIpc.send('exit-focus-mode', { taskId: closingTaskId });
 }
 

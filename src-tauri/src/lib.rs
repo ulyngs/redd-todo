@@ -94,6 +94,7 @@ pub fn run() {
             refresh_main_window,
             task_updated,
             focus_status_changed,
+            set_focus_mode_window_state,
             // OAuth commands
             start_basecamp_auth,
             handle_oauth_callback,

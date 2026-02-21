@@ -3,19 +3,33 @@ use tauri::WebviewWindowBuilder;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 #[cfg(target_os = "macos")]
-use tauri_nspanel::{CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask};
+use tauri_nspanel::{CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask, TrackingAreaOptions};
 
 #[cfg(target_os = "macos")]
 tauri_nspanel::tauri_panel! {
     panel!(FocusModePanel {
         config: {
             can_become_key_window: true,
-            can_become_main_window: true,
+            can_become_main_window: false,
             needs_panel_to_become_key: true,
             accepts_first_responder: true,
+            becomes_key_only_if_needed: true,
+            works_when_modal: true,
             is_floating_panel: true
         }
+        with: {
+            tracking_area: {
+                options: TrackingAreaOptions::new()
+                    .active_always()
+                    .mouse_entered_and_exited()
+                    .mouse_moved()
+                    .cursor_update(),
+                auto_resize: true
+            }
+        }
     })
+
+    panel_event!(FocusModePanelEventHandler {})
 }
 
 fn focus_window_label(task_id: &str) -> String {
@@ -40,6 +54,22 @@ struct FocusWindowGeometry {
 fn fullscreen_handoff_geometry() -> &'static Mutex<HashMap<String, FocusWindowGeometry>> {
     static STORE: OnceLock<Mutex<HashMap<String, FocusWindowGeometry>>> = OnceLock::new();
     STORE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[cfg(target_os = "macos")]
+fn configure_focus_panel_hover_activation(app: &tauri::AppHandle, label: &str) {
+    if let Ok(panel) = app.get_webview_panel(label) {
+        let handler = FocusModePanelEventHandler::new();
+        let app_handle = app.clone();
+        let panel_label = label.to_string();
+        handler.on_mouse_entered(move |_event| {
+            if let Ok(panel) = app_handle.get_webview_panel(&panel_label) {
+                panel.make_key_window();
+                panel.order_front_regardless();
+            }
+        });
+        panel.set_event_handler(Some(handler.as_ref()));
+    }
 }
 
 fn position_focus_window(
@@ -147,6 +177,22 @@ pub fn open_focus_window(
 
     #[cfg(target_os = "macos")]
     {
+        // Keep a single visible focus panel at a time.
+        let stale_labels: Vec<String> = app
+            .webview_windows()
+            .keys()
+            .filter(|existing| existing.starts_with("focus-") && *existing != &label)
+            .cloned()
+            .collect();
+        for stale in stale_labels {
+            if let Ok(panel) = app.get_webview_panel(&stale) {
+                panel.hide();
+            }
+            if let Some(win) = app.get_webview_window(&stale) {
+                let _ = win.hide();
+            }
+        }
+
         let panel_behavior = CollectionBehavior::new()
             .can_join_all_spaces()
             .stationary()
@@ -164,6 +210,7 @@ pub fn open_focus_window(
                 panel.set_collection_behavior(panel_behavior.value());
                 panel.set_corner_radius(8.0);
                 panel.order_front_regardless();
+                configure_focus_panel_hover_activation(&app, &label);
             }
             position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
             
@@ -182,6 +229,7 @@ pub fn open_focus_window(
                     "activeTaskId": task_id,
                     "openedTaskId": task_id
                 }));
+                let _ = main_window.hide();
             }
             
             return Ok(());
@@ -215,6 +263,7 @@ pub fn open_focus_window(
             .build()
             .map_err(|e| e.to_string())?;
 
+        configure_focus_panel_hover_activation(&app, &label);
         panel.show_and_make_key();
         panel.order_front_regardless();
 
@@ -238,6 +287,7 @@ pub fn open_focus_window(
                 "activeTaskId": task_id,
                 "openedTaskId": task_id
             }));
+            let _ = main_window.hide();
         }
         
         Ok(())
@@ -346,6 +396,7 @@ pub fn exit_focus_mode(
                 "closedTaskId": task_id
             }));
             // Bring main window to front
+            let _ = main_window.show();
             let _ = main_window.set_focus();
         }
         
@@ -382,6 +433,7 @@ pub fn exit_focus_mode(
                 "activeTaskId": Option::<String>::None,
                 "closedTaskId": task_id
             }));
+            let _ = main_window.show();
             let _ = main_window.set_focus();
         }
 
@@ -648,6 +700,32 @@ pub fn task_updated(app: tauri::AppHandle, task_id: String, text: String) -> Res
 pub fn focus_status_changed(app: tauri::AppHandle, active_task_id: Option<String>) -> Result<(), String> {
     app.emit("focus-status-changed", serde_json::json!({ "activeTaskId": active_task_id }))
         .map_err(|e| e.to_string())
+}
+
+/// Toggle main focus-mode window behavior (always on top, workspace visibility)
+#[command]
+pub fn set_focus_mode_window_state(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    enabled: bool,
+) -> Result<(), String> {
+    let _ = app;
+    window
+        .set_always_on_top(enabled)
+        .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "macos")]
+    {
+        // Avoid converting/changing main-window panel style at runtime on macOS.
+        // This can trigger WebKit observer crashes when moving views between windows.
+        let _ = window.set_visible_on_all_workspaces(enabled);
+    }
+
+    if enabled {
+        let _ = window.set_focus();
+    }
+
+    Ok(())
 }
 
 // Keep the old enter_focus_mode for backwards compatibility (delegates to open_focus_window on macOS)

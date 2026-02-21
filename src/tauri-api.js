@@ -142,6 +142,10 @@ const tauriAPI = {
         return this.invoke('focus_status_changed', { activeTaskId });
     },
 
+    async setFocusModeWindowState(enabled) {
+        return this.invoke('set_focus_mode_window_state', { enabled });
+    },
+
     // Event listeners - matches Electron's ipcRenderer.on(channel, (event, data) => ...)
     onEvent(eventName, callback) {
         if (!this.isTauri) return () => { };
