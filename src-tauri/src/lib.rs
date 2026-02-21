@@ -88,6 +88,7 @@ pub fn run() {
             set_focus_window_size,
             set_focus_window_height,
             enter_fullscreen_focus,
+            exit_fullscreen_focus,
             enter_fullscreen_focus_handoff,
             exit_fullscreen_focus_handoff,
             exit_fullscreen_focus_to_home,

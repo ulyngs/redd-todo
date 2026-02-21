@@ -64,6 +64,7 @@ const reddIpc = {
                 'set-focus-window-size': () => tauriAPI.setFocusWindowSize(args[0]),
                 'set-focus-window-height': () => tauriAPI.setFocusWindowHeight(args[0]),
                 'enter-fullscreen-focus': () => tauriAPI.enterFullscreenFocus(),
+                'exit-fullscreen-focus': () => tauriAPI.exitFullscreenFocus(),
                 'enter-fullscreen-focus-handoff': () => tauriAPI.enterFullscreenFocusHandoff(
                     args[0]?.taskId,
                     args[0]?.taskName,
@@ -3172,7 +3173,7 @@ function setupEventListeners() {
     //   but press-and-hold starts window drag.
     const focusBar = document.querySelector('.focus-bar');
     const focusContainer = document.querySelector('.focus-container');
-    if (isFocusPanelWindow && focusBar && focusContainer && platform !== 'darwin') {
+    if (focusBar && focusContainer && platform !== 'darwin') {
         // Ensure attribute exists even if template is changed later.
         focusBar.setAttribute('data-tauri-drag-region', '');
 
@@ -3986,7 +3987,11 @@ function setupEventListeners() {
             const focusContainer = document.querySelector('.focus-container');
             if (focusContainer && focusContainer.classList.contains('fullscreen')) {
                 focusContainer.classList.remove('fullscreen');
+                document.body.classList.remove('is-fullscreen');
                 updateFullscreenButtonState(false);
+                if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
+                    reddIpc.send('exit-fullscreen-focus');
+                }
                 // Restore standard width (similar to logic in fullscreen button handler)
                 if (isFocusPanelWindow) {
                     reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
@@ -4377,7 +4382,7 @@ function setupEventListeners() {
             focusContainer.classList.remove('fullscreen');
             document.body.classList.remove('is-fullscreen');
             if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
-                reddIpc.send('set-window-fullscreen', false);
+                reddIpc.send('exit-fullscreen-focus');
             }
             // Restore panel width only for dedicated focus windows.
             if (isFocusPanelWindow) {
@@ -4401,6 +4406,13 @@ function setupEventListeners() {
             isFocusPanelWindow &&
             !!focusedTaskId;
 
+        // Windows in-window focus mode: exit focus first, then complete on home.
+        const completingViaHomeWindows =
+            reddIsTauri &&
+            platform !== 'darwin' &&
+            !isFocusPanelWindow &&
+            !!focusedTaskId;
+
         if (focusContainer && focusContainer.classList.contains('fullscreen')) {
             // For native fullscreen focus windows on macOS, we'll go directly
             // to home after completing the task (no intermediate resize flicker).
@@ -4409,7 +4421,7 @@ function setupEventListeners() {
                 focusContainer.classList.remove('fullscreen');
                 document.body.classList.remove('is-fullscreen');
                 if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
-                    reddIpc.send('set-window-fullscreen', false);
+                    reddIpc.send('exit-fullscreen-focus');
                 }
                 // Restore panel width only for dedicated focus windows.
                 if (isFocusPanelWindow) {
@@ -4429,6 +4441,29 @@ function setupEventListeners() {
                 taskId: completedTaskId,
                 completeOnHome: true,
                 elapsedMs: elapsed
+            });
+            return;
+        }
+
+        if (completingViaHomeWindows && completedTaskId) {
+            // Windows in-window focus: save elapsed time, exit focus mode to
+            // restore the main window, then animate the task completion.
+            const context = getTaskContext(completedTaskId);
+            if (context) {
+                context.task.actualDuration = elapsed;
+                saveData();
+            }
+
+            exitFocusMode();
+
+            // Animate the task completion after a short delay (matches macOS home flow).
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    const liveContext = getTaskContext(completedTaskId);
+                    if (liveContext && !liveContext.task.completed) {
+                        toggleTask(completedTaskId);
+                    }
+                }, 300);
             });
             return;
         }
@@ -4589,7 +4624,7 @@ function setupEventListeners() {
                 document.body.classList.remove('is-fullscreen');
                 updateFullscreenButtonState(false);
                 if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
-                    reddIpc.send('set-window-fullscreen', false);
+                    reddIpc.send('exit-fullscreen-focus');
                 }
                 if (isFocusPanelWindow) {
                     reddIpc.send('set-focus-window-size', preFullscreenWidth);
@@ -4610,7 +4645,7 @@ function setupEventListeners() {
                 document.body.classList.add('is-fullscreen');
                 updateFullscreenButtonState(true);
                 if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
-                    reddIpc.send('set-window-fullscreen', true);
+                    reddIpc.send('enter-fullscreen-focus');
                 }
                 if (isFocusPanelWindow) {
                     reddIpc.send('enter-fullscreen-focus');
@@ -4646,8 +4681,8 @@ function setupEventListeners() {
                 if (focusNotesWrapper) focusNotesWrapper.classList.remove('active');
 
                 // Only resize when not in fullscreen mode.
-                if (isFocusPanelWindow && canResizeFocusWindowHeight()) {
-                    reddIpc.send('set-focus-window-height', 48);
+                if ((isFocusPanelWindow || platform !== 'darwin') && canResizeFocusWindowHeight()) {
+                    reddIpc.send('set-focus-window-height', platform !== 'darwin' ? 56 : 48);
                 }
             } else {
                 // Open notes
@@ -4682,7 +4717,7 @@ function setupEventListeners() {
                                 const focusBar = document.querySelector('.focus-bar');
                                 const barHeight = focusBar ? focusBar.offsetHeight : 48;
                                 const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                                if (isFocusPanelWindow && canResizeFocusWindowHeight()) {
+                                if ((isFocusPanelWindow || platform !== 'darwin') && canResizeFocusWindowHeight()) {
                                     reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
                                 }
                             }, 50);
@@ -4714,7 +4749,7 @@ function setupEventListeners() {
                             const focusBar = document.querySelector('.focus-bar');
                             const barHeight = focusBar ? focusBar.offsetHeight : 48;
                             const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                            if (isFocusPanelWindow && canResizeFocusWindowHeight()) {
+                            if ((isFocusPanelWindow || platform !== 'darwin') && canResizeFocusWindowHeight()) {
                                 reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 800));
                             }
                         });
@@ -4742,7 +4777,7 @@ function setupEventListeners() {
                     const focusBar = document.querySelector('.focus-bar');
                     const barHeight = focusBar ? focusBar.offsetHeight : 48;
                     const totalHeight = barHeight + focusNotesContainer.offsetHeight;
-                        if (isFocusPanelWindow && canResizeFocusWindowHeight()) {
+                    if ((isFocusPanelWindow || platform !== 'darwin') && canResizeFocusWindowHeight()) {
                         reddIpc.send('set-focus-window-height', Math.min(totalHeight + 20, 600));
                     }
                 }, 50);
@@ -4910,8 +4945,11 @@ function closeFocusTaskSwitchMenu() {
     // Restore the exact window height from before opening the switch menu.
     // - dedicated focus panel windows (macOS)
     // - in-window focus mode (non-macOS)
+    const focusContainerEl = document.querySelector('.focus-container');
+    const isInFullscreen = !!focusContainerEl && focusContainerEl.classList.contains('fullscreen');
     const canResizeFocusWindowForSwitchMenu =
         !isNativeFullscreenFocusWindow &&
+        !isInFullscreen &&
         (isFocusPanelWindow || platform !== 'darwin');
     if (canResizeFocusWindowForSwitchMenu) {
         if (preTaskSwitchMenuHeight != null) {
@@ -4945,22 +4983,25 @@ function renderFocusTaskSwitchMenu() {
     context.tab.tasks
         .filter((task) => !task.completed && task.id !== focusedTaskId)
         .forEach((task) => {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'focus-task-switch-item';
-        item.textContent = task.text || 'Untitled task';
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            switchFocusTask(task.id);
-        });
-        focusTaskSwitchList.appendChild(item);
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'focus-task-switch-item';
+            item.textContent = task.text || 'Untitled task';
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                switchFocusTask(task.id);
+            });
+            focusTaskSwitchList.appendChild(item);
         });
 }
 
 function expandFocusWindowForTaskSwitchMenu() {
+    const focusContainerEl = document.querySelector('.focus-container');
+    const isInFullscreen = !!focusContainerEl && focusContainerEl.classList.contains('fullscreen');
     const canResizeFocusWindowForSwitchMenu =
         !isNativeFullscreenFocusWindow &&
+        !isInFullscreen &&
         (isFocusPanelWindow || platform !== 'darwin');
     if (!canResizeFocusWindowForSwitchMenu || !focusTaskSwitchMenu) return;
 
@@ -5049,7 +5090,9 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
     // Reset fullscreen state if present (ensure we start fresh)
     const container = document.querySelector('.focus-container');
     if (container) {
-        if (isNativeFullscreenFocusWindow) {
+        // Preserve fullscreen if already in CSS fullscreen (e.g. task switch while fullscreen).
+        const alreadyFullscreen = container.classList.contains('fullscreen');
+        if (isNativeFullscreenFocusWindow || alreadyFullscreen) {
             container.classList.add('fullscreen');
             document.body.classList.add('is-fullscreen');
             updateFullscreenButtonState(true);
@@ -5077,7 +5120,7 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
 
     // Calculate appropriate window width based on content
     setTimeout(() => {
-        if (container && !isNativeFullscreenFocusWindow && !preserveWindowGeometry) {
+        if (container && !isNativeFullscreenFocusWindow && !preserveWindowGeometry && !container.classList.contains('fullscreen')) {
             const containerWidth = Math.min(Math.max(container.offsetWidth, 280), 500);
             console.log('Calculated container width:', containerWidth);
             reddIpc.send('set-focus-window-size', containerWidth);
@@ -6380,48 +6423,48 @@ async function refreshBasecampToken() {
     }
 
     basecampRefreshPromise = (async () => {
-    if (!basecampConfig.refreshToken) {
-        console.warn('Cannot refresh token: Missing refresh token.');
-        return false;
-    }
-
-    try {
-        const fetchFn = (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.fetch)
-            ? tauriAPI.fetch.bind(tauriAPI)
-            : fetch;
-
-        // Use Netlify function to refresh token (keeps client_secret server-side)
-        const response = await fetchFn('https://redd-todo.netlify.app/.netlify/functions/auth', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                refresh_token: basecampConfig.refreshToken
-            })
-        });
-
-        if (!response.ok) {
-            console.error(`Token refresh failed: ${response.status} ${response.statusText}`);
+        if (!basecampConfig.refreshToken) {
+            console.warn('Cannot refresh token: Missing refresh token.');
             return false;
         }
 
-        const data = await response.json();
-        if (data.access_token) {
-            basecampConfig.accessToken = data.access_token;
-            // Update refresh token if provided (rare but possible)
-            if (data.refresh_token) {
-                basecampConfig.refreshToken = data.refresh_token;
+        try {
+            const fetchFn = (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.fetch)
+                ? tauriAPI.fetch.bind(tauriAPI)
+                : fetch;
+
+            // Use Netlify function to refresh token (keeps client_secret server-side)
+            const response = await fetchFn('https://redd-todo.netlify.app/.netlify/functions/auth', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    refresh_token: basecampConfig.refreshToken
+                })
+            });
+
+            if (!response.ok) {
+                console.error(`Token refresh failed: ${response.status} ${response.statusText}`);
+                return false;
             }
-            saveData();
-            updateBasecampUI();
-            console.log('Basecamp token refreshed successfully via Netlify.');
-            return true;
+
+            const data = await response.json();
+            if (data.access_token) {
+                basecampConfig.accessToken = data.access_token;
+                // Update refresh token if provided (rare but possible)
+                if (data.refresh_token) {
+                    basecampConfig.refreshToken = data.refresh_token;
+                }
+                saveData();
+                updateBasecampUI();
+                console.log('Basecamp token refreshed successfully via Netlify.');
+                return true;
+            }
+        } catch (e) {
+            console.error('Error refreshing Basecamp token:', e);
         }
-    } catch (e) {
-        console.error('Error refreshing Basecamp token:', e);
-    }
-    return false;
+        return false;
     })();
 
     try {

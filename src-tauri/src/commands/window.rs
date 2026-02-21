@@ -43,7 +43,7 @@ fn fullscreen_focus_window_label(task_id: &str) -> String {
     format!("focusfs-{safe}")
 }
 
-const FOCUS_WINDOW_MIN_WIDTH: f64 = 210.0;
+const FOCUS_WINDOW_MIN_WIDTH: f64 = 270.0;
 const FOCUS_WINDOW_MIN_HEIGHT: f64 = 48.0;
 
 #[derive(Clone, Copy)]
@@ -60,6 +60,12 @@ fn fullscreen_handoff_geometry() -> &'static Mutex<HashMap<String, FocusWindowGe
 }
 
 fn last_focus_panel_geometry() -> &'static Mutex<Option<FocusWindowGeometry>> {
+    static STORE: OnceLock<Mutex<Option<FocusWindowGeometry>>> = OnceLock::new();
+    STORE.get_or_init(|| Mutex::new(None))
+}
+
+/// Stores the window geometry before entering fullscreen on non-macOS.
+fn pre_fullscreen_geometry() -> &'static Mutex<Option<FocusWindowGeometry>> {
     static STORE: OnceLock<Mutex<Option<FocusWindowGeometry>>> = OnceLock::new();
     STORE.get_or_init(|| Mutex::new(None))
 }
@@ -492,14 +498,19 @@ pub fn set_focus_window_size(window: tauri::WebviewWindow, width: f64) -> Result
     #[cfg(not(target_os = "macos"))]
     let _ = window.set_fullscreen(false);
 
-    let _ = window.set_size(tauri::LogicalSize::new(width, 48.0));
+    #[cfg(target_os = "windows")]
+    let focus_height = 56.0;
+    #[cfg(not(target_os = "windows"))]
+    let focus_height = 48.0;
+
+    let _ = window.set_size(tauri::LogicalSize::new(width, focus_height));
     Ok(())
 }
 
 /// Set focus window height (for notes panel)
 #[command]
 pub fn set_focus_window_height(window: tauri::WebviewWindow, height: f64) -> Result<(), String> {
-    if let Ok(size) = window.outer_size() {
+    if let Ok(size) = window.inner_size() {
         let scale = window.scale_factor().unwrap_or(1.0);
         let current_width = (size.width as f64) / scale;
         let _ = window.set_size(tauri::LogicalSize::new(current_width, height));
@@ -532,7 +543,53 @@ pub fn enter_fullscreen_focus(window: tauri::WebviewWindow) -> Result<(), String
 
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = window.set_fullscreen(true);
+        // Save the current geometry so we can restore it when exiting fullscreen.
+        let scale = window.scale_factor().unwrap_or(1.0);
+        if let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) {
+            let geometry = FocusWindowGeometry {
+                x: (pos.x as f64) / scale,
+                y: (pos.y as f64) / scale,
+                width: (size.width as f64) / scale,
+                height: (size.height as f64) / scale,
+            };
+            if let Ok(mut store) = pre_fullscreen_geometry().lock() {
+                *store = Some(geometry);
+            }
+        }
+
+        // Manually size the window to fill the monitor instead of using
+        // set_fullscreen which is unreliable on Windows with frameless windows.
+        if let Ok(Some(monitor)) = window.current_monitor() {
+            let pos = monitor.position().to_logical::<f64>(scale);
+            let size = monitor.size().to_logical::<f64>(scale);
+            let _ = window.set_position(LogicalPosition::new(pos.x, pos.y));
+            let _ = window.set_size(tauri::LogicalSize::new(size.width, size.height));
+        } else {
+            let _ = window.set_position(LogicalPosition::new(0.0, 0.0));
+            let _ = window.set_size(tauri::LogicalSize::new(1920.0, 1080.0));
+        }
+    }
+
+    Ok(())
+}
+
+/// Exit fullscreen focus mode and restore the previous window geometry.
+#[command]
+pub fn exit_fullscreen_focus(window: tauri::WebviewWindow) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        // macOS fullscreen exit is handled via the handoff commands.
+        let _ = window;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        if let Ok(mut store) = pre_fullscreen_geometry().lock() {
+            if let Some(geometry) = store.take() {
+                let _ = window.set_size(tauri::LogicalSize::new(geometry.width, geometry.height));
+                let _ = window.set_position(LogicalPosition::new(geometry.x, geometry.y));
+            }
+        }
     }
 
     Ok(())
@@ -771,6 +828,21 @@ pub fn set_focus_mode_window_state(
         // Avoid converting/changing main-window panel style at runtime on macOS.
         // This can trigger WebKit observer crashes when moving views between windows.
         let _ = window.set_visible_on_all_workspaces(enabled);
+    }
+
+    // On Windows, remove the min size constraint so the focus bar can be narrow,
+    // and restore it when exiting focus mode.
+    #[cfg(target_os = "windows")]
+    {
+        if enabled {
+            let _ = window.set_min_size(Some(tauri::LogicalSize::new(
+                FOCUS_WINDOW_MIN_WIDTH,
+                56.0,
+            )));
+        } else {
+            // Restore the normal main-window min width (matches tauri.conf.json).
+            let _ = window.set_min_size(Some(tauri::LogicalSize::new(420.0, 0.0)));
+        }
     }
 
     if enabled {

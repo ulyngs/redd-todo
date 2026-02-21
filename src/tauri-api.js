@@ -121,6 +121,10 @@ const tauriAPI = {
         return this.invoke('enter_fullscreen_focus');
     },
 
+    async exitFullscreenFocus() {
+        return this.invoke('exit_fullscreen_focus');
+    },
+
     async enterFullscreenFocusHandoff(taskId, taskName, duration, timeSpent) {
         return this.invoke('enter_fullscreen_focus_handoff', {
             taskId,
