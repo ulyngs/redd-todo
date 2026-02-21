@@ -9,7 +9,7 @@
     "build": "tauri build && node scripts/collect-distribution-artifacts.js",
     "build:mac": "tauri build --target universal-apple-darwin && node scripts/collect-distribution-artifacts.js --target universal-apple-darwin && node scripts/build-mas-package.js --skip-tauri-build --optional",
     "build:mas": "node scripts/build-mas-package.js",
-    "build:win": "tauri build --target x86_64-pc-windows-msvc --no-bundle && tauri bundle --target x86_64-pc-windows-msvc --bundles nsis,msi --config src-tauri/tauri.microsoftstore.conf.json && node scripts/collect-distribution-artifacts.js --target x86_64-pc-windows-msvc && node scripts/verify-windows-store-artifacts.js",
+    "build:win": "tauri build --target x86_64-pc-windows-msvc --no-bundle && tauri bundle --target x86_64-pc-windows-msvc --bundles nsis,msi --config src-tauri/tauri.microsoftstore.conf.json && node scripts/collect-distribution-artifacts.js --target x86_64-pc-windows-msvc && node scripts/verify-windows-store-artifacts.js && powershell -ExecutionPolicy Bypass -File scripts/build-msix.ps1",
     "build:linux": "tauri build --target x86_64-unknown-linux-gnu && node scripts/collect-distribution-artifacts.js --target x86_64-unknown-linux-gnu",
     "electron:start": "electron .",
     "electron:dev": "electron . --dev",
