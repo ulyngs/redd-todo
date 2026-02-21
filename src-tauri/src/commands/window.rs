@@ -684,6 +684,8 @@ pub fn exit_fullscreen_focus_to_home(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
     task_id: String,
+    complete_on_home: Option<bool>,
+    elapsed_ms: Option<f64>,
 ) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
@@ -708,8 +710,11 @@ pub fn exit_fullscreen_focus_to_home(
         if let Some(main_window) = app.get_webview_window("main") {
             let _ = main_window.emit("focus-status-changed", serde_json::json!({
                 "activeTaskId": Option::<String>::None,
-                "closedTaskId": task_id
+                "closedTaskId": task_id,
+                "completeOnHome": complete_on_home.unwrap_or(false),
+                "elapsedMs": elapsed_ms
             }));
+            let _ = main_window.show();
             let _ = main_window.set_focus();
         }
         return Ok(());
@@ -720,6 +725,8 @@ pub fn exit_fullscreen_focus_to_home(
         let _ = app;
         let _ = window;
         let _ = task_id;
+        let _ = complete_on_home;
+        let _ = elapsed_ms;
         Ok(())
     }
 }

@@ -76,7 +76,9 @@ const reddIpc = {
                     args[0]?.initialTimeSpent
                 ),
                 'exit-fullscreen-focus-to-home': () => tauriAPI.exitFullscreenFocusToHome(
-                    args[0]?.taskId
+                    args[0]?.taskId,
+                    !!args[0]?.completeOnHome,
+                    args[0]?.elapsedMs ?? null
                 ),
                 'set-focus-mode-window-state': () => tauriAPI.setFocusModeWindowState(!!args[0]),
                 'refresh-main-window': () => tauriAPI.refreshMainWindow(),
@@ -4391,49 +4393,73 @@ function setupEventListeners() {
 
         // Check if we are in fullscreen mode and exit it correctly
         const focusContainer = document.querySelector('.focus-container');
+        const completingViaHome =
+            reddIsTauri &&
+            platform === 'darwin' &&
+            isFocusPanelWindow &&
+            !!focusedTaskId;
+
         if (focusContainer && focusContainer.classList.contains('fullscreen')) {
-            // First exit fullscreen locally
-            focusContainer.classList.remove('fullscreen');
-            // Restore panel width only for dedicated focus windows.
-            if (isFocusPanelWindow) {
-                reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+            // For native fullscreen focus windows on macOS, we'll go directly
+            // to home after completing the task (no intermediate resize flicker).
+            if (!completingViaHome) {
+                // First exit fullscreen locally
+                focusContainer.classList.remove('fullscreen');
+                // Restore panel width only for dedicated focus windows.
+                if (isFocusPanelWindow) {
+                    reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
+                }
             }
         }
 
         // Calculate elapsed time
         const elapsed = Date.now() - focusStartTime;
+        const completedTaskId = focusedTaskId;
+
+        if (completingViaHome && completedTaskId) {
+            // Focus-panel completion on macOS (fullscreen + non-fullscreen):
+            // go straight home, then complete in main window.
+            reddIpc.send('exit-fullscreen-focus-to-home', {
+                taskId: completedTaskId,
+                completeOnHome: true,
+                elapsedMs: elapsed
+            });
+            return;
+        }
 
         // Apply strikethrough styling to the task name immediately for satisfying feedback
         if (focusTaskName) {
             focusTaskName.classList.add('completed');
         }
 
-        if (focusedTaskId) {
-            // Always resolve the task across tabs (focus panel may not share currentTabId)
-            const context = getTaskContext(focusedTaskId);
-            if (context) {
-                context.task.actualDuration = elapsed;
-                saveData();
-                toggleTask(focusedTaskId);
-            }
-        } else {
-            // Legacy fallback: find by visible name across tabs
-            const name = focusTaskName?.textContent;
-            if (name) {
-                for (const tabId in tabs) {
-                    const t = tabs[tabId].tasks.find(task => task.text === name && !task.completed);
-                    if (t) {
-                        t.actualDuration = elapsed;
-                        saveData();
-                        toggleTask(t.id);
-                        break;
+        if (!completingFromNativeFullscreen) {
+            if (focusedTaskId) {
+                // Always resolve the task across tabs (focus panel may not share currentTabId)
+                const context = getTaskContext(focusedTaskId);
+                if (context) {
+                    context.task.actualDuration = elapsed;
+                    saveData();
+                    toggleTask(focusedTaskId);
+                }
+            } else {
+                // Legacy fallback: find by visible name across tabs
+                const name = focusTaskName?.textContent;
+                if (name) {
+                    for (const tabId in tabs) {
+                        const t = tabs[tabId].tasks.find(task => task.text === name && !task.completed);
+                        if (t) {
+                            t.actualDuration = elapsed;
+                            saveData();
+                            toggleTask(t.id);
+                            break;
+                        }
                     }
                 }
             }
         }
 
         // Wait 300ms before exiting focus mode (same delay as task completion animation)
-        setTimeout(() => {
+        setTimeout(async () => {
             // Ensure the main window updates (important on macOS focus panel)
             reddIpc.send('refresh-main-window');
             exitFocusMode();
@@ -6030,6 +6056,8 @@ reddIpc.on('focus-status-changed', (event, payload) => {
     const openedTaskId = payload?.openedTaskId;
     const closedTaskId = payload?.closedTaskId;
     const activeTaskId = payload?.activeTaskId;
+    const completeOnHome = !!payload?.completeOnHome;
+    const elapsedMs = payload?.elapsedMs;
 
     if (openedTaskId) activeFocusTaskIds.add(openedTaskId);
     if (closedTaskId) activeFocusTaskIds.delete(closedTaskId);
@@ -6039,6 +6067,27 @@ reddIpc.on('focus-status-changed', (event, payload) => {
     }
     if (!openedTaskId && !closedTaskId && payload?.activeTaskId == null) {
         activeFocusTaskIds.clear();
+    }
+
+    if (completeOnHome && closedTaskId) {
+        const context = getTaskContext(closedTaskId);
+        if (context) {
+            if (typeof elapsedMs === 'number' && Number.isFinite(elapsedMs)) {
+                context.task.actualDuration = elapsedMs;
+                saveData();
+            }
+            // Show main window state first, then animate/check off shortly after.
+            renderTasks();
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    const liveContext = getTaskContext(closedTaskId);
+                    if (liveContext && !liveContext.task.completed) {
+                        toggleTask(closedTaskId);
+                    }
+                }, 350);
+            });
+            return;
+        }
     }
     renderTasks();
 });

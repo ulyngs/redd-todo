@@ -126,8 +126,12 @@ const tauriAPI = {
         });
     },
 
-    async exitFullscreenFocusToHome(taskId) {
-        return this.invoke('exit_fullscreen_focus_to_home', { taskId });
+    async exitFullscreenFocusToHome(taskId, completeOnHome = false, elapsedMs = null) {
+        return this.invoke('exit_fullscreen_focus_to_home', {
+            taskId,
+            completeOnHome,
+            elapsedMs
+        });
     },
 
     async refreshMainWindow() {
