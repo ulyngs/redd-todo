@@ -43,6 +43,9 @@ fn fullscreen_focus_window_label(task_id: &str) -> String {
     format!("focusfs-{safe}")
 }
 
+const FOCUS_WINDOW_MIN_WIDTH: f64 = 210.0;
+const FOCUS_WINDOW_MIN_HEIGHT: f64 = 48.0;
+
 #[derive(Clone, Copy)]
 struct FocusWindowGeometry {
     x: f64,
@@ -201,6 +204,10 @@ pub fn open_focus_window(
 
         // Check if window already exists
         if let Some(window) = app.get_webview_window(&label) {
+            let _ = window.set_min_size(Some(tauri::LogicalSize::new(
+                FOCUS_WINDOW_MIN_WIDTH,
+                FOCUS_WINDOW_MIN_HEIGHT,
+            )));
             // Drive visibility from the panel handle first. Mixing only WebviewWindow
             // APIs can lose some NSPanel-specific behavior across space transitions.
             if let Ok(panel) = app.get_webview_panel(&label) {
@@ -258,7 +265,8 @@ pub fn open_focus_window(
                 window
                     .decorations(false)
                     .resizable(true)
-                    .inner_size(320.0, 48.0)
+                    .inner_size(360.0, 56.0)
+                    .min_inner_size(FOCUS_WINDOW_MIN_WIDTH, FOCUS_WINDOW_MIN_HEIGHT)
             })
             .build()
             .map_err(|e| e.to_string())?;
@@ -311,7 +319,8 @@ pub fn open_focus_window(
             .decorations(false)
             .resizable(true)
             .focused(true)
-            .inner_size(320.0, 48.0)
+            .inner_size(360.0, 56.0)
+            .min_inner_size(FOCUS_WINDOW_MIN_WIDTH, FOCUS_WINDOW_MIN_HEIGHT)
             .build()
             .map_err(|e| e.to_string())?;
 
