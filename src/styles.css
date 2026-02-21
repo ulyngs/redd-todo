@@ -1862,13 +1862,19 @@ body.focus-panel-window.is-fullscreen {
 
 /* Fullscreen notes container styling */
 .focus-container.fullscreen .focus-notes-container {
-    flex-shrink: 0;
-    width: 100%;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: calc(50% + 160px);
+    width: min(760px, calc(100vw - 80px));
     max-height: 50vh;
     overflow-y: auto;
-    background: var(--app-bg);
-    border-top: 1px solid var(--border-color-medium);
-    padding: 16px 24px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 12px;
+    box-shadow: none;
+    z-index: 320;
 }
 
 .focus-container:active {
@@ -2000,6 +2006,17 @@ body.focus-panel-window.is-fullscreen {
     padding: 6px;
     margin: 6px 14px 0 auto;
     -webkit-app-region: no-drag;
+}
+
+.focus-container.fullscreen .focus-task-switch-menu {
+    position: absolute;
+    right: 40px;
+    bottom: 104px;
+    width: min(400px, calc(100vw - 80px));
+    max-width: 400px;
+    max-height: 50vh;
+    margin: 0;
+    z-index: 330;
 }
 
 .focus-task-switch-item {
