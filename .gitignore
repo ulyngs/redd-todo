@@ -7,6 +7,10 @@ release/
 for-distribution/
 msix-build/
 build/ReDD_Todo_New.provisionprofile
+*.mobileprovision
+*.provisionprofile
+profile.plist
+src-tauri/tauri.appstore.temp.conf.json
 
 # System Files
 .DS_Store
