@@ -484,6 +484,8 @@ const HISTORY_LIMIT = 100;
 let undoHistoryStack = [];
 let redoHistoryStack = [];
 let isApplyingHistoryState = false;
+let animationHiddenTargetTaskId = null;
+let animationHiddenTargetCompletedState = null;
 
 // Focus mode elements
 const normalMode = document.getElementById('normal-mode');
@@ -1404,6 +1406,150 @@ function showMoveTaskModal(taskId) {
     });
 }
 
+function animateTaskCompletionToDone(taskId, sourceElement) {
+    if (!sourceElement || !doneTasksContainer) {
+        renderTasks();
+        return;
+    }
+
+    const textEl = sourceElement.querySelector('.task-text');
+    if (textEl) {
+        textEl.classList.remove('pre-complete-pop');
+        void textEl.offsetWidth; // restart beat animation
+        textEl.classList.add('pre-complete-pop');
+    }
+
+    // Tiny celebration before the move animation starts.
+    const checkboxEl = sourceElement.querySelector('.task-checkbox');
+    const textRect = textEl ? textEl.getBoundingClientRect() : sourceElement.getBoundingClientRect();
+    const partyAnchorRect = checkboxEl ? checkboxEl.getBoundingClientRect() : textRect;
+    const party = document.createElement('div');
+    party.className = 'task-completion-party';
+    party.textContent = '🎉';
+    party.style.left = `${Math.round(partyAnchorRect.left + (partyAnchorRect.width / 2) - 9)}px`;
+    party.style.top = `${Math.round(partyAnchorRect.top - 22)}px`;
+    document.body.appendChild(party);
+    setTimeout(() => party.remove(), 1000);
+
+    // Let strikethrough + celebration register first.
+    setTimeout(() => {
+        const startRect = sourceElement.getBoundingClientRect();
+        const ghost = sourceElement.cloneNode(true);
+        ghost.classList.add('task-completion-ghost');
+        ghost.style.position = 'fixed';
+        ghost.style.left = `${startRect.left}px`;
+        ghost.style.top = `${startRect.top}px`;
+        ghost.style.width = `${startRect.width}px`;
+        ghost.style.height = `${startRect.height}px`;
+        ghost.style.margin = '0';
+        ghost.style.pointerEvents = 'none';
+        ghost.style.zIndex = '2500';
+        ghost.style.transformOrigin = 'top left';
+        ghost.style.transition = 'transform 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms ease';
+        document.body.appendChild(ghost);
+
+        // Keep source row from flashing while the list re-renders.
+        sourceElement.style.opacity = '0';
+        sourceElement.style.pointerEvents = 'none';
+
+        animationHiddenTargetTaskId = taskId;
+        animationHiddenTargetCompletedState = true;
+        renderTasks();
+
+        requestAnimationFrame(() => {
+            const targetElement = doneTasksContainer.querySelector(`.task-item[data-task-id="${taskId}"]`);
+            if (!targetElement) {
+                animationHiddenTargetTaskId = null;
+                animationHiddenTargetCompletedState = null;
+                ghost.remove();
+                return;
+            }
+
+            const targetRect = targetElement.getBoundingClientRect();
+            targetElement.style.visibility = 'hidden';
+
+            const dx = targetRect.left - startRect.left;
+            const dy = targetRect.top - startRect.top;
+            const scaleX = startRect.width > 0 ? targetRect.width / startRect.width : 1;
+            const scaleY = startRect.height > 0 ? targetRect.height / startRect.height : 1;
+
+            ghost.style.transition = 'transform 430ms cubic-bezier(0.22, 1, 0.36, 1), opacity 430ms ease';
+            requestAnimationFrame(() => {
+                ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`;
+                ghost.style.opacity = '0.98';
+            });
+
+            setTimeout(() => {
+                ghost.remove();
+                targetElement.classList.remove('animation-target-hidden');
+                animationHiddenTargetTaskId = null;
+                animationHiddenTargetCompletedState = null;
+                renderTasks();
+            }, 460);
+        });
+    }, 800);
+}
+
+function animateTaskUncompleteToActive(taskId, sourceElement) {
+    if (!sourceElement || !tasksContainer) {
+        renderTasks();
+        return;
+    }
+
+    const startRect = sourceElement.getBoundingClientRect();
+    const ghost = sourceElement.cloneNode(true);
+    ghost.classList.add('task-completion-ghost');
+    ghost.style.position = 'fixed';
+    ghost.style.left = `${startRect.left}px`;
+    ghost.style.top = `${startRect.top}px`;
+    ghost.style.width = `${startRect.width}px`;
+    ghost.style.height = `${startRect.height}px`;
+    ghost.style.margin = '0';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.zIndex = '2500';
+    ghost.style.transformOrigin = 'top left';
+    ghost.style.transition = 'transform 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 420ms ease';
+    document.body.appendChild(ghost);
+
+    sourceElement.style.opacity = '0';
+    sourceElement.style.pointerEvents = 'none';
+
+    animationHiddenTargetTaskId = taskId;
+    animationHiddenTargetCompletedState = false;
+    renderTasks();
+
+    requestAnimationFrame(() => {
+        const targetElement = tasksContainer.querySelector(`.task-item[data-task-id="${taskId}"]`);
+        if (!targetElement) {
+            animationHiddenTargetTaskId = null;
+            animationHiddenTargetCompletedState = null;
+            ghost.remove();
+            return;
+        }
+
+        const targetRect = targetElement.getBoundingClientRect();
+        targetElement.style.visibility = 'hidden';
+
+        const dx = targetRect.left - startRect.left;
+        const dy = targetRect.top - startRect.top;
+        const scaleX = startRect.width > 0 ? targetRect.width / startRect.width : 1;
+        const scaleY = startRect.height > 0 ? targetRect.height / startRect.height : 1;
+
+        requestAnimationFrame(() => {
+            ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`;
+            ghost.style.opacity = '0.98';
+        });
+
+        setTimeout(() => {
+            ghost.remove();
+            targetElement.classList.remove('animation-target-hidden');
+            animationHiddenTargetTaskId = null;
+            animationHiddenTargetCompletedState = null;
+            renderTasks();
+        }, 450);
+    });
+}
+
 function toggleTask(taskId) {
     console.log('=== TOGGLE TASK START ===');
     console.log('Task ID:', taskId);
@@ -1468,34 +1614,11 @@ function toggleTask(taskId) {
     // Save data immediately but delay the visual re-render
     saveData();
 
-    // Animate the task element when completing (not when un-completing)
+    // Animate completion as a visual move into the DONE section.
     if (!wasCompleted && task.completed && taskElement) {
-        // Calculate the distance from the task to the add-task-container / done section
-        const addTaskContainer = document.getElementById('add-task-container');
-        const taskRect = taskElement.getBoundingClientRect();
-        let travelDistance = 60; // fallback
-        if (addTaskContainer) {
-            const targetRect = addTaskContainer.getBoundingClientRect();
-            travelDistance = Math.max(targetRect.top - taskRect.top, 40);
-        }
-
-        // Set max-height to current height so the CSS transition has a start value
-        const currentHeight = taskElement.offsetHeight;
-        taskElement.style.maxHeight = currentHeight + 'px';
-        taskElement.style.setProperty('--completion-travel', travelDistance + 'px');
-        taskElement.classList.add('completing');
-
-        // Trigger the collapse after a brief pause to let the strikethrough register
-        requestAnimationFrame(() => {
-            setTimeout(() => {
-                taskElement.classList.add('collapse');
-            }, 120);
-        });
-
-        // After the animation finishes, do the full re-render
-        setTimeout(() => {
-            renderTasks();
-        }, 500);
+        animateTaskCompletionToDone(taskId, taskElement);
+    } else if (wasCompleted && !task.completed && taskElement) {
+        animateTaskUncompleteToActive(taskId, taskElement);
     } else {
         // Un-completing or no element: re-render after short delay
         setTimeout(() => {
@@ -2945,6 +3068,12 @@ function createTaskElement(task) {
     const canDragTask = !task.completed;
     taskElement.draggable = canDragTask;
     taskElement.dataset.taskId = task.id;
+    if (
+        animationHiddenTargetTaskId === task.id &&
+        animationHiddenTargetCompletedState === !!task.completed
+    ) {
+        taskElement.classList.add('animation-target-hidden');
+    }
 
     const favBtnClass = task.isFavourite ? 'fav-btn active' : 'fav-btn';
     const favBtnHtml = `
