@@ -13,6 +13,7 @@ const masInheritEntitlementsPath = path.join(repoRoot, 'build', 'entitlements.ma
 const targetTriple = 'universal-apple-darwin';
 const skipTauriBuild = process.argv.includes('--skip-tauri-build');
 const optional = process.argv.includes('--optional');
+const tempMasEntitlementsPath = path.join(repoRoot, 'build', 'entitlements.mas.temp.plist');
 
 function runOrThrow(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, {
@@ -118,9 +119,31 @@ function decodeProvisioningProfile(profilePath) {
   const appIdentifier =
     extractPlistString(xml, 'com.apple.application-identifier') ||
     extractPlistString(xml, 'application-identifier');
+  const profileTeamId =
+    extractPlistString(xml, 'com.apple.developer.team-identifier') ||
+    null;
   const expirationDate = extractPlistString(xml, 'ExpirationDate');
   const name = extractPlistString(xml, 'Name');
-  return { appIdentifier, expirationDate, name };
+  return { appIdentifier, profileTeamId, expirationDate, name };
+}
+
+function buildSigningEntitlements(baseEntitlementsPath, outputEntitlementsPath, appIdentifier, teamId) {
+  let xml = fs.readFileSync(baseEntitlementsPath, 'utf8');
+  const closeDict = '</dict>';
+  const idx = xml.lastIndexOf(closeDict);
+  if (idx === -1) {
+    throw new Error(`Invalid entitlements plist (missing </dict>): ${baseEntitlementsPath}`);
+  }
+
+  const extra = [
+    '  <key>com.apple.application-identifier</key>',
+    `  <string>${appIdentifier}</string>`,
+    '  <key>com.apple.developer.team-identifier</key>',
+    `  <string>${teamId}</string>`
+  ].join('\n');
+
+  xml = `${xml.slice(0, idx)}${extra}\n${xml.slice(idx)}`;
+  fs.writeFileSync(outputEntitlementsPath, xml);
 }
 
 function resolveProvisioningProfilePath(bundleIdentifier, teamId) {
@@ -297,6 +320,23 @@ try {
     throw new Error('Missing bundle identifier in Tauri config (`identifier`).');
   }
   const provisioningProfilePath = resolveProvisioningProfilePath(bundleIdentifier, teamId);
+  const profileDetails = decodeProvisioningProfile(provisioningProfilePath);
+  if (!profileDetails || !profileDetails.appIdentifier) {
+    throw new Error('Failed to decode provisioning profile app identifier.');
+  }
+  const resolvedTeamId = profileDetails.profileTeamId || teamId;
+  if (!resolvedTeamId) {
+    throw new Error('Failed to resolve team identifier from app identity/provisioning profile.');
+  }
+
+  // Ensure signed entitlements include application/team identifier values from profile.
+  buildSigningEntitlements(
+    masEntitlementsPath,
+    tempMasEntitlementsPath,
+    profileDetails.appIdentifier,
+    resolvedTeamId
+  );
+
   const embeddedProvisioningProfilePath = path.join(appBundlePath, 'Contents', 'embedded.provisionprofile');
   fs.copyFileSync(provisioningProfilePath, embeddedProvisioningProfilePath);
 
@@ -319,7 +359,7 @@ try {
     '--sign',
     appIdentity,
     '--entitlements',
-    masEntitlementsPath,
+    tempMasEntitlementsPath,
     '--timestamp=none',
     appBundlePath
   ]);
@@ -354,6 +394,12 @@ try {
     if (fs.existsSync(tempTauriConfigPath)) fs.rmSync(tempTauriConfigPath, { force: true });
   } catch (cleanupErr) {
     console.warn(`[build:mas] Warning: failed to remove temp config: ${cleanupErr.message}`);
+    exitCode = 1;
+  }
+  try {
+    if (fs.existsSync(tempMasEntitlementsPath)) fs.rmSync(tempMasEntitlementsPath, { force: true });
+  } catch (cleanupErr) {
+    console.warn(`[build:mas] Warning: failed to remove temp entitlements: ${cleanupErr.message}`);
     exitCode = 1;
   }
 }
