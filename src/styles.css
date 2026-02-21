@@ -3085,3 +3085,23 @@ input:checked+.slider:before {
     opacity: 0.5;
     filter: saturate(0.6) brightness(0.95);
 }
+
+/* Task completion animation */
+.task-item.completing {
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.3s ease,
+        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        margin 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        padding 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.task-item.completing.collapse {
+    max-height: 0 !important;
+    opacity: 0;
+    transform: translateY(var(--completion-travel, 60px));
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}

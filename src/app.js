@@ -1398,10 +1398,40 @@ function toggleTask(taskId) {
     // Save data immediately but delay the visual re-render
     saveData();
 
-    // Wait 300ms before moving task between sections
-    setTimeout(() => {
-        renderTasks();
-    }, 300);
+    // Animate the task element when completing (not when un-completing)
+    if (!wasCompleted && task.completed && taskElement) {
+        // Calculate the distance from the task to the add-task-container / done section
+        const addTaskContainer = document.getElementById('add-task-container');
+        const taskRect = taskElement.getBoundingClientRect();
+        let travelDistance = 60; // fallback
+        if (addTaskContainer) {
+            const targetRect = addTaskContainer.getBoundingClientRect();
+            travelDistance = Math.max(targetRect.top - taskRect.top, 40);
+        }
+
+        // Set max-height to current height so the CSS transition has a start value
+        const currentHeight = taskElement.offsetHeight;
+        taskElement.style.maxHeight = currentHeight + 'px';
+        taskElement.style.setProperty('--completion-travel', travelDistance + 'px');
+        taskElement.classList.add('completing');
+
+        // Trigger the collapse after a brief pause to let the strikethrough register
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                taskElement.classList.add('collapse');
+            }, 120);
+        });
+
+        // After the animation finishes, do the full re-render
+        setTimeout(() => {
+            renderTasks();
+        }, 500);
+    } else {
+        // Un-completing or no element: re-render after short delay
+        setTimeout(() => {
+            renderTasks();
+        }, 300);
+    }
 }
 
 function focusTask(taskId, anchorElement = null) {
