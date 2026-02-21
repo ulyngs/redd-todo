@@ -212,6 +212,7 @@ let focusStartTime = null;
 let previousFocusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
+let preTaskSwitchMenuHeight = null; // Restore exact panel height after menu closes
 // Track dragged items
 let draggedTaskId = null;
 let draggedTabId = null;
@@ -485,6 +486,9 @@ const exitFocusBtn = document.getElementById('exit-focus-btn');
 const completeFocusBtn = document.getElementById('complete-focus-btn');
 const resetFocusBtn = document.getElementById('reset-focus-btn');
 const fullscreenFocusBtn = document.getElementById('fullscreen-focus-btn');
+const switchFocusTaskBtn = document.getElementById('switch-focus-task-btn');
+const focusTaskSwitchMenu = document.getElementById('focus-task-switch-menu');
+const focusTaskSwitchList = document.getElementById('focus-task-switch-list');
 
 // Theme Management
 const themeSelect = document.getElementById('theme-select');
@@ -3246,6 +3250,7 @@ function setupEventListeners() {
     if (isFocusPanelWindow && focusBar && focusContainer && platform === 'darwin') {
         focusBar.removeAttribute('data-tauri-drag-region');
 
+        let suppressClickUntil = 0;
         const MOVE_TO_DRAG_PX = 4;
         focusContainer.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
@@ -3269,6 +3274,8 @@ function setupEventListeners() {
                 const dy = Math.abs(moveEvent.clientY - startY);
                 if (dx >= MOVE_TO_DRAG_PX || dy >= MOVE_TO_DRAG_PX) {
                     dragging = true;
+                    // Suppress the click that would otherwise fire after dragging.
+                    suppressClickUntil = Date.now() + 400;
                     cleanup();
                     try {
                         await tauriAPI.startDrag();
@@ -3284,6 +3291,13 @@ function setupEventListeners() {
 
             window.addEventListener('mousemove', onMove, true);
             window.addEventListener('mouseup', onUp, true);
+        }, true);
+
+        focusContainer.addEventListener('click', (e) => {
+            if (Date.now() < suppressClickUntil) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
         }, true);
     }
 
@@ -4314,6 +4328,37 @@ function setupEventListeners() {
     }
 
     // Focus mode events
+    if (switchFocusTaskBtn && focusTaskSwitchMenu) {
+        switchFocusTaskBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (focusTaskSwitchMenu.classList.contains('hidden')) {
+                // Notes and task switch list should never be visible together.
+                hideFocusNotesPanel();
+                renderFocusTaskSwitchMenu();
+                focusTaskSwitchMenu.classList.remove('hidden');
+                expandFocusWindowForTaskSwitchMenu();
+            } else {
+                closeFocusTaskSwitchMenu();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!focusTaskSwitchMenu.classList.contains('hidden')) {
+                const withinSwitchMenu = e.target.closest('#focus-task-switch-menu, #switch-focus-task-btn');
+                if (!withinSwitchMenu) {
+                    closeFocusTaskSwitchMenu();
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !focusTaskSwitchMenu.classList.contains('hidden')) {
+                closeFocusTaskSwitchMenu();
+            }
+        });
+    }
+
     exitFocusBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -4551,6 +4596,8 @@ function setupEventListeners() {
         notesFocusBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            // Notes and task switch list are mutually exclusive.
+            closeFocusTaskSwitchMenu();
 
             const isOpen = !focusNotesContainer.classList.contains('hidden');
 
@@ -4809,6 +4856,118 @@ function setupEventListeners() {
 }
 
 // Focus mode functions
+function persistCurrentFocusTaskTime() {
+    if (!focusedTaskId || !isFocusMode || !focusStartTime) return;
+    const context = getTaskContext(focusedTaskId);
+    if (!context) return;
+    context.task.timeSpent = Date.now() - focusStartTime;
+    saveData();
+}
+
+function closeFocusTaskSwitchMenu() {
+    if (focusTaskSwitchMenu) {
+        focusTaskSwitchMenu.classList.add('hidden');
+    }
+
+    // Restore the exact panel height from before opening the switch menu.
+    if (isFocusPanelWindow && !isNativeFullscreenFocusWindow) {
+        if (preTaskSwitchMenuHeight != null) {
+            reddIpc.send('set-focus-window-height', preTaskSwitchMenuHeight);
+            preTaskSwitchMenuHeight = null;
+        }
+    }
+}
+
+function hideFocusNotesPanel() {
+    const notesFocusBtn = document.getElementById('notes-focus-btn');
+    const focusNotesContainer = document.getElementById('focus-notes-container');
+    const focusNotesWrapper = document.querySelector('.focus-notes-editor-wrapper');
+
+    if (focusNotesContainer && !focusNotesContainer.classList.contains('hidden')) {
+        focusNotesContainer.classList.add('hidden');
+    }
+    if (notesFocusBtn) notesFocusBtn.classList.remove('active');
+    if (focusNotesWrapper) focusNotesWrapper.classList.remove('active');
+}
+
+function renderFocusTaskSwitchMenu() {
+    if (!focusTaskSwitchList) return;
+    const context = focusedTaskId ? getTaskContext(focusedTaskId) : null;
+    if (!context || !context.tab || !Array.isArray(context.tab.tasks)) {
+        focusTaskSwitchList.innerHTML = '';
+        return;
+    }
+
+    focusTaskSwitchList.innerHTML = '';
+    context.tab.tasks
+        .filter((task) => !task.completed && task.id !== focusedTaskId)
+        .forEach((task) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'focus-task-switch-item';
+        item.textContent = task.text || 'Untitled task';
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            switchFocusTask(task.id);
+        });
+        focusTaskSwitchList.appendChild(item);
+        });
+}
+
+function expandFocusWindowForTaskSwitchMenu() {
+    if (!isFocusPanelWindow || isNativeFullscreenFocusWindow || !focusTaskSwitchMenu) return;
+    if (preTaskSwitchMenuHeight == null) {
+        const focusContainer = document.querySelector('.focus-container');
+        const currentHeight = focusContainer
+            ? Math.round(focusContainer.getBoundingClientRect().height)
+            : Math.round(window.innerHeight || 0);
+        preTaskSwitchMenuHeight = currentHeight;
+    }
+    requestAnimationFrame(() => {
+        const menuContentHeight = Math.max(
+            focusTaskSwitchMenu.scrollHeight || 0,
+            focusTaskSwitchList ? focusTaskSwitchList.scrollHeight : 0
+        );
+        const targetHeight = Math.min(Math.max(56 + menuContentHeight, 56), 800);
+        reddIpc.send('set-focus-window-height', targetHeight);
+    });
+}
+
+function switchFocusTask(nextTaskId) {
+    if (!nextTaskId || nextTaskId === focusedTaskId) {
+        closeFocusTaskSwitchMenu();
+        return;
+    }
+
+    const nextContext = getTaskContext(nextTaskId);
+    if (!nextContext) {
+        closeFocusTaskSwitchMenu();
+        return;
+    }
+
+    // Equivalent to closing current focus session then opening for another task.
+    persistCurrentFocusTaskTime();
+    focusedTaskId = nextTaskId;
+    activeFocusTaskIds.clear();
+    activeFocusTaskIds.add(nextTaskId);
+
+    if (reddIsTauri && typeof tauriAPI !== 'undefined') {
+        tauriAPI.focusStatusChanged(nextTaskId).catch((err) => {
+            console.warn('Failed to broadcast focus switch:', err);
+        });
+    }
+
+    hideFocusNotesPanel();
+
+    closeFocusTaskSwitchMenu();
+    enterFocusMode(
+        nextContext.task.text || 'Task',
+        nextContext.task.expectedDuration ?? null,
+        nextContext.task.timeSpent || 0
+    );
+}
+
 function updateFullscreenButtonState(isFullscreen) {
     const btn = document.getElementById('fullscreen-focus-btn');
     if (!btn) return;
@@ -4831,6 +4990,7 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
     stopFocusTimer();
     isFocusMode = true;
     focusDuration = duration; // Set the duration
+    preTaskSwitchMenuHeight = null;
 
     console.log('Hiding normal mode, showing focus mode');
     normalMode.classList.add('hidden');
@@ -4888,18 +5048,12 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
 function exitFocusMode() {
     const closingTaskId = focusedTaskId;
 
-    // Save progress if we have a focused task
-    if (focusedTaskId && currentTabId && isFocusMode && focusStartTime) {
-        const elapsed = Date.now() - focusStartTime;
-        const task = tabs[currentTabId].tasks.find(t => t.id === focusedTaskId);
-        if (task) {
-            task.timeSpent = elapsed;
-            saveData();
-        }
-    }
+    // Save progress for the current task before leaving focus mode.
+    persistCurrentFocusTaskTime();
 
     isFocusMode = false;
     focusedTaskId = null; // Clear focused task ID
+    closeFocusTaskSwitchMenu();
     if (!isFocusPanelWindow) {
         activeFocusTaskIds.clear();
     }
@@ -5875,9 +6029,14 @@ reddIpc.on('focus-status-changed', (event, payload) => {
     if (isFocusPanelWindow) return;
     const openedTaskId = payload?.openedTaskId;
     const closedTaskId = payload?.closedTaskId;
+    const activeTaskId = payload?.activeTaskId;
 
     if (openedTaskId) activeFocusTaskIds.add(openedTaskId);
     if (closedTaskId) activeFocusTaskIds.delete(closedTaskId);
+    if (!openedTaskId && !closedTaskId && activeTaskId) {
+        activeFocusTaskIds.clear();
+        activeFocusTaskIds.add(activeTaskId);
+    }
     if (!openedTaskId && !closedTaskId && payload?.activeTaskId == null) {
         activeFocusTaskIds.clear();
     }

@@ -1680,12 +1680,12 @@ body.focus-panel-window {
 
 body.focus-panel-window .app-container {
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 body.focus-panel-window .focus-container {
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* In fullscreen mode, use solid background */
@@ -1827,6 +1827,7 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .focus-container.fullscreen .complete-focus-btn,
+.focus-container.fullscreen .switch-focus-task-btn,
 .focus-container.fullscreen .fullscreen-focus-btn,
 .focus-container.fullscreen .reset-focus-btn,
 .focus-container.fullscreen #notes-focus-btn,
@@ -1836,6 +1837,7 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .focus-container.fullscreen .complete-focus-btn svg,
+.focus-container.fullscreen .switch-focus-task-btn svg,
 .focus-container.fullscreen .fullscreen-focus-btn svg,
 .focus-container.fullscreen .reset-focus-btn svg,
 .focus-container.fullscreen #notes-focus-btn svg,
@@ -1845,6 +1847,7 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .focus-container.fullscreen .complete-focus-btn:hover,
+.focus-container.fullscreen .switch-focus-task-btn:hover,
 .focus-container.fullscreen .fullscreen-focus-btn:hover,
 .focus-container.fullscreen .reset-focus-btn:hover,
 .focus-container.fullscreen #notes-focus-btn:hover,
@@ -1895,6 +1898,7 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .complete-focus-btn,
+.switch-focus-task-btn,
 .fullscreen-focus-btn,
 .reset-focus-btn,
 .complete-focus-btn,
@@ -1920,6 +1924,7 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .complete-focus-btn:focus,
+.switch-focus-task-btn:focus,
 .fullscreen-focus-btn:focus,
 .reset-focus-btn:focus,
 .complete-focus-btn:focus,
@@ -1942,7 +1947,12 @@ body.focus-panel-window.is-fullscreen {
     color: #f59e0b;
 }
 
+.switch-focus-task-btn {
+    color: #475569;
+}
+
 .complete-focus-btn:hover,
+.switch-focus-task-btn:hover,
 .notes-focus-btn:hover,
 .fullscreen-focus-btn:hover,
 .reset-focus-btn:hover,
@@ -1964,6 +1974,56 @@ body.focus-panel-window.is-fullscreen {
     user-select: none;
     -webkit-user-select: none;
     -webkit-app-region: drag;
+}
+
+.focus-switch-task-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.focus-task-switch-menu {
+    position: relative;
+    width: min(100%, 400px);
+    max-width: 400px;
+    max-height: 720px;
+    overflow-y: auto;
+    background: var(--app-bg-solid);
+    border: 1px solid var(--border-color-medium);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    padding: 6px;
+    margin: 6px 14px 0 auto;
+    -webkit-app-region: no-drag;
+}
+
+.focus-task-switch-item {
+    width: 100%;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    font-size: 13px;
+    line-height: 1.3;
+    padding: 8px 10px;
+    cursor: pointer;
+    display: block;
+    margin: 0;
+}
+
+.focus-task-switch-item:hover {
+    background: var(--hover-bg);
+}
+
+.focus-task-switch-item.active {
+    background: var(--active-bg);
+    font-weight: 600;
+}
+
+.focus-task-switch-item.completed {
+    opacity: 0.7;
+    text-decoration: line-through;
 }
 
 .focus-task-name.completed {
@@ -2051,7 +2111,7 @@ body.focus-panel-window.is-fullscreen {
 /* Focus Mode Notes Container */
 .focus-notes-container {
     width: 100%;
-    padding: 0 14px 0 14px;
+    padding: 0 14px;
     background: var(--app-bg);
     margin-bottom: 0;
 }
