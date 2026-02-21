@@ -5,6 +5,7 @@ node_modules/
 dist/
 release/
 for-distribution/
+msix-build/
 build/ReDD_Todo_New.provisionprofile
 
 # System Files

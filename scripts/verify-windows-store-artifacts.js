@@ -33,19 +33,15 @@ const files = listFilesRecursively(targetDir);
 const storeArtifacts = files.filter((filePath) => {
   const lower = filePath.toLowerCase();
   return (
-    lower.endsWith('.appx') ||
-    lower.endsWith('.msix') ||
-    lower.endsWith('.appxbundle') ||
-    lower.endsWith('.msixbundle') ||
-    lower.endsWith('.appxupload') ||
-    lower.endsWith('.msixupload')
+    lower.endsWith('.msi') ||
+    lower.endsWith('.exe')
   );
 });
 
 if (storeArtifacts.length === 0) {
   console.error(
-    '[build:win] No Windows Store submission package found (.appx/.msix/.bundle/.upload).\n' +
-      'Check signing/Windows bundling config and rerun `npm run build:win` on Windows.'
+    '[build:win] No Windows Store submission artifacts found (.msi/.exe).\n' +
+    'Check build config and rerun `npm run build:win` on Windows.'
   );
   process.exit(1);
 }
