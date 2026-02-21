@@ -480,6 +480,10 @@ let pendingDeleteGroupId = null;
 // Undo State
 let lastDeletedItem = null; // { type: 'tab'|'group', data: object, index: number, ... }
 let undoTimeout = null;
+const HISTORY_LIMIT = 100;
+let undoHistoryStack = [];
+let redoHistoryStack = [];
+let isApplyingHistoryState = false;
 
 // Focus mode elements
 const normalMode = document.getElementById('normal-mode');
@@ -975,6 +979,72 @@ function showUndoToast(message) {
 function hideUndoToast() {
     undoToast.classList.add('hidden');
     if (undoTimeout) clearTimeout(undoTimeout);
+}
+
+function isEditableUndoTarget(target) {
+    if (!target) return false;
+    const element = target.nodeType === Node.ELEMENT_NODE ? target : target.parentElement;
+    if (!element) return false;
+    return !!element.closest('input, textarea, [contenteditable="true"], .ql-editor, .ql-tooltip');
+}
+
+function applySerializedAppState(serializedState) {
+    if (!serializedState) return;
+    isApplyingHistoryState = true;
+    try {
+        localStorage.setItem('redd-todo-data', serializedState);
+        loadData();
+
+        if (!isFocusPanelWindow) {
+            renderGroups();
+            renderTabs();
+            renderTasks();
+            updateBasecampUI();
+            updateRemindersUI();
+            updatePlanButtonVisibility();
+
+            const savedView = localStorage.getItem('currentView');
+            if (savedView === 'plan' && enablePlan) {
+                switchView('plan');
+            } else if (savedView === 'favourites') {
+                switchView('favourites');
+            } else {
+                switchView('lists');
+            }
+        }
+    } finally {
+        isApplyingHistoryState = false;
+    }
+}
+
+function performHistoryUndo() {
+    if (undoHistoryStack.length === 0) return false;
+    const previousState = undoHistoryStack.pop();
+    const currentState = localStorage.getItem('redd-todo-data');
+    if (currentState && currentState !== previousState) {
+        redoHistoryStack.push(currentState);
+        if (redoHistoryStack.length > HISTORY_LIMIT) {
+            redoHistoryStack.shift();
+        }
+    }
+    applySerializedAppState(previousState);
+    hideUndoToast();
+    return true;
+}
+
+function performHistoryRedo() {
+    if (redoHistoryStack.length === 0) return false;
+    const nextState = redoHistoryStack.pop();
+    const currentState = localStorage.getItem('redd-todo-data');
+    if (currentState && currentState !== nextState) {
+        undoHistoryStack.push(currentState);
+        if (undoHistoryStack.length > HISTORY_LIMIT) {
+            undoHistoryStack.shift();
+        }
+    }
+    applySerializedAppState(nextState);
+    hideUndoToast();
+    return true;
 }
 
 async function performUndo() {
@@ -3999,6 +4069,24 @@ function setupEventListeners() {
 
     // Close modal or exit fullscreen on Escape key
     document.addEventListener('keydown', (e) => {
+        const key = (e.key || '').toLowerCase();
+        const hasUndoModifier = e.metaKey || e.ctrlKey;
+        if (hasUndoModifier && !e.altKey && !isEditableUndoTarget(e.target)) {
+            const isRedo = (key === 'z' && e.shiftKey) || (platform !== 'darwin' && key === 'y' && !e.shiftKey);
+            if (isRedo) {
+                e.preventDefault();
+                performHistoryRedo();
+                return;
+            }
+            if (key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                if (!performHistoryUndo()) {
+                    performUndo();
+                }
+                return;
+            }
+        }
+
         if (e.key === 'Escape') {
             if (!tabNameModal.classList.contains('hidden')) {
                 hideTabNameModal();
@@ -6315,7 +6403,18 @@ function saveData() {
         enablePlan: enablePlan,
         favouritesOrder: favouritesOrder
     };
-    localStorage.setItem('redd-todo-data', JSON.stringify(data));
+    const nextState = JSON.stringify(data);
+    const previousState = localStorage.getItem('redd-todo-data');
+
+    if (!isApplyingHistoryState && previousState && previousState !== nextState) {
+        undoHistoryStack.push(previousState);
+        if (undoHistoryStack.length > HISTORY_LIMIT) {
+            undoHistoryStack.shift();
+        }
+        redoHistoryStack = [];
+    }
+
+    localStorage.setItem('redd-todo-data', nextState);
 }
 
 function loadData() {

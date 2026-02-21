@@ -567,6 +567,19 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     transition: all 0.2s ease;
     cursor: default;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Prevent accidental selection highlight on task rows (especially in DONE list),
+   but keep true text editors/selectable fields working normally. */
+.task-item input,
+.task-item textarea,
+.task-item [contenteditable="true"],
+.task-item .task-edit-input,
+.task-item .ql-editor {
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .task-main-row {
