@@ -251,7 +251,7 @@ pub fn open_focus_window(
             .hides_on_deactivate(false)
             .movable_by_window_background(true)
             .collection_behavior(panel_behavior)
-            .style_mask(StyleMask::empty().borderless().nonactivating_panel())
+            .style_mask(StyleMask::empty().resizable().nonactivating_panel())
             .corner_radius(8.0)
             .transparent(true)
             .with_window(|window| {
