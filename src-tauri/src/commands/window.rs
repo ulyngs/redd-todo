@@ -59,6 +59,37 @@ fn fullscreen_handoff_geometry() -> &'static Mutex<HashMap<String, FocusWindowGe
     STORE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+fn last_focus_panel_geometry() -> &'static Mutex<Option<FocusWindowGeometry>> {
+    static STORE: OnceLock<Mutex<Option<FocusWindowGeometry>>> = OnceLock::new();
+    STORE.get_or_init(|| Mutex::new(None))
+}
+
+fn save_focus_window_geometry(window: &tauri::WebviewWindow) {
+    let scale = window.scale_factor().unwrap_or(1.0);
+    if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
+        let geometry = FocusWindowGeometry {
+            x: (pos.x as f64) / scale,
+            y: (pos.y as f64) / scale,
+            width: (size.width as f64) / scale,
+            height: (size.height as f64) / scale,
+        };
+        if let Ok(mut store) = last_focus_panel_geometry().lock() {
+            *store = Some(geometry);
+        }
+    }
+}
+
+fn apply_last_focus_window_geometry(window: &tauri::WebviewWindow) -> bool {
+    if let Ok(store) = last_focus_panel_geometry().lock() {
+        if let Some(geometry) = *store {
+            let _ = window.set_size(tauri::LogicalSize::new(geometry.width, geometry.height));
+            let _ = window.set_position(LogicalPosition::new(geometry.x, geometry.y));
+            return true;
+        }
+    }
+    false
+}
+
 #[cfg(target_os = "macos")]
 fn configure_focus_panel_hover_activation(app: &tauri::AppHandle, label: &str) {
     if let Ok(panel) = app.get_webview_panel(label) {
@@ -219,7 +250,9 @@ pub fn open_focus_window(
                 panel.order_front_regardless();
                 configure_focus_panel_hover_activation(&app, &label);
             }
-            position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
+            if !apply_last_focus_window_geometry(&window) {
+                position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
+            }
             
             // Emit event to the window with task data
             let _ = window.emit("enter-focus-mode", serde_json::json!({
@@ -277,7 +310,9 @@ pub fn open_focus_window(
 
         if let Some(window) = app.get_webview_window(&label) {
             let _ = window.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)));
-            position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
+            if !apply_last_focus_window_geometry(&window) {
+                position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
+            }
             if preserve_window_geometry {
                 let _ = window.emit("enter-focus-mode", serde_json::json!({
                     "taskId": task_id,
@@ -395,6 +430,7 @@ pub fn exit_focus_mode(
             panel.hide();
         }
         if let Some(window) = app.get_webview_window(&target_label) {
+            save_focus_window_geometry(&window);
             let _ = window.hide();
         }
         

@@ -1718,32 +1718,37 @@ body.focus-panel-window.is-fullscreen {
 .focus-container.attention-ring::after {
     content: '';
     position: absolute;
-    inset: 2px;
-    border-radius: 10px;
+    inset: 0px;
+    border-radius: 8px;
     pointer-events: none;
     box-sizing: border-box;
-    border: 3px solid rgba(102, 126, 234, 0);
+    border: 5px solid rgba(102, 126, 234, 0);
+    opacity: 0;
     /* #667eea */
-    animation: attentionRing 900ms ease-out 1;
+    animation: attentionRing 1200ms ease-out 1 forwards;
 }
 
 @keyframes attentionRing {
     0% {
+        opacity: 0;
         border-color: rgba(102, 126, 234, 0);
         box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
     }
 
     15% {
+        opacity: 1;
         border-color: rgba(102, 126, 234, 0.95);
         box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.35);
     }
 
     70% {
+        opacity: 0.6;
         border-color: rgba(102, 126, 234, 0.65);
         box-shadow: 0 0 0 6px rgba(102, 126, 234, 0.15);
     }
 
     100% {
+        opacity: 0;
         border-color: rgba(102, 126, 234, 0);
         box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
     }
