@@ -559,6 +559,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    position: relative;
     padding: 12px;
     margin-bottom: 8px;
     background: var(--task-bg);
@@ -917,6 +918,29 @@ body {
     display: flex;
 }
 
+/* While a task menu is open, suppress hover actions for other rows. */
+.task-menu-open .task-item:hover .hover-actions {
+    display: none;
+}
+
+.task-menu-open .task-item.has-open-menu .hover-actions {
+    display: flex;
+}
+
+.task-item.has-open-menu {
+    z-index: 250;
+}
+
+/* Freeze hover-induced row motion while menu is open to prevent flicker. */
+.task-menu-open .task-item:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transform: none;
+}
+
+.task-menu-open .task-item:hover .task-meta.add-time {
+    opacity: 0;
+}
+
 .always-actions {
     display: flex;
     gap: 2px;
@@ -1001,7 +1025,7 @@ body {
     z-index: 100;
     min-width: 140px;
     padding: 4px;
-    margin-top: 4px;
+    margin-top: 0;
 }
 
 .task-menu.hidden {

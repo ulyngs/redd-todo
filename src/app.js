@@ -3147,20 +3147,20 @@ function createTaskElement(task) {
         taskElement.addEventListener('drop', handleDrop);
     }
 
-    // Close any open menus when hovering over a different task
-    taskElement.addEventListener('mouseenter', () => {
-        document.querySelectorAll('.task-menu:not(.hidden)').forEach(menu => {
-            // Only close menus that are not part of this task
-            if (!taskElement.contains(menu)) {
-                menu.classList.add('hidden');
-                // Remove active class from corresponding task item
-                const parentTask = menu.closest('.task-item');
-                if (parentTask) parentTask.classList.remove('has-open-menu');
-            }
-        });
-    });
-
     return taskElement;
+}
+
+function updateTaskMenuOpenState() {
+    const hasOpenTaskMenu = !!document.querySelector('.task-menu:not(.hidden)');
+    document.body.classList.toggle('task-menu-open', hasOpenTaskMenu);
+}
+
+function closeTaskMenu(menu) {
+    if (!menu) return;
+    menu.classList.add('hidden');
+    const parentTask = menu.closest('.task-item');
+    if (parentTask) parentTask.classList.remove('has-open-menu');
+    updateTaskMenuOpenState();
 }
 
 // Event listeners
@@ -4071,9 +4071,7 @@ function setupEventListeners() {
                 // Close all other menus first
                 document.querySelectorAll('.task-menu:not(.hidden)').forEach(m => {
                     if (m !== menu) {
-                        m.classList.add('hidden');
-                        const p = m.closest('.task-item');
-                        if (p) p.classList.remove('has-open-menu');
+                        closeTaskMenu(m);
                     }
                 });
                 menu.classList.toggle('hidden');
@@ -4082,6 +4080,7 @@ function setupEventListeners() {
                 } else {
                     taskItem.classList.add('has-open-menu');
                 }
+                updateTaskMenuOpenState();
             }
         }
         // Delete action from menu
@@ -4089,14 +4088,14 @@ function setupEventListeners() {
             deleteTask(taskId);
             // Close menu
             const menu = e.target.closest('.task-menu');
-            if (menu) menu.classList.add('hidden');
+            closeTaskMenu(menu);
         }
         // Move action from menu
         else if (e.target.classList.contains('move-task-item') || e.target.closest('.move-task-item')) {
             showMoveTaskModal(taskId);
             // Close menu
             const menu = e.target.closest('.task-menu');
-            if (menu) menu.classList.add('hidden');
+            closeTaskMenu(menu);
         }
         else if (e.target.classList.contains('focus-btn') || e.target.closest('.focus-btn')) {
             focusTask(taskId, e.target.closest('.focus-btn'));
@@ -4168,9 +4167,7 @@ function setupEventListeners() {
                 // Close all other menus first
                 document.querySelectorAll('.task-menu:not(.hidden)').forEach(m => {
                     if (m !== menu) {
-                        m.classList.add('hidden');
-                        const p = m.closest('.task-item');
-                        if (p) p.classList.remove('has-open-menu');
+                        closeTaskMenu(m);
                     }
                 });
                 menu.classList.toggle('hidden');
@@ -4179,19 +4176,20 @@ function setupEventListeners() {
                 } else {
                     taskItem.classList.add('has-open-menu');
                 }
+                updateTaskMenuOpenState();
             }
         }
         // Delete action from menu
         else if (e.target.classList.contains('delete-task-item') || e.target.closest('.delete-task-item')) {
             deleteTask(taskId);
             const menu = e.target.closest('.task-menu');
-            if (menu) menu.classList.add('hidden');
+            closeTaskMenu(menu);
         }
         // Move action from menu
         else if (e.target.classList.contains('move-task-item') || e.target.closest('.move-task-item')) {
             showMoveTaskModal(taskId);
             const menu = e.target.closest('.task-menu');
-            if (menu) menu.classList.add('hidden');
+            closeTaskMenu(menu);
         }
         else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
             toggleTask(taskId);
@@ -7409,9 +7407,7 @@ document.addEventListener('click', (e) => {
     // If click is not on a menu button or inside a menu, close all menus
     if (!e.target.closest('.task-menu-btn') && !e.target.closest('.task-menu')) {
         document.querySelectorAll('.task-menu:not(.hidden)').forEach(menu => {
-            menu.classList.add('hidden');
-            const parentTask = menu.closest('.task-item');
-            if (parentTask) parentTask.classList.remove('has-open-menu');
+            closeTaskMenu(menu);
         });
     }
 });
