@@ -51,6 +51,7 @@ const reddIpc = {
                 'window-minimize': () => tauriAPI.windowMinimize(),
                 'window-maximize': () => tauriAPI.windowMaximize(),
                 'window-close': () => tauriAPI.windowClose(),
+                'set-window-fullscreen': () => tauriAPI.setWindowFullscreen(!!args[0]),
                 'enter-focus-mode': () => tauriAPI.openFocusWindow(
                     args[0]?.taskId,
                     args[0]?.taskName || args[0],
@@ -4375,6 +4376,9 @@ function setupEventListeners() {
             // First exit fullscreen locally
             focusContainer.classList.remove('fullscreen');
             document.body.classList.remove('is-fullscreen');
+            if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
+                reddIpc.send('set-window-fullscreen', false);
+            }
             // Restore panel width only for dedicated focus windows.
             if (isFocusPanelWindow) {
                 reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
@@ -4403,6 +4407,10 @@ function setupEventListeners() {
             if (!completingViaHome) {
                 // First exit fullscreen locally
                 focusContainer.classList.remove('fullscreen');
+                document.body.classList.remove('is-fullscreen');
+                if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
+                    reddIpc.send('set-window-fullscreen', false);
+                }
                 // Restore panel width only for dedicated focus windows.
                 if (isFocusPanelWindow) {
                     reddIpc.send('set-focus-window-size', Math.min(Math.max(focusContainer.offsetWidth, 280), 500));
@@ -4580,6 +4588,9 @@ function setupEventListeners() {
                 focusContainer.classList.remove('fullscreen');
                 document.body.classList.remove('is-fullscreen');
                 updateFullscreenButtonState(false);
+                if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
+                    reddIpc.send('set-window-fullscreen', false);
+                }
                 if (isFocusPanelWindow) {
                     reddIpc.send('set-focus-window-size', preFullscreenWidth);
                 }
@@ -4598,6 +4609,9 @@ function setupEventListeners() {
                 focusContainer.classList.add('fullscreen');
                 document.body.classList.add('is-fullscreen');
                 updateFullscreenButtonState(true);
+                if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
+                    reddIpc.send('set-window-fullscreen', true);
+                }
                 if (isFocusPanelWindow) {
                     reddIpc.send('enter-fullscreen-focus');
                 }

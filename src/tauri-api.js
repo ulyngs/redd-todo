@@ -76,6 +76,19 @@ const tauriAPI = {
         return this.invoke('window_close');
     },
 
+    async setWindowFullscreen(fullscreen) {
+        if (!this.isTauri) return null;
+        const windowApi = window.__TAURI__.window;
+        const currentWindow = windowApi && typeof windowApi.getCurrentWindow === 'function'
+            ? windowApi.getCurrentWindow()
+            : null;
+        if (!currentWindow || typeof currentWindow.setFullscreen !== 'function') {
+            console.warn('Current window or setFullscreen API not available');
+            return null;
+        }
+        return currentWindow.setFullscreen(!!fullscreen);
+    },
+
     async enterFocusMode() {
         return this.invoke('enter_focus_mode');
     },
