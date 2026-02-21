@@ -94,6 +94,91 @@ function autoDetectAppIdentity() {
   ]);
 }
 
+function getTeamIdFromIdentity(identity) {
+  if (!identity) return null;
+  const match = identity.match(/\(([A-Z0-9]+)\)\s*$/);
+  return match ? match[1] : null;
+}
+
+function extractPlistString(xml, key) {
+  if (!xml || !key) return null;
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`<key>\\s*${escapedKey}\\s*<\\/key>\\s*<string>\\s*([^<]+?)\\s*<\\/string>`, 'i');
+  const match = xml.match(re);
+  return match ? match[1].trim() : null;
+}
+
+function decodeProvisioningProfile(profilePath) {
+  const decoded = spawnSync('security', ['cms', '-D', '-i', profilePath], {
+    cwd: repoRoot,
+    encoding: 'utf8'
+  });
+  if (decoded.status !== 0 || !decoded.stdout) return null;
+  const xml = decoded.stdout;
+  const appIdentifier =
+    extractPlistString(xml, 'com.apple.application-identifier') ||
+    extractPlistString(xml, 'application-identifier');
+  const expirationDate = extractPlistString(xml, 'ExpirationDate');
+  const name = extractPlistString(xml, 'Name');
+  return { appIdentifier, expirationDate, name };
+}
+
+function resolveProvisioningProfilePath(bundleIdentifier, teamId) {
+  const explicitProfilePath =
+    process.env.APPLE_PROVISIONING_PROFILE_PATH ||
+    process.env.APPLE_PROVISIONING_PROFILE ||
+    null;
+
+  if (explicitProfilePath) {
+    const absolute = path.isAbsolute(explicitProfilePath)
+      ? explicitProfilePath
+      : path.resolve(repoRoot, explicitProfilePath);
+    if (!fs.existsSync(absolute)) {
+      fail(`Provisioning profile not found at explicit path: ${absolute}`);
+    }
+    return absolute;
+  }
+
+  const profileDirs = [
+    path.join(process.env.HOME || '', 'Library', 'Developer', 'Xcode', 'UserData', 'Provisioning Profiles'),
+    path.join(process.env.HOME || '', 'Library', 'MobileDevice', 'Provisioning Profiles')
+  ];
+
+  const expectedAppId = teamId ? `${teamId}.${bundleIdentifier}` : null;
+  const candidates = [];
+
+  for (const dir of profileDirs) {
+    if (!dir || !fs.existsSync(dir)) continue;
+    for (const fileName of fs.readdirSync(dir)) {
+      if (!fileName.endsWith('.mobileprovision') && !fileName.endsWith('.provisionprofile')) continue;
+      const profilePath = path.join(dir, fileName);
+      const details = decodeProvisioningProfile(profilePath);
+      if (!details || !details.appIdentifier) continue;
+      const appId = details.appIdentifier;
+      const strictMatch = expectedAppId && appId === expectedAppId;
+      const looseMatch = appId.endsWith(`.${bundleIdentifier}`);
+      if (strictMatch || looseMatch) {
+        const expirationValue = details.expirationDate ? Date.parse(details.expirationDate) : 0;
+        candidates.push({ profilePath, appId, expirationValue, name: details.name || fileName });
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    const expectation = expectedAppId || `*.${bundleIdentifier}`;
+    fail(
+      'No matching macOS provisioning profile was found.\n' +
+      `Expected profile app identifier like: ${expectation}\n` +
+      'Install/download the macOS App Store provisioning profile in Xcode, or set APPLE_PROVISIONING_PROFILE_PATH.'
+    );
+  }
+
+  candidates.sort((a, b) => (b.expirationValue || 0) - (a.expirationValue || 0));
+  const best = candidates[0];
+  console.log(`[build:mas] Using provisioning profile: ${best.name} (${best.appId})`);
+  return best.profilePath;
+}
+
 if (process.platform !== 'darwin') {
   if (optional) skip('Skipping .pkg generation because host OS is not macOS.');
   fail('build:mas must be run on macOS.');
@@ -141,6 +226,7 @@ if (!appIdentity) {
   );
 }
 console.log(`[build:mas] Using app identity: ${appIdentity}`);
+const teamId = getTeamIdFromIdentity(appIdentity);
 
 if (!fs.existsSync(masEntitlementsPath) || !fs.existsSync(masInheritEntitlementsPath)) {
   fail(
@@ -205,7 +291,16 @@ try {
     throw new Error(`Could not find app bundle at: ${appBundlePath}`);
   }
 
-  // 3) Ensure sandbox entitlements are signed onto executable payloads required by Transporter.
+  // 3) Embed provisioning profile so App Store Connect can validate TestFlight eligibility.
+  const bundleIdentifier = appStoreConfig.identifier;
+  if (!bundleIdentifier) {
+    throw new Error('Missing bundle identifier in Tauri config (`identifier`).');
+  }
+  const provisioningProfilePath = resolveProvisioningProfilePath(bundleIdentifier, teamId);
+  const embeddedProvisioningProfilePath = path.join(appBundlePath, 'Contents', 'embedded.provisionprofile');
+  fs.copyFileSync(provisioningProfilePath, embeddedProvisioningProfilePath);
+
+  // 4) Ensure sandbox entitlements are signed onto executable payloads required by Transporter.
   const remindersConnectorPath = path.join(appBundlePath, 'Contents', 'Resources', 'reminders-connector');
   if (fs.existsSync(remindersConnectorPath)) {
     runOrThrow('codesign', [
@@ -229,7 +324,7 @@ try {
     appBundlePath
   ]);
 
-  // 4) Build MAS upload package (.pkg) for Transporter.
+  // 5) Build MAS upload package (.pkg) for Transporter.
   const outputDir = path.join(repoRoot, 'for-distribution', targetTriple, 'mas');
   fs.mkdirSync(outputDir, { recursive: true });
   const pkgPath = path.join(outputDir, `${productName}.pkg`);
