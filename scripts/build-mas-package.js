@@ -365,7 +365,7 @@ try {
   ]);
 
   // 5) Build MAS upload package (.pkg) for Transporter.
-  const outputDir = path.join(repoRoot, 'for-distribution', targetTriple, 'mas');
+  const outputDir = path.join(repoRoot, 'for-distribution');
   fs.mkdirSync(outputDir, { recursive: true });
   const pkgPath = path.join(outputDir, `${productName}.pkg`);
   if (fs.existsSync(pkgPath)) fs.rmSync(pkgPath, { force: true });

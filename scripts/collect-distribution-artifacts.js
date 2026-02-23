@@ -25,14 +25,51 @@ function copyRecursiveSync(src, dest) {
   fs.copyFileSync(src, dest);
 }
 
-function collectFromTarget(targetTriple) {
-  const bundleDir = path.join(tauriTargetRoot, targetTriple, 'release', 'bundle');
-  if (!fs.existsSync(bundleDir)) {
-    console.warn(`[collect] No bundle directory found for ${targetTriple}: ${bundleDir}`);
+// Resolve the bundle directory for a given target (or the default build).
+// '__default__' is a sentinel meaning src-tauri/target/release/bundle/
+function getBundleDir(target) {
+  if (target === '__default__') {
+    return path.join(tauriTargetRoot, 'release', 'bundle');
+  }
+  return path.join(tauriTargetRoot, target, 'release', 'bundle');
+}
+
+function collectDmg(target) {
+  const bundleDir = getBundleDir(target);
+  const dmgDir = path.join(bundleDir, 'dmg');
+  if (!fs.existsSync(dmgDir)) {
+    console.warn(`[collect] No dmg directory found: ${dmgDir}`);
     return 0;
   }
 
-  const targetOut = path.join(distRoot, targetTriple);
+  // Clean any old .dmg files and target subfolders from for-distribution/
+  for (const existing of fs.readdirSync(distRoot)) {
+    const existingPath = path.join(distRoot, existing);
+    if (existing.endsWith('.dmg') || (existing !== '.DS_Store' && fs.statSync(existingPath).isDirectory())) {
+      fs.rmSync(existingPath, { recursive: true, force: true });
+    }
+  }
+
+  let copied = 0;
+  for (const file of fs.readdirSync(dmgDir)) {
+    if (file.endsWith('.dmg')) {
+      const srcPath = path.join(dmgDir, file);
+      const destPath = path.join(distRoot, file);
+      fs.copyFileSync(srcPath, destPath);
+      copied += 1;
+      console.log(`[collect] Copied ${file} -> for-distribution/`);
+    }
+  }
+
+  if (copied === 0) {
+    console.warn(`[collect] No .dmg files found in ${dmgDir}`);
+  }
+  return copied;
+}
+
+function collectNonMac(target) {
+  const bundleDir = getBundleDir(target);
+  const targetOut = path.join(distRoot, target);
   if (fs.existsSync(targetOut)) {
     fs.rmSync(targetOut, { recursive: true, force: true });
   }
@@ -51,50 +88,50 @@ function collectFromTarget(targetTriple) {
     }
   }
 
-  // Also collect updater artifacts/signatures if present.
-  const updaterDir = path.join(tauriTargetRoot, targetTriple, 'release', 'bundle', 'updater');
-  if (fs.existsSync(updaterDir) && fs.statSync(updaterDir).isDirectory()) {
-    for (const updaterArtifact of fs.readdirSync(updaterDir)) {
-      const srcPath = path.join(updaterDir, updaterArtifact);
-      const destPath = path.join(targetOut, 'updater', updaterArtifact);
-      copyRecursiveSync(srcPath, destPath);
-      copied += 1;
-    }
-  }
-
   if (copied > 0) {
-    console.log(`[collect] Copied ${copied} artifact(s) for ${targetTriple} -> for-distribution/${targetTriple}`);
+    console.log(`[collect] Copied ${copied} artifact(s) for ${target} -> for-distribution/${target}`);
   } else {
     console.warn(`[collect] No artifacts found in ${bundleDir}`);
   }
   return copied;
 }
 
-function listAvailableTargets() {
-  if (!fs.existsSync(tauriTargetRoot)) return [];
-  return fs
-    .readdirSync(tauriTargetRoot)
-    .filter((name) => fs.statSync(path.join(tauriTargetRoot, name)).isDirectory())
-    .filter((name) => fs.existsSync(path.join(tauriTargetRoot, name, 'release', 'bundle')));
+function collectFromTarget(target) {
+  const bundleDir = getBundleDir(target);
+  if (!fs.existsSync(bundleDir)) {
+    console.warn(`[collect] No bundle directory found: ${bundleDir}`);
+    return 0;
+  }
+
+  const isMac = target === '__default__'
+    ? fs.existsSync(path.join(bundleDir, 'dmg'))
+    : target.includes('apple-darwin');
+
+  return isMac ? collectDmg(target) : collectNonMac(target);
 }
 
 function main() {
   const requestedTarget = parseArg('--target');
   fs.mkdirSync(distRoot, { recursive: true });
 
-  const targets = requestedTarget ? [requestedTarget] : listAvailableTargets();
-  if (targets.length === 0) {
-    console.warn('[collect] No Tauri build targets found to collect.');
-    process.exit(0);
+  if (requestedTarget) {
+    // Explicit target specified
+    const total = collectFromTarget(requestedTarget);
+    if (total > 0) {
+      console.log(`[collect] Distribution artifacts ready in: ${distRoot}`);
+    }
+    return;
   }
 
-  let total = 0;
-  for (const targetTriple of targets) {
-    total += collectFromTarget(targetTriple);
-  }
-
-  if (total > 0) {
-    console.log(`[collect] Distribution artifacts ready in: ${distRoot}`);
+  // No target specified: use the default release/bundle path
+  const defaultBundleDir = path.join(tauriTargetRoot, 'release', 'bundle');
+  if (fs.existsSync(defaultBundleDir)) {
+    const total = collectFromTarget('__default__');
+    if (total > 0) {
+      console.log(`[collect] Distribution artifacts ready in: ${distRoot}`);
+    }
+  } else {
+    console.warn('[collect] No Tauri build output found. Run `tauri build` first.');
   }
 }
 
