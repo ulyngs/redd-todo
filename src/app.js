@@ -348,6 +348,26 @@ let dragSourceTabId = null; // The tab where the dragged task originated
 let tabHoverTimeout = null; // Timer for auto-switching tabs when hovering
 let dragTargetTabId = null; // The tab we've switched to while dragging (null if same as source)
 let dragPlaceholderPosition = 0; // Position where the placeholder is in the target tab
+let lastTaskDragPreview = ''; // Debug marker for live reorder changes
+const ENABLE_NATIVE_TASK_DND = false; // Pointer-based task reordering is more reliable in Tauri/WebKit.
+const ENABLE_NATIVE_TAB_DND = false; // Pointer-based tab reordering is more reliable in Tauri/WebKit.
+const ENABLE_NATIVE_GROUP_DND = false; // Pointer-based group reordering is more reliable in Tauri/WebKit.
+let pointerTaskDrag = null; // Active pointer-drag state for task reordering
+let pointerTabDrag = null; // Active pointer-drag state for tab reordering
+let pointerGroupDrag = null; // Active pointer-drag state for group reordering
+let suppressTabClickUntil = 0; // Prevent click/rename right after a drag
+let suppressGroupClickUntil = 0; // Prevent click/rename right after a drag
+
+// Debug helper: enable by running in devtools console:
+// localStorage.setItem('debugTaskDnD', '1')
+function isTaskDndDebugEnabled() {
+    return localStorage.getItem('debugTaskDnD') === '1' || window.__debugTaskDnD === true;
+}
+function taskDndLog(...args) {
+    if (isTaskDndDebugEnabled()) {
+        console.log('[TaskDnD]', ...args);
+    }
+}
 
 // View Switcher Elements
 const viewListsBtn = document.getElementById('view-lists-btn');
@@ -1965,11 +1985,13 @@ function renderGroups() {
 
         groupElement.className = className;
         groupElement.dataset.groupId = group.id;
-        groupElement.draggable = true; // Enable group reordering
+        groupElement.draggable = ENABLE_NATIVE_GROUP_DND;
 
-        // Group drag events
-        groupElement.addEventListener('dragstart', handleGroupDragStart);
-        groupElement.addEventListener('dragend', handleGroupDragEnd);
+        // Native group drag events (disabled by default in Tauri/WebKit)
+        if (ENABLE_NATIVE_GROUP_DND) {
+            groupElement.addEventListener('dragstart', handleGroupDragStart);
+            groupElement.addEventListener('dragend', handleGroupDragEnd);
+        }
 
         // Group content
         const groupContent = document.createElement('span');
@@ -1978,6 +2000,7 @@ function renderGroups() {
 
         // Click to switch group or rename
         groupElement.addEventListener('click', () => {
+            if (Date.now() < suppressGroupClickUntil) return;
             if (group.id !== currentGroupId) {
                 switchToGroup(group.id);
             } else {
@@ -1998,10 +2021,12 @@ function renderGroups() {
             groupElement.appendChild(deleteBtn);
         }
 
-        // Drag and drop (Drop target for tabs)
-        groupElement.addEventListener('dragover', handleGroupDragOver);
-        groupElement.addEventListener('drop', handleGroupDrop);
-        groupElement.addEventListener('dragleave', handleGroupDragLeave);
+        // Native drag/drop target handling (disabled by default in Tauri/WebKit)
+        if (ENABLE_NATIVE_GROUP_DND || ENABLE_NATIVE_TAB_DND) {
+            groupElement.addEventListener('dragover', handleGroupDragOver);
+            groupElement.addEventListener('drop', handleGroupDrop);
+            groupElement.addEventListener('dragleave', handleGroupDragLeave);
+        }
 
         groupsContainer.appendChild(groupElement);
     });
@@ -2433,6 +2458,20 @@ function getDragAfterElementVertical(container, y, selector) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
+function isTaskPointerDragInteractiveTarget(target) {
+    if (!target) return false;
+    return !!target.closest('input, button, a, textarea, select, [contenteditable="true"], .ql-editor, .ql-toolbar, .task-menu');
+}
+
+function isPointerDragInteractiveTarget(target) {
+    if (!target) return false;
+    return !!target.closest('input, button, a, textarea, select, [contenteditable="true"], .ql-editor, .ql-toolbar, .task-menu');
+}
+
+function setPointerReorderActive(isActive) {
+    document.body.classList.toggle('is-reordering', !!isActive);
+}
+
 function moveTabToGroup(tabId, targetGroupId) {
     if (tabs[tabId]) {
         // Update group ID
@@ -2494,27 +2533,29 @@ function renderTabs() {
 
         tabElement.className = className;
         tabElement.dataset.tabId = tab.id;
-        tabElement.draggable = true; // Enable dragging
+        tabElement.draggable = ENABLE_NATIVE_TAB_DND;
 
-        // Tab drag events (for tab reordering)
-        tabElement.addEventListener('dragstart', handleTabDragStart);
-        tabElement.addEventListener('dragover', (e) => {
-            // Handle both tab reordering and task dropping on tabs
-            if (draggedTabId) {
-                handleTabDragOver(e);
-            } else if (draggedTaskId) {
-                handleTaskDragOverTab(e);
-            }
-        });
-        tabElement.addEventListener('dragleave', handleTaskDragLeaveTab);
-        tabElement.addEventListener('drop', (e) => {
-            if (draggedTabId) {
-                handleTabDrop(e);
-            } else if (draggedTaskId) {
-                handleTaskDropOnTab(e);
-            }
-        });
-        tabElement.addEventListener('dragend', handleTabDragEnd);
+        // Native tab drag events (disabled by default in Tauri/WebKit)
+        if (ENABLE_NATIVE_TAB_DND) {
+            tabElement.addEventListener('dragstart', handleTabDragStart);
+            tabElement.addEventListener('dragover', (e) => {
+                // Handle both tab reordering and task dropping on tabs
+                if (draggedTabId) {
+                    handleTabDragOver(e);
+                } else if (draggedTaskId) {
+                    handleTaskDragOverTab(e);
+                }
+            });
+            tabElement.addEventListener('dragleave', handleTaskDragLeaveTab);
+            tabElement.addEventListener('drop', (e) => {
+                if (draggedTabId) {
+                    handleTabDrop(e);
+                } else if (draggedTaskId) {
+                    handleTaskDropOnTab(e);
+                }
+            });
+            tabElement.addEventListener('dragend', handleTabDragEnd);
+        }
 
         // Tab content
         const tabContent = document.createElement('span');
@@ -2564,6 +2605,7 @@ function renderTabs() {
 
         // Click to switch tabs or rename if already active
         tabElement.addEventListener('click', () => {
+            if (Date.now() < suppressTabClickUntil) return;
             if (tab.id === currentTabId) {
                 // Active tab clicked - rename it
                 showRenameModal(tab.id);
@@ -2862,7 +2904,9 @@ function createPlaceholderElement(task) {
 // Handle dragging over the task area when we have a placeholder
 function handlePlaceholderDragOver(e) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+    }
 
     if (!dragTargetTabId || !draggedTaskId) return;
 
@@ -3066,7 +3110,7 @@ function createTaskElement(task) {
     taskElement.className = `task-item ${task.completed ? 'completed-task' : ''}`;
     // Reordering is supported for incomplete tasks in both lists and favourites views
     const canDragTask = !task.completed;
-    taskElement.draggable = canDragTask;
+    taskElement.draggable = canDragTask && ENABLE_NATIVE_TASK_DND;
     taskElement.dataset.taskId = task.id;
     if (
         animationHiddenTargetTaskId === task.id &&
@@ -3370,12 +3414,10 @@ function createTaskElement(task) {
         });
     }
 
-    // Drag event listeners (only on reorderable tasks)
-    if (canDragTask) {
+    // Native HTML5 drag listeners are optional and disabled by default on Tauri/WebKit.
+    if (canDragTask && ENABLE_NATIVE_TASK_DND) {
         taskElement.addEventListener('dragstart', handleDragStart);
         taskElement.addEventListener('dragend', handleDragEnd);
-        taskElement.addEventListener('dragover', handleDragOver);
-        taskElement.addEventListener('drop', handleDrop);
     }
 
     return taskElement;
@@ -4307,7 +4349,22 @@ function setupEventListeners() {
         });
     }
 
+    // Pointer-based reordering for tabs/groups/tasks
+    tabsContainer.addEventListener('mousedown', handleTabPointerDown);
+    groupsContainer.addEventListener('mousedown', handleGroupPointerDown);
+    window.addEventListener('mousemove', handleTabPointerMove);
+    window.addEventListener('mouseup', handleTabPointerUp);
+    window.addEventListener('mousemove', handleGroupPointerMove);
+    window.addEventListener('mouseup', handleGroupPointerUp);
+
     // Task events for active tasks
+    tasksContainer.addEventListener('mousedown', handleTaskPointerDown);
+    window.addEventListener('mousemove', handleTaskPointerMove);
+    window.addEventListener('mouseup', handleTaskPointerUp);
+    window.addEventListener('blur', handleTaskPointerUp);
+    window.addEventListener('blur', handleTabPointerUp);
+    window.addEventListener('blur', handleGroupPointerUp);
+
     tasksContainer.addEventListener('click', (e) => {
         const taskId = e.target.dataset.taskId || e.target.closest('[data-task-id]')?.dataset.taskId;
 
@@ -4362,37 +4419,32 @@ function setupEventListeners() {
 
     // Drag events for task container (handles placeholder positioning)
     tasksContainer.addEventListener('dragover', (e) => {
+        taskDndLog('container-dragover', {
+            hasDraggedTask: !!draggedTaskId,
+            dragTargetTabId,
+            targetClass: e.target?.className || null
+        });
+
         // If we have a placeholder from cross-tab drag, handle its positioning
         if (dragTargetTabId && draggedTaskId) {
             handlePlaceholderDragOver(e);
             return;
         }
 
-        // Handle same-tab dragging in blank space below tasks
-        // This fixes the animation glitch when dropping in the empty area
+        // Handle same-tab dragging from container level as a resilient fallback.
+        // Some webviews are inconsistent about firing dragover on individual task rows.
         if (draggedTaskId && !dragTargetTabId) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-
-            const draggable = tasksContainer.querySelector('.task-item.dragging');
-            if (!draggable) return;
-
-            // Check if we're below all task items
-            const taskItems = Array.from(tasksContainer.querySelectorAll('.task-item:not(.dragging)'));
-            const bottomTarget = tasksContainer.querySelector('.bottom-drag-target');
-
-            // If mouse is below the last task item (or no task items), move to end
-            if (taskItems.length === 0 || e.clientY > taskItems[taskItems.length - 1].getBoundingClientRect().bottom) {
-                if (bottomTarget) {
-                    tasksContainer.insertBefore(draggable, bottomTarget);
-                } else {
-                    tasksContainer.appendChild(draggable);
-                }
-            }
+            handleDragOver(e);
         }
     });
 
     tasksContainer.addEventListener('drop', (e) => {
+        taskDndLog('container-drop', {
+            hasDraggedTask: !!draggedTaskId,
+            dragTargetTabId,
+            targetClass: e.target?.className || null
+        });
+
         // If we have a placeholder from cross-tab drag, handle the drop
         if (dragTargetTabId && draggedTaskId) {
             handlePlaceholderDrop(e);
@@ -4404,6 +4456,20 @@ function setupEventListeners() {
             e.preventDefault();
             persistTaskOrderFromDOM();
         }
+    });
+
+    // WebKit/Tauri fallback: if container dragover/drop is missed,
+    // still process reordering when dragging inside the tasks area.
+    document.addEventListener('dragover', (e) => {
+        if (!draggedTaskId || dragTargetTabId) return;
+        if (!tasksContainer.contains(e.target)) return;
+        handleDragOver(e);
+    });
+
+    document.addEventListener('drop', (e) => {
+        if (!draggedTaskId || dragTargetTabId) return;
+        if (!tasksContainer.contains(e.target)) return;
+        handleDrop(e);
     });
 
     // Task events for completed tasks (done section)
@@ -5476,7 +5542,213 @@ function updateFocusTimer() {
     focusTimer.textContent = timeString;
 }
 
-// Drag and drop functions
+// Pointer-based tab reorder (robust across Tauri/WebKit)
+function handleTabPointerDown(e) {
+    if (e.button !== 0) return;
+    if (isPointerDragInteractiveTarget(e.target)) return;
+
+    const tabEl = e.target.closest('.tab');
+    if (!tabEl || !tabsContainer.contains(tabEl)) return;
+    if (!tabEl.dataset.tabId) return;
+
+    pointerTabDrag = {
+        tabEl,
+        tabId: tabEl.dataset.tabId,
+        startX: e.clientX,
+        startY: e.clientY,
+        hasStarted: false
+    };
+}
+
+function handleTabPointerMove(e) {
+    if (!pointerTabDrag) return;
+
+    const { tabEl, startX, startY, hasStarted } = pointerTabDrag;
+    const dx = Math.abs(e.clientX - startX);
+    const dy = Math.abs(e.clientY - startY);
+
+    if (!hasStarted) {
+        if (dx < 4 && dy < 4) return;
+        pointerTabDrag.hasStarted = true;
+        tabEl.classList.add('dragging');
+        setPointerReorderActive(true);
+    }
+
+    e.preventDefault();
+
+    const afterElement = getDragAfterElement(tabsContainer, e.clientX, '.tab');
+    const addBtn = tabsContainer.querySelector('.add-tab-btn-subtle');
+    if (afterElement == null) {
+        if (addBtn) {
+            tabsContainer.insertBefore(tabEl, addBtn);
+        } else {
+            tabsContainer.appendChild(tabEl);
+        }
+    } else if (afterElement !== tabEl) {
+        tabsContainer.insertBefore(tabEl, afterElement);
+    }
+}
+
+function handleTabPointerUp() {
+    if (!pointerTabDrag) return;
+    const { tabEl, hasStarted } = pointerTabDrag;
+
+    if (hasStarted) {
+        tabEl.classList.remove('dragging');
+        saveTabOrderFromDOM();
+        suppressTabClickUntil = Date.now() + 250;
+    }
+
+    pointerTabDrag = null;
+    if (!pointerGroupDrag && !pointerTaskDrag) {
+        setPointerReorderActive(false);
+    }
+}
+
+// Pointer-based group reorder (robust across Tauri/WebKit)
+function handleGroupPointerDown(e) {
+    if (e.button !== 0) return;
+    if (isPointerDragInteractiveTarget(e.target)) return;
+
+    const groupEl = e.target.closest('.group-tab');
+    if (!groupEl || !groupsContainer.contains(groupEl)) return;
+    if (!groupEl.dataset.groupId) return;
+
+    pointerGroupDrag = {
+        groupEl,
+        groupId: groupEl.dataset.groupId,
+        startX: e.clientX,
+        startY: e.clientY,
+        hasStarted: false
+    };
+}
+
+function handleGroupPointerMove(e) {
+    if (!pointerGroupDrag) return;
+
+    const { groupEl, startX, startY, hasStarted } = pointerGroupDrag;
+    const dx = Math.abs(e.clientX - startX);
+    const dy = Math.abs(e.clientY - startY);
+
+    if (!hasStarted) {
+        if (dx < 4 && dy < 4) return;
+        pointerGroupDrag.hasStarted = true;
+        groupEl.classList.add('dragging');
+        setPointerReorderActive(true);
+    }
+
+    e.preventDefault();
+
+    const afterElement = getDragAfterElement(groupsContainer, e.clientX, '.group-tab');
+    const addBtn = groupsContainer.querySelector('.add-group-btn');
+    if (afterElement == null) {
+        if (addBtn) {
+            groupsContainer.insertBefore(groupEl, addBtn);
+        } else {
+            groupsContainer.appendChild(groupEl);
+        }
+    } else if (afterElement !== groupEl) {
+        groupsContainer.insertBefore(groupEl, afterElement);
+    }
+}
+
+function handleGroupPointerUp() {
+    if (!pointerGroupDrag) return;
+    const { groupEl, hasStarted } = pointerGroupDrag;
+
+    if (hasStarted) {
+        groupEl.classList.remove('dragging');
+        saveGroupOrderFromDOM();
+        suppressGroupClickUntil = Date.now() + 250;
+    }
+
+    pointerGroupDrag = null;
+    if (!pointerTabDrag && !pointerTaskDrag) {
+        setPointerReorderActive(false);
+    }
+}
+
+// Pointer-based task reorder (robust across Tauri/WebKit)
+function handleTaskPointerDown(e) {
+    if (e.button !== 0) return;
+    if (currentView !== 'lists' && currentView !== 'favourites') return;
+    if (isPointerDragInteractiveTarget(e.target)) return;
+
+    const taskEl = e.target.closest('.task-item');
+    if (!taskEl || !tasksContainer.contains(taskEl)) return;
+    if (taskEl.classList.contains('completed-task')) return;
+    if (!taskEl.dataset.taskId) return;
+
+    pointerTaskDrag = {
+        taskEl,
+        taskId: taskEl.dataset.taskId,
+        startX: e.clientX,
+        startY: e.clientY,
+        hasStarted: false
+    };
+}
+
+function handleTaskPointerMove(e) {
+    if (!pointerTaskDrag) return;
+
+    const { taskEl, startX, startY, hasStarted } = pointerTaskDrag;
+    const dx = Math.abs(e.clientX - startX);
+    const dy = Math.abs(e.clientY - startY);
+
+    if (!hasStarted) {
+        if (dx < 4 && dy < 4) return;
+        pointerTaskDrag.hasStarted = true;
+        taskEl.classList.add('dragging');
+        setPointerReorderActive(true);
+        taskDndLog('pointer-dragstart', { taskId: pointerTaskDrag.taskId, currentView, currentTabId });
+    }
+
+    e.preventDefault();
+
+    const beforeOrder = Array.from(tasksContainer.querySelectorAll('.task-item'))
+        .map(el => el.dataset.taskId)
+        .filter(Boolean)
+        .join(',');
+
+    const afterElement = getDragAfterElementVertical(tasksContainer, e.clientY, '.task-item');
+    const bottomTarget = tasksContainer.querySelector('.bottom-drag-target');
+    if (afterElement == null) {
+        if (bottomTarget) {
+            tasksContainer.insertBefore(taskEl, bottomTarget);
+        } else {
+            tasksContainer.appendChild(taskEl);
+        }
+    } else if (afterElement !== taskEl) {
+        tasksContainer.insertBefore(taskEl, afterElement);
+    }
+
+    const afterOrder = Array.from(tasksContainer.querySelectorAll('.task-item'))
+        .map(el => el.dataset.taskId)
+        .filter(Boolean)
+        .join(',');
+    if (beforeOrder !== afterOrder && lastTaskDragPreview !== afterOrder) {
+        lastTaskDragPreview = afterOrder;
+        taskDndLog('pointer-preview-order', afterOrder);
+    }
+}
+
+function handleTaskPointerUp() {
+    if (!pointerTaskDrag) return;
+    const { taskEl, hasStarted, taskId } = pointerTaskDrag;
+
+    if (hasStarted) {
+        taskEl.classList.remove('dragging');
+        taskDndLog('pointer-drop', { taskId, currentView, currentTabId });
+        persistTaskOrderFromDOM();
+    }
+
+    pointerTaskDrag = null;
+    if (!pointerTabDrag && !pointerGroupDrag) {
+        setPointerReorderActive(false);
+    }
+}
+
+// Drag and drop functions (native HTML5 DnD, currently disabled for task reordering)
 function handleDragStart(e) {
     // Use currentTarget so we always refer to the .task-item (not a child)
     draggedTaskId = e.currentTarget?.dataset?.taskId;
@@ -5494,10 +5766,32 @@ function handleDragStart(e) {
         dragSourceTabId = currentTabId; // Store the source tab for cross-tab moves
     }
 
+    // Always reset cross-tab drag state for a fresh drag gesture.
+    dragTargetTabId = null;
+    dragPlaceholderPosition = 0;
+    const existingPlaceholder = tasksContainer.querySelector('.task-placeholder');
+    if (existingPlaceholder) {
+        existingPlaceholder.remove();
+    }
+
     e.currentTarget.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', e.target.outerHTML);
-    e.dataTransfer.setData('text/plain', draggedTaskId); // For cross-tab detection
+    // WebKit requires drag data to be set for drop/dragover to behave reliably.
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        try {
+            e.dataTransfer.setData('text/plain', draggedTaskId || '');
+        } catch (err) {
+            taskDndLog('setData failed', err);
+        }
+    }
+
+    lastTaskDragPreview = '';
+    taskDndLog('dragstart', {
+        taskId: draggedTaskId,
+        sourceTabId: dragSourceTabId,
+        currentTabId,
+        currentView
+    });
 }
 
 function handleDragEnd(e) {
@@ -5533,6 +5827,11 @@ function handleDragEnd(e) {
     }
 
     // Clean up cross-tab drag state
+    taskDndLog('dragend', {
+        taskId: draggedTaskId,
+        sourceTabId: dragSourceTabId,
+        targetTabId: dragTargetTabId
+    });
     draggedTaskId = null;
     dragSourceTabId = null;
     lastHoveredTabId = null;
@@ -5549,7 +5848,9 @@ function handleDragEnd(e) {
 
 function handleDragOver(e) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+    }
 
     // Live reordering: move the dragged element in the DOM as we hover.
     // (This is the same UX as tab reordering.)
@@ -5562,6 +5863,11 @@ function handleDragOver(e) {
     const container = tasksContainer;
     const draggable = container.querySelector('.task-item.dragging');
     if (!draggable) return;
+
+    const beforeOrder = Array.from(container.querySelectorAll('.task-item'))
+        .map(el => el.dataset.taskId)
+        .filter(Boolean)
+        .join(',');
 
     const afterElement = getDragAfterElementVertical(container, e.clientY, '.task-item');
     const bottomTarget = container.querySelector('.bottom-drag-target');
@@ -5576,11 +5882,25 @@ function handleDragOver(e) {
     } else if (afterElement !== draggable) {
         container.insertBefore(draggable, afterElement);
     }
+
+    const afterOrder = Array.from(container.querySelectorAll('.task-item'))
+        .map(el => el.dataset.taskId)
+        .filter(Boolean)
+        .join(',');
+    if (beforeOrder !== afterOrder && lastTaskDragPreview !== afterOrder) {
+        lastTaskDragPreview = afterOrder;
+        taskDndLog('preview-order', afterOrder);
+    }
 }
 
 function handleDrop(e) {
     e.preventDefault();
     // DOM already reflects the new order; just persist it.
+    taskDndLog('drop', {
+        taskId: draggedTaskId,
+        currentTabId,
+        currentView
+    });
     persistTaskOrderFromDOM();
 }
 
@@ -5588,6 +5908,12 @@ function persistTaskOrderFromDOM() {
     const domTaskIds = Array.from(tasksContainer.querySelectorAll('.task-item'))
         .map(el => el.dataset.taskId)
         .filter(Boolean);
+
+    taskDndLog('persist-order', {
+        domTaskIds,
+        currentView,
+        currentTabId
+    });
 
     // If there are no rendered tasks (e.g. empty state), don't mutate.
     if (domTaskIds.length === 0) return;
@@ -5630,7 +5956,9 @@ function persistTaskOrderFromDOM() {
 // Bottom drag handlers
 function handleBottomDragOver(e) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+    }
 
     if (!draggedTaskId) return;
     const container = tasksContainer;
@@ -5662,6 +5990,7 @@ function handleTaskDragOverTab(e) {
 
     const targetTab = e.currentTarget;
     const targetTabId = targetTab.dataset.tabId;
+    taskDndLog('dragover-tab', { targetTabId, sourceTabId: dragSourceTabId, currentTabId });
 
     // Don't do anything if hovering over the current tab or already switched to target
     if (targetTabId === dragSourceTabId || targetTabId === dragTargetTabId) {
@@ -5679,7 +6008,9 @@ function handleTaskDragOverTab(e) {
     }
 
     if (isCompatible) {
-        e.dataTransfer.dropEffect = 'move';
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move';
+        }
         targetTab.classList.add('task-drop-target');
         targetTab.classList.remove('task-drop-incompatible');
 
@@ -5700,7 +6031,9 @@ function handleTaskDragOverTab(e) {
             }, 500);
         }
     } else {
-        e.dataTransfer.dropEffect = 'none';
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'none';
+        }
         targetTab.classList.add('task-drop-incompatible');
         targetTab.classList.remove('task-drop-target');
     }

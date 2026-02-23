@@ -282,7 +282,7 @@ body {
     padding: 4px 10px;
     background: transparent;
     border-radius: 4px;
-    cursor: pointer;
+    cursor: grab;
     font-size: 11px;
     font-weight: 600;
     white-space: nowrap;
@@ -293,6 +293,10 @@ body {
     align-items: center;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+.group-tab:active {
+    cursor: grabbing;
 }
 
 .group-tab:hover {
@@ -438,7 +442,7 @@ body {
     padding: 6px 8px;
     background: transparent;
     border-radius: 6px 6px 0 0;
-    cursor: pointer;
+    cursor: grab;
     font-size: 13px;
     font-weight: 500;
     white-space: nowrap;
@@ -447,6 +451,16 @@ body {
     border-bottom: 2px solid transparent;
     position: relative;
     -webkit-app-region: no-drag;
+}
+
+.tab:active {
+    cursor: grabbing;
+}
+
+body.is-reordering,
+body.is-reordering * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
 }
 
 .tab.tab-colorized {
@@ -711,8 +725,12 @@ body {
     font-style: normal !important;
 }
 
-.task-item[draggable="true"] {
+.task-item:not(.completed-task) {
     cursor: grab;
+}
+
+.task-item:not(.completed-task):active {
+    cursor: grabbing;
 }
 
 .task-item.completed-task {
