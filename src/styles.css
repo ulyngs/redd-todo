@@ -14,6 +14,7 @@
     --hover-bg: rgba(0, 0, 0, 0.05);
     --active-bg: rgba(0, 0, 0, 0.08);
     --input-bg: transparent;
+    --input-surface: #ffffff;
     --modal-bg: white;
 
     /* Text */
@@ -56,6 +57,7 @@
     --hover-bg: rgba(255, 255, 255, 0.05);
     --active-bg: rgba(255, 255, 255, 0.1);
     --input-bg: rgba(0, 0, 0, 0.2);
+    --input-surface: #27272a;
     --modal-bg: #18181b;
     /* Zinc 900 */
 
@@ -1140,7 +1142,7 @@ body.is-reordering * {
     align-items: center;
     border: 2px solid var(--border-color-medium);
     border-radius: 8px;
-    background: #ffffff;
+    background: var(--input-surface);
     transition: border-color 0.2s ease;
     padding-right: 6px;
 }
@@ -1158,6 +1160,10 @@ body.is-reordering * {
     outline: none;
     border-radius: 8px 0 0 8px;
     color: var(--text-primary);
+}
+
+#new-task-input::placeholder {
+    color: var(--text-tertiary);
 }
 
 .duration-input-container {
