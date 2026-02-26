@@ -1503,7 +1503,7 @@ body.is-reordering * {
     right: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding: 4px 16px 6px;
     font-size: 12px;
     color: var(--text-tertiary);
@@ -1512,15 +1512,18 @@ body.is-reordering * {
 }
 
 .footer-text {
-    flex: 1;
+    flex: 0 1 auto;
     text-align: center;
     font-size: 11px;
 }
 
-.settings-footer {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
+.settings-inline-btn {
+    margin-left: 4px !important;
+}
+
+.settings-inline-btn svg {
+    width: 19px;
+    height: 19px;
 }
 
 .footer .heart {
@@ -2455,7 +2458,7 @@ body.focus-panel-window.is-fullscreen {
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    margin-left: 8px;
+    margin-left: 6px;
 }
 
 .sync-btn:hover {
