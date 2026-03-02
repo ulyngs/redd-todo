@@ -11,6 +11,8 @@ build/ReDD_Todo_New.provisionprofile
 *.provisionprofile
 profile.plist
 src-tauri/tauri.appstore.temp.conf.json
+src-tauri/src-tauri/target/
+src-tauri/target/
 
 # System Files
 .DS_Store

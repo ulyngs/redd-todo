@@ -53,9 +53,10 @@
       "entitlements": null,
       "exceptionDomain": "",
       "frameworks": [],
+      "hardenedRuntime": true,
       "minimumSystemVersion": "10.15",
       "providerShortName": null,
-      "signingIdentity": null
+      "signingIdentity": "Developer ID Application: ULRIK LYNGS (7YEYWQKK25)"
     },
     "resources": [
       "reminders-connector"
