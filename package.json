@@ -1,16 +1,16 @@
 {
   "name": "redd-todo",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "ReDD Do - keep your goals in sight and get back to what you wanted to do",
   "main": "main.js",
   "scripts": {
     "dev": "tauri dev",
     "tauri:build:mas-app": "CI=true tauri build --target universal-apple-darwin --bundles app --config src-tauri/tauri.appstore.temp.conf.json",
     "build": "tauri build && node scripts/collect-distribution-artifacts.js",
-    "build:mac": "CARGO_TARGET_DIR=target CI=false tauri build --target universal-apple-darwin && node scripts/collect-distribution-artifacts.js --target universal-apple-darwin && node scripts/notarize-direct-mac.js && node scripts/build-mas-package.js --skip-tauri-build --optional",
+    "build:mac": "rm -f src-tauri/target/universal-apple-darwin/release/bundle/macos/rw.*.dmg src-tauri/target/universal-apple-darwin/release/bundle/dmg/rw.*.dmg && CARGO_TARGET_DIR=target CI=false tauri build --target universal-apple-darwin && node scripts/collect-distribution-artifacts.js --target universal-apple-darwin && node scripts/notarize-direct-mac.js && node scripts/build-mas-package.js --skip-tauri-build --optional",
     "build:mas": "node scripts/build-mas-package.js",
     "build:win": "tauri build --target x86_64-pc-windows-msvc --no-bundle && tauri bundle --target x86_64-pc-windows-msvc --bundles nsis,msi --config src-tauri/tauri.microsoftstore.conf.json && node scripts/collect-distribution-artifacts.js --target x86_64-pc-windows-msvc && node scripts/verify-windows-store-artifacts.js && powershell -ExecutionPolicy Bypass -File scripts/build-msix.ps1",
-    "build:linux": "tauri build --target x86_64-unknown-linux-gnu && node scripts/collect-distribution-artifacts.js --target x86_64-unknown-linux-gnu && node scripts/normalize-linux-artifact-names.js x86_64-unknown-linux-gnu",
+    "build:linux": "bash scripts/build-linux.sh && node scripts/collect-distribution-artifacts.js --target x86_64-unknown-linux-gnu && node scripts/normalize-linux-artifact-names.js x86_64-unknown-linux-gnu",
     "electron:start": "electron .",
     "electron:dev": "electron . --dev",
     "electron:build": "node build.js"
