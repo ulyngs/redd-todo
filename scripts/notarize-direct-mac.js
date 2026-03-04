@@ -71,6 +71,17 @@ function resolveSourceDmg(productName, version) {
   return candidates[0].fullPath;
 }
 
+function pruneDistributionDmgs(keepPath) {
+  if (!fs.existsSync(distDir)) return;
+  const keepName = path.basename(keepPath);
+  for (const name of fs.readdirSync(distDir)) {
+    if (!name.endsWith('.dmg')) continue;
+    if (name === keepName) continue;
+    fs.rmSync(path.join(distDir, name), { force: true });
+    console.log(`[notarize:mac] Removed extra DMG from for-distribution: ${name}`);
+  }
+}
+
 if (process.platform !== 'darwin') {
   fail('Direct notarization must be run on macOS.');
 }
@@ -168,6 +179,7 @@ runOrThrow('hdiutil', [
   'UDZO',
   outputDmgPath
 ]);
+pruneDistributionDmgs(outputDmgPath);
 fs.rmSync(tempStageDir, { recursive: true, force: true });
 fs.rmSync(tempMountPoint, { recursive: true, force: true });
 
