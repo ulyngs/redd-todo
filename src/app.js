@@ -3448,7 +3448,7 @@ function setupEventListeners() {
         // Ensure attribute exists even if template is changed later.
         focusBar.setAttribute('data-tauri-drag-region', '');
 
-        let suppressClickUntil = 0;
+        let suppressNextClick = false;
         const HOLD_TO_DRAG_MS = 170;
         const MOVE_CANCEL_PX = 6;
 
@@ -3474,8 +3474,8 @@ function setupEventListeners() {
             const startWindowDrag = async () => {
                 if (dragStarted) return;
                 dragStarted = true;
-                // Prevent the pending click from firing after a hold-to-drag gesture.
-                suppressClickUntil = Date.now() + 400;
+                // Suppress the next click after a successful drag gesture.
+                suppressNextClick = true;
                 cleanup();
                 try {
                     await tauriAPI.startDrag();
@@ -3513,7 +3513,8 @@ function setupEventListeners() {
         }, true);
 
         focusContainer.addEventListener('click', (e) => {
-            if (Date.now() < suppressClickUntil) {
+            if (suppressNextClick) {
+                suppressNextClick = false;
                 e.preventDefault();
                 e.stopPropagation();
             }
@@ -3525,7 +3526,7 @@ function setupEventListeners() {
     if (isFocusPanelWindow && focusBar && focusContainer && platform === 'darwin') {
         focusBar.removeAttribute('data-tauri-drag-region');
 
-        let suppressClickUntil = 0;
+        let suppressNextClick = false;
         const MOVE_TO_DRAG_PX = 4;
         focusContainer.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
@@ -3549,8 +3550,8 @@ function setupEventListeners() {
                 const dy = Math.abs(moveEvent.clientY - startY);
                 if (dx >= MOVE_TO_DRAG_PX || dy >= MOVE_TO_DRAG_PX) {
                     dragging = true;
-                    // Suppress the click that would otherwise fire after dragging.
-                    suppressClickUntil = Date.now() + 400;
+                    // Suppress the next click that would otherwise fire after dragging.
+                    suppressNextClick = true;
                     cleanup();
                     try {
                         await tauriAPI.startDrag();
@@ -3569,7 +3570,8 @@ function setupEventListeners() {
         }, true);
 
         focusContainer.addEventListener('click', (e) => {
-            if (Date.now() < suppressClickUntil) {
+            if (suppressNextClick) {
+                suppressNextClick = false;
                 e.preventDefault();
                 e.stopPropagation();
             }
