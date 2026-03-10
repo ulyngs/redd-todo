@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "ReDD Do",
   "version": "2.2.3",
-  "identifier": "com.redd.todo",
+  "identifier": "com.redd.do",
   "build": {
     "frontendDist": "../src"
   },
@@ -56,7 +56,7 @@
       "hardenedRuntime": true,
       "minimumSystemVersion": "10.15",
       "providerShortName": null,
-      "signingIdentity": "Developer ID Application: ULRIK LYNGS (7YEYWQKK25)"
+      "signingIdentity": "Developer ID Application: Reduce Digital Distraction Ltd (JD647S9RT6)"
     },
     "resources": [
       "reminders-connector"

@@ -59,7 +59,7 @@ builder.build({
     : (targets.length > 0 ? builder.createTargets(targets) : undefined),
   config: {
     snap: null,
-    appId: 'com.redd.todo',
+    appId: 'com.redd.do',
     productName: 'ReDD Do',
     copyright: 'Copyright © 2025 Reduce Digital Distraction Ltd',
     // Skip rebuilding native modules for Linux/Windows since the macOS panel window module can't cross-compile
