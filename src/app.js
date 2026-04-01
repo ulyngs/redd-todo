@@ -833,6 +833,11 @@ function initApp() {
     loadData();
     resetDevOnlyEulaAcceptance();
     setupEulaEventListeners();
+    if (isMacFocusPanelWindow()) {
+        setWindowsControlsVisibility(false);
+        finishCommonInit();
+        return;
+    }
     setupWindowControls();
     setWindowsControlsVisibility(platform !== 'darwin');
 
@@ -3539,7 +3544,15 @@ function setWindowsControlsVisibility(visible) {
     });
 }
 
+function isMacFocusPanelWindow() {
+    return platform === 'darwin' && isFocusPanelWindow;
+}
+
 async function isCurrentWindowMaximized() {
+    if (isMacFocusPanelWindow()) {
+        return false;
+    }
+
     if (reddIsTauri && window.__TAURI__?.window?.getCurrentWindow) {
         const currentWindow = window.__TAURI__.window.getCurrentWindow();
         if (currentWindow && typeof currentWindow.isMaximized === 'function') {
@@ -3566,6 +3579,7 @@ async function updateMaximizeButtons() {
 
 function setupWindowControls() {
     if (windowControlsInitialized) return;
+    if (isMacFocusPanelWindow()) return;
     windowControlsInitialized = true;
 
     document.querySelectorAll('[data-window-action="minimize"]').forEach((button) => {
