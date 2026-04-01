@@ -235,6 +235,7 @@ let eulaAcceptedVersion = null;
 let eulaAcceptedAt = null;
 let eulaVersionKeyPendingAccept = null;
 let eulaListenersAttached = false;
+let windowControlsInitialized = false;
 
 // Translations
 const translations = {
@@ -820,12 +821,7 @@ function finishCommonInit() {
         switchView('lists');
     }
 
-    if (platform !== 'darwin') {
-        const winControls = document.getElementById('window-controls');
-        if (winControls) {
-            winControls.classList.remove('hidden');
-        }
-    }
+    setWindowsControlsVisibility(platform !== 'darwin');
 }
 
 // Initialize app
@@ -837,6 +833,8 @@ function initApp() {
     loadData();
     resetDevOnlyEulaAcceptance();
     setupEulaEventListeners();
+    setupWindowControls();
+    setWindowsControlsVisibility(platform !== 'darwin');
 
     if (isFocusPanelWindow) {
         finishCommonInit();
@@ -3535,6 +3533,64 @@ function closeTaskMenu(menu) {
     updateTaskMenuOpenState();
 }
 
+function setWindowsControlsVisibility(visible) {
+    document.querySelectorAll('#window-controls, #eula-window-controls').forEach((controls) => {
+        controls.classList.toggle('hidden', !visible);
+    });
+}
+
+async function isCurrentWindowMaximized() {
+    if (reddIsTauri && window.__TAURI__?.window?.getCurrentWindow) {
+        const currentWindow = window.__TAURI__.window.getCurrentWindow();
+        if (currentWindow && typeof currentWindow.isMaximized === 'function') {
+            return currentWindow.isMaximized();
+        }
+    }
+
+    return !!(await reddIpc.invoke('window-is-maximized'));
+}
+
+async function updateMaximizeButtons() {
+    const isMaximized = await isCurrentWindowMaximized();
+
+    document.querySelectorAll('[data-window-action="maximize"]').forEach((button) => {
+        const maximizeIcon = button.querySelector('.maximize-icon');
+        const restoreIcon = button.querySelector('.restore-icon');
+        if (!maximizeIcon || !restoreIcon) return;
+
+        maximizeIcon.style.display = isMaximized ? 'none' : 'block';
+        restoreIcon.style.display = isMaximized ? 'block' : 'none';
+        button.title = isMaximized ? 'Restore' : 'Maximize';
+    });
+}
+
+function setupWindowControls() {
+    if (windowControlsInitialized) return;
+    windowControlsInitialized = true;
+
+    document.querySelectorAll('[data-window-action="minimize"]').forEach((button) => {
+        button.addEventListener('click', () => {
+            reddIpc.send('window-minimize');
+        });
+    });
+
+    document.querySelectorAll('[data-window-action="maximize"]').forEach((button) => {
+        button.addEventListener('click', () => {
+            reddIpc.send('window-maximize');
+            setTimeout(updateMaximizeButtons, 100);
+        });
+    });
+
+    document.querySelectorAll('[data-window-action="close"]').forEach((button) => {
+        button.addEventListener('click', () => {
+            reddIpc.send('window-close');
+        });
+    });
+
+    updateMaximizeButtons();
+    setInterval(updateMaximizeButtons, 300);
+}
+
 // Event listeners
 function setupEventListeners() {
     // Focus window dragging in Tauri:
@@ -5254,29 +5310,6 @@ function setupEventListeners() {
         // Drag logic removed
     } 
     */
-
-    // Window controls (Min/Max/Close)
-    const minBtn = document.getElementById('min-btn');
-    const maxBtn = document.getElementById('max-btn');
-    const closeBtn = document.getElementById('close-btn');
-
-    if (minBtn) {
-        minBtn.addEventListener('click', () => {
-            reddIpc.send('window-minimize');
-        });
-    }
-
-    if (maxBtn) {
-        maxBtn.addEventListener('click', () => {
-            reddIpc.send('window-maximize');
-        });
-    }
-
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            reddIpc.send('window-close');
-        });
-    }
 
     // Add Task Resizer
     const resizer = document.getElementById('add-task-resizer');

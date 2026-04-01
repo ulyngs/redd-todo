@@ -325,6 +325,10 @@ ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
 
+ipcMain.handle('window-is-maximized', () => {
+  return mainWindow ? mainWindow.isMaximized() : false;
+});
+
 // Helper for JXA execution
 function runJxa(script) {
   return new Promise((resolve, reject) => {

@@ -12,8 +12,32 @@
 
 <body>
     <div id="eula-onboarding" class="onboarding-screen hidden">
-        <!-- Same window-drag affordance as .title-bar (macOS overlay titlebar is covered while EULA is visible) -->
-        <div class="eula-window-drag-strip" data-tauri-drag-region aria-hidden="true"></div>
+        <div class="eula-title-bar" data-tauri-drag-region aria-hidden="true">
+            <div id="eula-window-controls" class="window-controls hidden">
+                <button class="win-btn" data-window-action="minimize" title="Minimize">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="0" y="5" width="12" height="1" fill="currentColor" />
+                    </svg>
+                </button>
+                <button class="win-btn" data-window-action="maximize" title="Maximize">
+                    <svg class="maximize-icon" width="12" height="12" viewBox="0 0 12 12" fill="none"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="1.2" fill="none" />
+                    </svg>
+                    <svg class="restore-icon" width="12" height="12" viewBox="0 0 12 12" fill="none"
+                        xmlns="http://www.w3.org/2000/svg" style="display: none;">
+                        <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1.2" fill="none" />
+                        <rect x="0" y="0" width="8" height="8" stroke="currentColor" stroke-width="1.2" fill="none" />
+                    </svg>
+                </button>
+                <button class="win-btn close-btn" data-window-action="close" title="Close">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.5"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+        </div>
         <div class="eula-onboarding-scroll">
         <div class="onboarding-content legal-onboarding-content">
             <div class="onboarding-icon">
@@ -82,19 +106,26 @@
                     </button>
                 </div>
                 <div id="window-controls" class="window-controls hidden">
-                    <button id="min-btn" class="win-btn min-btn" title="Minimize">
-                        <svg width="10" height="1" viewBox="0 0 10 1">
-                            <rect width="10" height="1" fill="currentColor"></rect>
+                    <button class="win-btn" data-window-action="minimize" title="Minimize">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="0" y="5" width="12" height="1" fill="currentColor" />
                         </svg>
                     </button>
-                    <button id="max-btn" class="win-btn max-btn" title="Maximize">
-                        <svg width="10" height="10" viewBox="0 0 10 10">
-                            <rect width="10" height="10" fill="none" stroke="black" stroke-width="1.2"></rect>
+                    <button class="win-btn" data-window-action="maximize" title="Maximize">
+                        <svg class="maximize-icon" width="12" height="12" viewBox="0 0 12 12" fill="none"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="1.2" fill="none" />
+                        </svg>
+                        <svg class="restore-icon" width="12" height="12" viewBox="0 0 12 12" fill="none"
+                            xmlns="http://www.w3.org/2000/svg" style="display: none;">
+                            <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1.2" fill="none" />
+                            <rect x="0" y="0" width="8" height="8" stroke="currentColor" stroke-width="1.2" fill="none" />
                         </svg>
                     </button>
-                    <button id="close-btn" class="win-btn close-btn" title="Close">
-                        <svg width="10" height="10" viewBox="0 0 10 10">
-                            <path d="M0,0 L10,10 M10,0 L0,10" stroke="currentColor" stroke-width="1.2"></path>
+                    <button class="win-btn close-btn" data-window-action="close" title="Close">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round" />
                         </svg>
                     </button>
                 </div>
