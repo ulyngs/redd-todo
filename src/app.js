@@ -229,6 +229,13 @@ let favouritesOrder = []; // Order of favourite task IDs for custom sorting
 let planModuleLoaded = false; // Track if plan module has been initialized
 let currentLang = 'en'; // Current language
 
+/** EULA / legal onboarding (persisted in redd-todo-data) */
+let eulaAccepted = false;
+let eulaAcceptedVersion = null;
+let eulaAcceptedAt = null;
+let eulaVersionKeyPendingAccept = null;
+let eulaListenersAttached = false;
+
 // Translations
 const translations = {
     en: {
@@ -627,36 +634,124 @@ if (languageSelect) {
     });
 }
 
-// Initialize app
-function initApp() {
-    // Windows fallback: in some cases the focus window can be launched without
-    // URL params. If the window label indicates focus mode, force panel mode.
-    if (!isFocusPanelWindow && detectFocusPanelByWindowLabel()) {
-        markAsFocusPanelWindow();
+function isLocalDevRun() {
+    return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+}
+
+function resetDevOnlyEulaAcceptance() {
+    if (!isLocalDevRun() || !eulaAccepted) {
+        return;
     }
+    eulaAccepted = false;
+    saveData();
+}
 
-    // Load saved data or create default tab
-    loadData();
+function hideEulaOnboarding() {
+    eulaVersionKeyPendingAccept = null;
+    document.getElementById('eula-onboarding')?.classList.add('hidden');
+}
 
+function showEulaOnboarding(versionKey) {
+    eulaVersionKeyPendingAccept = versionKey;
+    const cb = document.getElementById('eula-agree-checkbox');
+    const btn = document.getElementById('eula-continue-btn');
+    if (cb) cb.checked = false;
+    if (btn) btn.disabled = true;
+    document.getElementById('eula-onboarding')?.classList.remove('hidden');
+}
+
+function setupEulaEventListeners() {
+    if (eulaListenersAttached) return;
+    eulaListenersAttached = true;
+
+    const eulaCheckbox = document.getElementById('eula-agree-checkbox');
+    const eulaContinueBtn = document.getElementById('eula-continue-btn');
+    if (eulaCheckbox && eulaContinueBtn) {
+        eulaContinueBtn.disabled = !eulaCheckbox.checked;
+    }
+    eulaCheckbox?.addEventListener('change', () => {
+        if (eulaContinueBtn) {
+            eulaContinueBtn.disabled = !eulaCheckbox.checked;
+        }
+    });
+    eulaContinueBtn?.addEventListener('click', async () => {
+        if (!eulaCheckbox?.checked || !eulaContinueBtn || eulaVersionKeyPendingAccept == null) return;
+        const originalText = eulaContinueBtn.textContent;
+        eulaContinueBtn.disabled = true;
+        eulaContinueBtn.textContent = 'Continuing...';
+        try {
+            eulaAccepted = true;
+            eulaAcceptedVersion = eulaVersionKeyPendingAccept;
+            eulaAcceptedAt = Date.now();
+            saveData();
+            hideEulaOnboarding();
+            finishCommonInit();
+        } catch (err) {
+            console.error('Failed to accept EULA:', err);
+            alert('Could not save your agreement. Please try again.');
+            eulaContinueBtn.disabled = !eulaCheckbox.checked;
+            eulaContinueBtn.textContent = originalText;
+            return;
+        }
+        eulaContinueBtn.textContent = originalText;
+    });
+
+    document.querySelectorAll('#eula-onboarding a[data-external-url]').forEach((link) => {
+        link.addEventListener(
+            'click',
+            (event) => {
+                const url = link.dataset.externalUrl;
+                if (!url) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                const p = (typeof tauriAPI !== 'undefined' && tauriAPI.openExternal)
+                    ? tauriAPI.openExternal(url)
+                    : Promise.resolve(window.open(url, '_blank', 'noopener,noreferrer'));
+                Promise.resolve(p).catch((err) => {
+                    console.warn('[eula] open in browser failed:', err);
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                });
+            },
+            true
+        );
+    });
+}
+
+async function startMainWindowWithEulaGate() {
+    let versionKey = 'unknown';
+    if (reddIsTauri && typeof tauriAPI !== 'undefined' && typeof tauriAPI.getAppVersion === 'function') {
+        try {
+            const v = await tauriAPI.getAppVersion();
+            if (v) versionKey = String(v);
+        } catch (_) {
+            /* keep unknown */
+        }
+    }
+    const needsEula = eulaAccepted !== true || eulaAcceptedVersion !== versionKey;
+    if (needsEula) {
+        showEulaOnboarding(versionKey);
+        return;
+    }
+    finishCommonInit();
+}
+
+/** Shared startup after loadData (and after EULA acceptance on main window). */
+function finishCommonInit() {
     // If this is the dedicated focus panel window (macOS), hide the full UI immediately.
-    // Read task data from URL params and enter focus mode.
     if (isFocusPanelWindow) {
         normalMode.classList.add('hidden');
         focusMode.classList.remove('hidden');
 
-        // Read task data from URL params (passed by Rust when creating the panel)
         const taskName = launchParams.get('taskName') || 'Task';
         const taskId = launchParams.get('taskId');
         const duration = launchParams.get('duration') ? parseFloat(launchParams.get('duration')) : null;
         const timeSpent = launchParams.get('timeSpent') ? parseFloat(launchParams.get('timeSpent')) : 0;
 
-        // Store the task ID for the focus panel
         if (taskId) {
             focusedTaskId = taskId;
             activeFocusTaskIds.add(taskId);
         }
 
-        // Delay slightly to ensure DOM is ready
         setTimeout(() => {
             enterFocusMode(taskName, duration > 0 ? duration : null, timeSpent);
         }, 100);
@@ -675,11 +770,9 @@ function initApp() {
     if (Object.keys(groups).length === 0) {
         createGroup('General');
     } else if (!currentGroupId || !groups[currentGroupId]) {
-        // If we have groups but invalid current ID, pick first
         currentGroupId = Object.keys(groups)[0];
     }
 
-    // Migration: Assign orphan tabs to current group
     let hasOrphans = false;
     Object.values(tabs).forEach(tab => {
         if (!tab.groupId) {
@@ -693,41 +786,31 @@ function initApp() {
         createNewTab('Tasks');
     }
 
-    // Set up event listeners
     setupEventListeners();
 
-    // Render groups
     renderGroups();
 
-    // Load the first tab of current group
     const currentGroupTabs = Object.values(tabs).filter(t => t.groupId === currentGroupId);
     if (currentGroupTabs.length > 0) {
-        // If current tab is in current group, stay on it, otherwise switch to first in group
         if (!tabs[currentTabId] || tabs[currentTabId].groupId !== currentGroupId) {
             switchToTab(currentGroupTabs[0].id);
         } else {
-            // Just render tabs
             renderTabs();
             renderTasks();
-            // Update sync button state
             updateSyncButtonState();
         }
     } else if (Object.keys(tabs).length > 0) {
-        // Should not happen if we migrate correctly, but safety fallback
         renderTabs();
         renderTasks();
     }
-    initTheme(); // Initialize theme
-    initLanguage(); // Initialize language
+    initTheme();
+    initLanguage();
 
-    // Check Basecamp connection status
     updateBasecampUI();
     updateRemindersUI();
 
-    // Update plan button visibility based on settings
     updatePlanButtonVisibility();
 
-    // Restore preferred view after data/UI initialization.
     const savedView = localStorage.getItem('currentView');
     if (savedView === 'plan' && enablePlan) {
         switchView('plan');
@@ -737,14 +820,30 @@ function initApp() {
         switchView('lists');
     }
 
-    // Show window controls on non-Mac platforms
     if (platform !== 'darwin') {
         const winControls = document.getElementById('window-controls');
         if (winControls) {
             winControls.classList.remove('hidden');
         }
     }
+}
 
+// Initialize app
+function initApp() {
+    if (!isFocusPanelWindow && detectFocusPanelByWindowLabel()) {
+        markAsFocusPanelWindow();
+    }
+
+    loadData();
+    resetDevOnlyEulaAcceptance();
+    setupEulaEventListeners();
+
+    if (isFocusPanelWindow) {
+        finishCommonInit();
+        return;
+    }
+
+    void startMainWindowWithEulaGate();
 }
 
 // Group Management
@@ -6865,7 +6964,10 @@ function saveData() {
         currentGroupId: currentGroupId,
         enableGroups: enableGroups,
         enablePlan: enablePlan,
-        favouritesOrder: favouritesOrder
+        favouritesOrder: favouritesOrder,
+        eulaAccepted,
+        eulaAcceptedVersion,
+        eulaAcceptedAt
     };
     const nextState = JSON.stringify(data);
     const previousState = localStorage.getItem('redd-todo-data');
@@ -6922,6 +7024,9 @@ function loadData() {
             enableGroups = data.enableGroups !== undefined ? data.enableGroups : (Object.keys(groups).length > 0); // Default to true if groups exist, else false
             enablePlan = data.enablePlan !== undefined ? data.enablePlan : false; // Default to false
             favouritesOrder = data.favouritesOrder || [];
+            eulaAccepted = data.eulaAccepted === true;
+            eulaAcceptedVersion = data.eulaAcceptedVersion != null ? String(data.eulaAcceptedVersion) : null;
+            eulaAcceptedAt = data.eulaAcceptedAt != null ? data.eulaAcceptedAt : null;
         }
     } catch (e) {
         console.error('Failed to load data:', e);

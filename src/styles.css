@@ -3198,3 +3198,177 @@ input:checked+.slider:before {
         opacity: 0;
     }
 }
+
+/* --- EULA / legal onboarding (aligned with ReDD Block) --- */
+#eula-onboarding.onboarding-screen {
+    --container-bg: var(--app-bg-solid);
+    --text-muted: var(--text-tertiary);
+    --text-subtle: var(--text-secondary);
+    --accent-color: var(--accent-primary);
+    --button-bg: var(--accent-primary);
+    --button-hover: var(--accent-hover);
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: var(--container-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+#eula-onboarding .onboarding-content h1 {
+    color: var(--text-secondary);
+}
+
+.onboarding-screen.hidden {
+    display: none;
+}
+
+.onboarding-content {
+    max-width: 360px;
+    text-align: center;
+}
+
+.onboarding-icon {
+    margin-bottom: 20px;
+}
+
+.onboarding-app-icon {
+    width: 56px;
+    height: 56px;
+    display: block;
+    margin: 0 auto;
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(10, 45, 123, 0.12);
+}
+
+.onboarding-content h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.legal-onboarding-content {
+    max-width: 560px;
+}
+
+.legal-onboarding-card {
+    text-align: left;
+    padding: 24px 22px 20px;
+    margin: 24px 0 20px;
+}
+
+.onboarding-focus-card {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(10, 45, 123, 0.08);
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(10, 45, 123, 0.08);
+    padding: 30px 40px;
+    margin: 20px 0 18px;
+}
+
+.legal-onboarding-checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.legal-onboarding-checkbox-row input[type="checkbox"] {
+    margin-top: 2px;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border-radius: 6px;
+    accent-color: var(--accent-color);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.legal-onboarding-checkbox-text {
+    cursor: default;
+    flex: 1;
+    min-width: 0;
+}
+
+.legal-onboarding-note {
+    margin: 16px 0 0;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+
+.legal-onboarding-link {
+    color: hsl(222.2, 47.4%, 11.2%);
+    font-weight: 400;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.legal-onboarding-link:hover {
+    text-decoration: none;
+}
+
+.legal-onboarding-body {
+    max-width: 520px;
+    margin: 0 auto;
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+#eula-onboarding .primary-btn,
+#eula-onboarding .modal-btn.primary-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--button-bg);
+    color: var(--text-inverse);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 18px 0 0;
+    justify-content: center;
+}
+
+#eula-onboarding .primary-btn:hover:not(:disabled),
+#eula-onboarding .modal-btn.primary-btn:hover:not(:disabled) {
+    background: var(--button-hover);
+}
+
+#eula-onboarding .legal-onboarding-card .onboarding-primary-btn:disabled,
+#eula-onboarding .legal-onboarding-card .primary-btn:disabled {
+    background: hsl(215, 16%, 75%);
+    cursor: not-allowed;
+}
+
+#eula-onboarding .legal-onboarding-card .onboarding-primary-btn:disabled:hover,
+#eula-onboarding .legal-onboarding-card .primary-btn:disabled:hover {
+    background: hsl(215, 16%, 75%);
+}
+
+[data-theme="dark"] #eula-onboarding .onboarding-focus-card {
+    background: var(--task-bg);
+    border-color: var(--border-color-medium);
+}
+
+[data-theme="dark"] #eula-onboarding .legal-onboarding-link {
+    color: #93c5fd;
+}
+
+@media (max-width: 640px) {
+    .legal-onboarding-content {
+        max-width: 100%;
+    }
+
+    .legal-onboarding-card {
+        padding: 20px 18px 18px;
+    }
+}

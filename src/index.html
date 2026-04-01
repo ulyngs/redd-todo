@@ -11,6 +11,38 @@
 </head>
 
 <body>
+    <div id="eula-onboarding" class="onboarding-screen hidden">
+        <div class="onboarding-content legal-onboarding-content">
+            <div class="onboarding-icon">
+                <img src="images/icon.svg" alt="ReDD Do app icon" class="onboarding-app-icon">
+            </div>
+            <h1>Welcome to ReDD Do</h1>
+            <div class="onboarding-focus-card legal-onboarding-card">
+                <div class="legal-onboarding-checkbox-row">
+                    <input type="checkbox" id="eula-agree-checkbox"
+                        aria-label="I agree to the End User License Agreement and Privacy Policy">
+                    <span class="legal-onboarding-checkbox-text">
+                        I agree to the ReDD Project's
+                        <a href="https://reddfocus.org/eula" target="_blank" rel="noopener noreferrer"
+                            class="legal-onboarding-link" data-external-url="https://reddfocus.org/eula">End User
+                            License Agreement</a>
+                    </span>
+                </div>
+                <p class="legal-onboarding-note">
+                    Note that we do not collect any user data, as per our
+                    <a href="https://reddfocus.org/privacy-policy" target="_blank" rel="noopener noreferrer"
+                        class="legal-onboarding-link" data-external-url="https://reddfocus.org/privacy-policy">Privacy Policy</a>.
+                </p>
+                <button id="eula-continue-btn" type="button" class="modal-btn primary-btn onboarding-primary-btn" disabled>Continue</button>
+            </div>
+            <p class="legal-onboarding-body">
+                ReDD Do is developed by the Reduce Digital Distraction Project, in collaboration with
+                researchers at the University of Oxford and University of Maastricht. The ReDD Project is a
+                not-for-profit creating insights &amp; open-source digital focus tools for everyone to thrive in
+                the digital world.
+            </p>
+        </div>
+    </div>
     <div class="app-container">
         <!-- Normal Mode UI -->
         <div id="normal-mode">
