@@ -5,21 +5,22 @@ use std::thread;
 const BC_REDIRECT_URI_DEV: &str = "http://localhost:3000/callback";
 const BC_REDIRECT_URI_PROD: &str = "https://redd-todo.netlify.app/.netlify/functions/auth";
 
-// Dev client ID uses localhost redirect
+// Dev client ID uses localhost redirect (must match netlify/functions/exchange.js DEV_CLIENT_ID)
 const BC_CLIENT_ID_DEV: &str = "aed7f4889aa6bb83b74e8e494e70701d59d1c9c5";
+// Prod client ID for Netlify redirect (public; must match exchange.js PROD_CLIENT_ID).
+// Release builds cannot rely on .env: packaged apps have no project cwd and do not ship .env.
+const BC_CLIENT_ID_PROD: &str = "d83392d7842f055157c3fef1f5464b2e15a013dc";
 
-/// Get Basecamp client ID from environment (for prod) or use dev ID
+/// OAuth client_id (public). Dev uses localhost app; release uses prod unless overridden.
 fn get_client_id(is_dev: bool) -> String {
     if is_dev {
         return BC_CLIENT_ID_DEV.to_string();
     }
-    
-    // Try to load .env file (ignore if not found)
     let _ = dotenvy::dotenv();
-    env::var("BASECAMP_CLIENT_ID").unwrap_or_else(|_| {
-        log::warn!("BASECAMP_CLIENT_ID not found in environment");
-        String::new()
-    })
+    match env::var("BASECAMP_CLIENT_ID") {
+        Ok(id) if !id.is_empty() => id,
+        _ => BC_CLIENT_ID_PROD.to_string(),
+    }
 }
 
 /// Start Basecamp OAuth flow
