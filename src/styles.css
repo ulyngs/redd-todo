@@ -3212,10 +3212,37 @@ input:checked+.slider:before {
     z-index: 100000;
     background: var(--container-bg);
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Draggable titlebar zone (parity with .title-bar) */
+#eula-onboarding .eula-window-drag-strip {
+    flex-shrink: 0;
+    height: 42px;
+    width: 100%;
+    -webkit-app-region: drag;
+    cursor: move;
+}
+
+#eula-onboarding .eula-onboarding-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
     align-items: center;
     justify-content: center;
     padding: 24px;
-    overflow-y: auto;
+}
+
+/* Interactives must not steal window drag (if drag region expands later) */
+#eula-onboarding .legal-onboarding-card input,
+#eula-onboarding .legal-onboarding-card button,
+#eula-onboarding .legal-onboarding-card a {
+    -webkit-app-region: no-drag;
 }
 
 #eula-onboarding .onboarding-content h1 {

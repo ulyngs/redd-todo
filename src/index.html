@@ -12,6 +12,9 @@
 
 <body>
     <div id="eula-onboarding" class="onboarding-screen hidden">
+        <!-- Same window-drag affordance as .title-bar (macOS overlay titlebar is covered while EULA is visible) -->
+        <div class="eula-window-drag-strip" data-tauri-drag-region aria-hidden="true"></div>
+        <div class="eula-onboarding-scroll">
         <div class="onboarding-content legal-onboarding-content">
             <div class="onboarding-icon">
                 <img src="images/icon.svg" alt="ReDD Do app icon" class="onboarding-app-icon">
@@ -41,6 +44,7 @@
                 not-for-profit creating insights &amp; open-source digital focus tools for everyone to thrive in
                 the digital world.
             </p>
+        </div>
         </div>
     </div>
     <div class="app-container">
