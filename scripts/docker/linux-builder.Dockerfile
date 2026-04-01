@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     patchelf \
     pkg-config \
     python3 \
+    xdg-utils \
     xz-utils \
   && rm -rf /var/lib/apt/lists/*
 
