@@ -3614,8 +3614,11 @@ function setupEventListeners() {
     const focusBar = document.querySelector('.focus-bar');
     const focusContainer = document.querySelector('.focus-container');
     if (focusBar && focusContainer && platform !== 'darwin') {
-        // Ensure attribute exists even if template is changed later.
-        focusBar.setAttribute('data-tauri-drag-region', '');
+        // Tauri: `data-tauri-drag-region` on the whole bar steals the first click on child buttons.
+        // Keep native drag only on the title/timer surfaces (see index.html); never on `.focus-bar`.
+        focusBar.removeAttribute('data-tauri-drag-region');
+        focusTaskName?.setAttribute('data-tauri-drag-region', '');
+        focusTimer?.setAttribute('data-tauri-drag-region', '');
 
         let suppressNextClick = false;
         const HOLD_TO_DRAG_MS = 170;
@@ -3694,6 +3697,8 @@ function setupEventListeners() {
     // must still activate controls on first press.
     if (isFocusPanelWindow && focusBar && focusContainer && platform === 'darwin') {
         focusBar.removeAttribute('data-tauri-drag-region');
+        focusTaskName?.removeAttribute('data-tauri-drag-region');
+        focusTimer?.removeAttribute('data-tauri-drag-region');
 
         let suppressNextClick = false;
         const MOVE_TO_DRAG_PX = 4;

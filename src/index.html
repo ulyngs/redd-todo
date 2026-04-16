@@ -539,9 +539,10 @@
         <!-- Focus Mode UI -->
         <div id="focus-mode" class="hidden">
             <div class="focus-container">
-                <div class="focus-bar" data-tauri-drag-region>
-                    <div class="focus-task-name" id="focus-task-name">Task Name</div>
-                    <div class="focus-timer" id="focus-timer">00:00:00</div>
+                <div class="focus-bar">
+                    <!-- Drag region only on non-button areas so Tauri does not eat the first click on controls (see app.js). -->
+                    <div class="focus-task-name" id="focus-task-name" data-tauri-drag-region>Task Name</div>
+                    <div class="focus-timer" id="focus-timer" data-tauri-drag-region>00:00:00</div>
                     <div id="focus-toast" class="focus-toast hidden">
                         <span>Timer reset</span>
                         <button id="focus-undo-btn">Undo</button>
