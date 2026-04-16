@@ -5435,6 +5435,29 @@ function hideFocusNotesPanel() {
     if (focusNotesWrapper) focusNotesWrapper.classList.remove('active');
 }
 
+function hasOtherTasksInFocusedTab() {
+    if (!focusedTaskId) return false;
+    const context = getTaskContext(focusedTaskId);
+    if (!context || !context.tab || !Array.isArray(context.tab.tasks)) return false;
+    return context.tab.tasks.some(
+        (task) => !task.completed && task.id !== focusedTaskId
+    );
+}
+
+function updateFocusSwitchTaskBtnVisibility() {
+    if (!switchFocusTaskBtn) return;
+    const wrapper = switchFocusTaskBtn.closest('.focus-switch-task-wrapper') || switchFocusTaskBtn;
+    if (hasOtherTasksInFocusedTab()) {
+        wrapper.classList.remove('hidden');
+    } else {
+        wrapper.classList.add('hidden');
+        // If the switch menu was open, close it since the button is gone.
+        if (focusTaskSwitchMenu && !focusTaskSwitchMenu.classList.contains('hidden')) {
+            closeFocusTaskSwitchMenu();
+        }
+    }
+}
+
 function renderFocusTaskSwitchMenu() {
     if (!focusTaskSwitchList) return;
     const context = focusedTaskId ? getTaskContext(focusedTaskId) : null;
@@ -5578,6 +5601,8 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
 
     focusTaskName.textContent = taskName;
     focusTaskName.title = taskName;
+
+    updateFocusSwitchTaskBtnVisibility();
 
     console.log('Starting focus timer');
     startFocusTimer(initialTimeSpent);
