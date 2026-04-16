@@ -229,11 +229,19 @@ let favouritesOrder = []; // Order of favourite task IDs for custom sorting
 let planModuleLoaded = false; // Track if plan module has been initialized
 let currentLang = 'en'; // Current language
 
-/** EULA / legal onboarding (persisted in redd-todo-data) */
+/** EULA / legal onboarding (persisted in redd-todo-data)
+ *
+ * CURRENT_EULA_REVISION is a dedicated revision string for the EULA terms.
+ * Bump this ONLY when the terms themselves change; do not bump it for app
+ * version bumps. Users whose stored `eulaAcceptedVersion` matches the current
+ * revision are considered to have accepted the current terms and are not
+ * re-prompted.
+ */
+const CURRENT_EULA_REVISION = '1';
 let eulaAccepted = false;
 let eulaAcceptedVersion = null;
 let eulaAcceptedAt = null;
-let eulaVersionKeyPendingAccept = null;
+let eulaRevisionPendingAccept = null;
 let eulaListenersAttached = false;
 let windowControlsInitialized = false;
 
@@ -648,12 +656,12 @@ function resetDevOnlyEulaAcceptance() {
 }
 
 function hideEulaOnboarding() {
-    eulaVersionKeyPendingAccept = null;
+    eulaRevisionPendingAccept = null;
     document.getElementById('eula-onboarding')?.classList.add('hidden');
 }
 
-function showEulaOnboarding(versionKey) {
-    eulaVersionKeyPendingAccept = versionKey;
+function showEulaOnboarding(revision) {
+    eulaRevisionPendingAccept = revision;
     const cb = document.getElementById('eula-agree-checkbox');
     const btn = document.getElementById('eula-continue-btn');
     if (cb) cb.checked = false;
@@ -676,13 +684,13 @@ function setupEulaEventListeners() {
         }
     });
     eulaContinueBtn?.addEventListener('click', async () => {
-        if (!eulaCheckbox?.checked || !eulaContinueBtn || eulaVersionKeyPendingAccept == null) return;
+        if (!eulaCheckbox?.checked || !eulaContinueBtn || eulaRevisionPendingAccept == null) return;
         const originalText = eulaContinueBtn.textContent;
         eulaContinueBtn.disabled = true;
         eulaContinueBtn.textContent = 'Continuing...';
         try {
             eulaAccepted = true;
-            eulaAcceptedVersion = eulaVersionKeyPendingAccept;
+            eulaAcceptedVersion = eulaRevisionPendingAccept;
             eulaAcceptedAt = Date.now();
             saveData();
             hideEulaOnboarding();
@@ -719,18 +727,9 @@ function setupEulaEventListeners() {
 }
 
 async function startMainWindowWithEulaGate() {
-    let versionKey = 'unknown';
-    if (reddIsTauri && typeof tauriAPI !== 'undefined' && typeof tauriAPI.getAppVersion === 'function') {
-        try {
-            const v = await tauriAPI.getAppVersion();
-            if (v) versionKey = String(v);
-        } catch (_) {
-            /* keep unknown */
-        }
-    }
-    const needsEula = eulaAccepted !== true || eulaAcceptedVersion !== versionKey;
+    const needsEula = eulaAccepted !== true || eulaAcceptedVersion !== CURRENT_EULA_REVISION;
     if (needsEula) {
-        showEulaOnboarding(versionKey);
+        showEulaOnboarding(CURRENT_EULA_REVISION);
         return;
     }
     finishCommonInit();
