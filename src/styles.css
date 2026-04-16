@@ -1068,6 +1068,36 @@ body.is-reordering * {
     display: none;
 }
 
+/* Done list: menu stays the normal dropdown (upward was clipped by .done-tasks / .done-container overflow).
+   Cap width to the completed-task card using this row as a size container — not .hover-actions width.
+   Anchor to .task-actions (not .hover-actions) so `right: 0` lines up with the row’s true right edge past fav/meta. */
+.done-tasks .task-item {
+    container-type: inline-size;
+    container-name: done-task;
+}
+
+.done-tasks .task-actions {
+    position: relative;
+}
+
+.done-tasks .hover-actions {
+    position: static;
+}
+
+.done-tasks .task-menu {
+    left: auto;
+    /* Shift 12px toward the outer edge to match .task-item horizontal padding */
+    right: -12px;
+    width: max-content;
+    max-width: 100cqw;
+    box-sizing: border-box;
+}
+
+.done-tasks .task-menu-item {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .task-menu-item {
     display: flex;
     align-items: center;
