@@ -3621,7 +3621,6 @@ function setupEventListeners() {
         focusTimer?.setAttribute('data-tauri-drag-region', '');
 
         let suppressNextClick = false;
-        const HOLD_TO_DRAG_MS = 170;
         const MOVE_CANCEL_PX = 6;
 
         focusContainer.addEventListener('mousedown', (e) => {
@@ -3632,13 +3631,8 @@ function setupEventListeners() {
             const startX = e.clientX;
             const startY = e.clientY;
             let dragStarted = false;
-            let holdTimer = null;
 
             const cleanup = () => {
-                if (holdTimer) {
-                    clearTimeout(holdTimer);
-                    holdTimer = null;
-                }
                 window.removeEventListener('mousemove', onMove, true);
                 window.removeEventListener('mouseup', onUp, true);
             };
@@ -3677,9 +3671,13 @@ function setupEventListeners() {
             window.addEventListener('mousemove', onMove, true);
             window.addEventListener('mouseup', onUp, true);
 
-            if (interactiveEl) {
-                holdTimer = setTimeout(startWindowDrag, HOLD_TO_DRAG_MS);
-            } else {
+            if (!interactiveEl) {
+                // Non-interactive areas: start window drag immediately on press.
+                // For buttons/inputs we never start a drag from a stationary press —
+                // only if the user actually moves (handled in onMove). Otherwise a
+                // slightly-slow click on Windows hands the mousedown off to the OS
+                // move loop, which eats the click and makes buttons feel like they
+                // need a double-click.
                 startWindowDrag();
             }
         }, true);
