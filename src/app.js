@@ -229,11 +229,19 @@ let favouritesOrder = []; // Order of favourite task IDs for custom sorting
 let planModuleLoaded = false; // Track if plan module has been initialized
 let currentLang = 'en'; // Current language
 
-/** EULA / legal onboarding (persisted in redd-todo-data) */
+/** EULA / legal onboarding (persisted in redd-todo-data)
+ *
+ * CURRENT_EULA_REVISION is a dedicated revision string for the EULA terms.
+ * Bump this ONLY when the terms themselves change; do not bump it for app
+ * version bumps. Users whose stored `eulaAcceptedVersion` matches the current
+ * revision are considered to have accepted the current terms and are not
+ * re-prompted.
+ */
+const CURRENT_EULA_REVISION = '1';
 let eulaAccepted = false;
 let eulaAcceptedVersion = null;
 let eulaAcceptedAt = null;
-let eulaVersionKeyPendingAccept = null;
+let eulaRevisionPendingAccept = null;
 let eulaListenersAttached = false;
 let windowControlsInitialized = false;
 
@@ -648,12 +656,12 @@ function resetDevOnlyEulaAcceptance() {
 }
 
 function hideEulaOnboarding() {
-    eulaVersionKeyPendingAccept = null;
+    eulaRevisionPendingAccept = null;
     document.getElementById('eula-onboarding')?.classList.add('hidden');
 }
 
-function showEulaOnboarding(versionKey) {
-    eulaVersionKeyPendingAccept = versionKey;
+function showEulaOnboarding(revision) {
+    eulaRevisionPendingAccept = revision;
     const cb = document.getElementById('eula-agree-checkbox');
     const btn = document.getElementById('eula-continue-btn');
     if (cb) cb.checked = false;
@@ -676,13 +684,13 @@ function setupEulaEventListeners() {
         }
     });
     eulaContinueBtn?.addEventListener('click', async () => {
-        if (!eulaCheckbox?.checked || !eulaContinueBtn || eulaVersionKeyPendingAccept == null) return;
+        if (!eulaCheckbox?.checked || !eulaContinueBtn || eulaRevisionPendingAccept == null) return;
         const originalText = eulaContinueBtn.textContent;
         eulaContinueBtn.disabled = true;
         eulaContinueBtn.textContent = 'Continuing...';
         try {
             eulaAccepted = true;
-            eulaAcceptedVersion = eulaVersionKeyPendingAccept;
+            eulaAcceptedVersion = eulaRevisionPendingAccept;
             eulaAcceptedAt = Date.now();
             saveData();
             hideEulaOnboarding();
@@ -719,18 +727,9 @@ function setupEulaEventListeners() {
 }
 
 async function startMainWindowWithEulaGate() {
-    let versionKey = 'unknown';
-    if (reddIsTauri && typeof tauriAPI !== 'undefined' && typeof tauriAPI.getAppVersion === 'function') {
-        try {
-            const v = await tauriAPI.getAppVersion();
-            if (v) versionKey = String(v);
-        } catch (_) {
-            /* keep unknown */
-        }
-    }
-    const needsEula = eulaAccepted !== true || eulaAcceptedVersion !== versionKey;
+    const needsEula = eulaAccepted !== true || eulaAcceptedVersion !== CURRENT_EULA_REVISION;
     if (needsEula) {
-        showEulaOnboarding(versionKey);
+        showEulaOnboarding(CURRENT_EULA_REVISION);
         return;
     }
     finishCommonInit();
@@ -3621,7 +3620,6 @@ function setupEventListeners() {
         focusTimer?.setAttribute('data-tauri-drag-region', '');
 
         let suppressNextClick = false;
-        const HOLD_TO_DRAG_MS = 170;
         const MOVE_CANCEL_PX = 6;
 
         focusContainer.addEventListener('mousedown', (e) => {
@@ -3632,13 +3630,8 @@ function setupEventListeners() {
             const startX = e.clientX;
             const startY = e.clientY;
             let dragStarted = false;
-            let holdTimer = null;
 
             const cleanup = () => {
-                if (holdTimer) {
-                    clearTimeout(holdTimer);
-                    holdTimer = null;
-                }
                 window.removeEventListener('mousemove', onMove, true);
                 window.removeEventListener('mouseup', onUp, true);
             };
@@ -3677,9 +3670,13 @@ function setupEventListeners() {
             window.addEventListener('mousemove', onMove, true);
             window.addEventListener('mouseup', onUp, true);
 
-            if (interactiveEl) {
-                holdTimer = setTimeout(startWindowDrag, HOLD_TO_DRAG_MS);
-            } else {
+            if (!interactiveEl) {
+                // Non-interactive areas: start window drag immediately on press.
+                // For buttons/inputs we never start a drag from a stationary press —
+                // only if the user actually moves (handled in onMove). Otherwise a
+                // slightly-slow click on Windows hands the mousedown off to the OS
+                // move loop, which eats the click and makes buttons feel like they
+                // need a double-click.
                 startWindowDrag();
             }
         }, true);
@@ -5437,6 +5434,29 @@ function hideFocusNotesPanel() {
     if (focusNotesWrapper) focusNotesWrapper.classList.remove('active');
 }
 
+function hasOtherTasksInFocusedTab() {
+    if (!focusedTaskId) return false;
+    const context = getTaskContext(focusedTaskId);
+    if (!context || !context.tab || !Array.isArray(context.tab.tasks)) return false;
+    return context.tab.tasks.some(
+        (task) => !task.completed && task.id !== focusedTaskId
+    );
+}
+
+function updateFocusSwitchTaskBtnVisibility() {
+    if (!switchFocusTaskBtn) return;
+    const wrapper = switchFocusTaskBtn.closest('.focus-switch-task-wrapper') || switchFocusTaskBtn;
+    if (hasOtherTasksInFocusedTab()) {
+        wrapper.classList.remove('hidden');
+    } else {
+        wrapper.classList.add('hidden');
+        // If the switch menu was open, close it since the button is gone.
+        if (focusTaskSwitchMenu && !focusTaskSwitchMenu.classList.contains('hidden')) {
+            closeFocusTaskSwitchMenu();
+        }
+    }
+}
+
 function renderFocusTaskSwitchMenu() {
     if (!focusTaskSwitchList) return;
     const context = focusedTaskId ? getTaskContext(focusedTaskId) : null;
@@ -5580,6 +5600,8 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
 
     focusTaskName.textContent = taskName;
     focusTaskName.title = taskName;
+
+    updateFocusSwitchTaskBtnVisibility();
 
     console.log('Starting focus timer');
     startFocusTimer(initialTimeSpent);
