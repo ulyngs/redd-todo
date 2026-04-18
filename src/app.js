@@ -2756,6 +2756,7 @@ function switchView(viewName) {
     currentView = viewName;
 
     // Get content elements that should be hidden in plan view
+    const contentColumn = document.querySelector('.content-column');
     const tasksContainer = document.querySelector('.tasks-container');
     const addTaskContainer = document.getElementById('add-task-container');
     const doneContainer = document.querySelector('.done-container');
@@ -2766,7 +2767,8 @@ function switchView(viewName) {
         viewFavBtn.classList.remove('active');
         if (viewPlanBtn) viewPlanBtn.classList.add('active');
 
-        // Hide all content elements below title bar
+        // Hide the entire centered content column (and its inner pieces).
+        if (contentColumn) contentColumn.style.display = 'none';
         if (groupsContainerMain) groupsContainerMain.style.display = 'none';
         if (tabsContainerMain) tabsContainerMain.style.display = 'none';
         if (tasksContainer) tasksContainer.style.display = 'none';
@@ -2795,6 +2797,7 @@ function switchView(viewName) {
     }
 
     // Show content elements
+    if (contentColumn) contentColumn.style.display = '';
     if (tasksContainer) tasksContainer.style.display = '';
     if (addTaskContainer) addTaskContainer.style.display = '';
     if (doneContainer) doneContainer.style.display = '';

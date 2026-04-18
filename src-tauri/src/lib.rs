@@ -4,7 +4,63 @@ use commands::app::*;
 use commands::reminders::*;
 use commands::window::*;
 use commands::oauth::*;
-use tauri::{Manager, Emitter};
+use tauri::{Emitter, Manager};
+
+#[cfg(target_os = "macos")]
+const ZOOM_STEP: f64 = 0.1;
+#[cfg(target_os = "macos")]
+const ZOOM_MIN: f64 = 0.5;
+#[cfg(target_os = "macos")]
+const ZOOM_MAX: f64 = 2.5;
+
+/// Adjust the main window's webview zoom by the given delta (clamped).
+#[cfg(target_os = "macos")]
+fn adjust_main_zoom(app: &tauri::AppHandle, delta: f64) {
+    let Some(window) = app.get_webview_window("main") else { return };
+    let current = read_main_zoom(app).unwrap_or(1.0);
+    let next = (current + delta).clamp(ZOOM_MIN, ZOOM_MAX);
+    let _ = window.set_zoom(next);
+    write_main_zoom(app, next);
+}
+
+#[cfg(target_os = "macos")]
+fn set_main_zoom(app: &tauri::AppHandle, value: f64) {
+    let Some(window) = app.get_webview_window("main") else { return };
+    let value = value.clamp(ZOOM_MIN, ZOOM_MAX);
+    let _ = window.set_zoom(value);
+    write_main_zoom(app, value);
+}
+
+/// Persist + read zoom level so it survives restarts. Stored in the Tauri
+/// app config dir as a tiny JSON file.
+#[cfg(target_os = "macos")]
+fn zoom_state_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_config_dir().ok().map(|d| d.join("zoom.txt"))
+}
+
+#[cfg(target_os = "macos")]
+fn read_main_zoom(app: &tauri::AppHandle) -> Option<f64> {
+    let path = zoom_state_path(app)?;
+    let raw = std::fs::read_to_string(path).ok()?;
+    raw.trim().parse::<f64>().ok()
+}
+
+#[cfg(target_os = "macos")]
+fn write_main_zoom(app: &tauri::AppHandle, value: f64) {
+    let Some(path) = zoom_state_path(app) else { return };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(path, format!("{value}"));
+}
+
+/// Open a URL (https, mailto, etc.) in the user's default handler.
+#[cfg(target_os = "macos")]
+fn open_url(_app: &tauri::AppHandle, url: &str) {
+    if let Err(e) = open::that_detached(url) {
+        log::warn!("Failed to open {url}: {e}");
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -47,6 +103,139 @@ pub fn run() {
             {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.set_decorations(false);
+                }
+            }
+
+            // On macOS, build a custom menu that includes Zoom In / Zoom Out
+            // under the Window menu so users discover the keyboard shortcuts.
+            // (Tauri's default menu doesn't expose them.)
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::menu::{
+                    AboutMetadataBuilder, MenuBuilder, MenuItemBuilder,
+                    PredefinedMenuItem, SubmenuBuilder,
+                };
+
+                let app_handle = app.handle();
+
+                let about_metadata = AboutMetadataBuilder::new()
+                    .name(Some("ReDD Do"))
+                    .version(Some(env!("CARGO_PKG_VERSION")))
+                    .authors(Some(vec![
+                        "The Reduce Digital Distraction Project".to_string(),
+                    ]))
+                    .comments(Some(
+                        "Get back to that thing you meant to do.\n\n\
+                        ReDD Do is a calm, distraction-free todo app with focus \
+                        mode and time tracking. Your data lives on your device — \
+                        nothing is collected.\n\n\
+                        Built by the Reduce Digital Distraction Project, a \
+                        not-for-profit that creates insights & open-source digital \
+                        focus tools for everyone to thrive in the digital world, \
+                        in collaboration with researchers at the University of \
+                        Oxford and the University of Maastricht.",
+                    ))
+                    .copyright(Some("© 2025 Reduce Digital Distraction Ltd"))
+                    .website(Some("https://reddfocus.org"))
+                    .website_label(Some("reddfocus.org"))
+                    .license(Some("CC BY-NC-ND 3.0"))
+                    .build();
+
+                let about_item = PredefinedMenuItem::about(
+                    app_handle,
+                    Some("About ReDD Do"),
+                    Some(about_metadata),
+                )?;
+
+                let app_submenu = SubmenuBuilder::new(app_handle, "ReDD Do")
+                    .item(&about_item)
+                    .separator()
+                    .services()
+                    .separator()
+                    .hide()
+                    .hide_others()
+                    .show_all()
+                    .separator()
+                    .quit()
+                    .build()?;
+
+                let edit_submenu = SubmenuBuilder::new(app_handle, "Edit")
+                    .undo()
+                    .redo()
+                    .separator()
+                    .cut()
+                    .copy()
+                    .paste()
+                    .select_all()
+                    .build()?;
+
+                // Tauri/muda parses `+` as the separator in accelerator strings,
+                // so `CmdOrCtrl+=` leaves an empty key token and macOS ends up
+                // displaying a garbled shortcut (⌘`). Use the explicit key
+                // codes instead.
+                let zoom_in = MenuItemBuilder::with_id("zoom_in", "Zoom In")
+                    .accelerator("CmdOrCtrl+Equal")
+                    .build(app_handle)?;
+                let zoom_out = MenuItemBuilder::with_id("zoom_out", "Zoom Out")
+                    .accelerator("CmdOrCtrl+Minus")
+                    .build(app_handle)?;
+                let zoom_reset = MenuItemBuilder::with_id("zoom_reset", "Actual Size")
+                    .accelerator("CmdOrCtrl+0")
+                    .build(app_handle)?;
+
+                let window_submenu = SubmenuBuilder::new(app_handle, "Window")
+                    .minimize()
+                    .separator()
+                    .item(&zoom_in)
+                    .item(&zoom_out)
+                    .item(&zoom_reset)
+                    .separator()
+                    .close_window()
+                    .build()?;
+
+                let report_issue = MenuItemBuilder::with_id(
+                    "help_report_issue",
+                    "Report an issue",
+                )
+                .build(app_handle)?;
+                let contact_us = MenuItemBuilder::with_id(
+                    "help_contact_us",
+                    "Contact us",
+                )
+                .build(app_handle)?;
+                let about_redd = MenuItemBuilder::with_id(
+                    "help_about_redd",
+                    "About the ReDD Project",
+                )
+                .build(app_handle)?;
+
+                let help_submenu = SubmenuBuilder::new(app_handle, "Help")
+                    .item(&report_issue)
+                    .item(&contact_us)
+                    .item(&about_redd)
+                    .build()?;
+
+                let menu = MenuBuilder::new(app_handle)
+                    .items(&[&app_submenu, &edit_submenu, &window_submenu, &help_submenu])
+                    .build()?;
+
+                app.set_menu(menu)?;
+
+                app.on_menu_event(move |app, event| match event.id().as_ref() {
+                    "zoom_in" => adjust_main_zoom(app, ZOOM_STEP),
+                    "zoom_out" => adjust_main_zoom(app, -ZOOM_STEP),
+                    "zoom_reset" => set_main_zoom(app, 1.0),
+                    "help_report_issue" => open_url(app, "https://github.com/ulyngs/redd-todo/issues"),
+                    "help_contact_us" => open_url(app, "mailto:team@reddfocus.org"),
+                    "help_about_redd" => open_url(app, "https://reddfocus.org"),
+                    _ => {}
+                });
+
+                // Restore last-saved zoom level on startup.
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Some(saved) = read_main_zoom(app.handle()) {
+                        let _ = window.set_zoom(saved.clamp(ZOOM_MIN, ZOOM_MAX));
+                    }
                 }
             }
             

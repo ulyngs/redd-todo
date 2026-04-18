@@ -279,6 +279,23 @@ h3,
     overflow: hidden;
 }
 
+/* Centered content column — caps the width on wide windows so the task list
+   doesn't sprawl edge-to-edge. Wraps groups/tabs/tasks/add-task/done so the
+   centering happens at one node, not five — keeps the macOS window-zoom
+   animation from looking jumpy across multiple shifting elements. */
+.content-column {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: var(--content-max-width);
+    margin-left: auto;
+    margin-right: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
 /* Title Bar */
 .title-bar {
     display: flex;
@@ -291,6 +308,10 @@ h3,
     cursor: move;
     position: relative;
     flex-shrink: 0;
+    /* Prevent macOS double-click-to-zoom from extending a text selection
+       into the tabs/groups chrome below. */
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .title {
@@ -392,10 +413,6 @@ h3,
     display: flex;
     align-items: center;
     padding: 0px 24px 0 24px;
-    max-width: var(--content-max-width);
-    width: 100%;
-    margin-left: auto;
-    margin-right: auto;
     background: transparent;
     /* border-bottom: 1px solid rgba(0, 0, 0, 0.05); */
 }
@@ -423,6 +440,8 @@ h3,
     align-items: center;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .group-tab:active {
@@ -521,11 +540,6 @@ h3,
     border-bottom: 1px solid var(--border-color);
     position: relative;
     /* For absolute positioning of settings button if needed */
-    max-width: var(--content-max-width);
-    width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    box-sizing: border-box;
 }
 
 .tabs {
@@ -586,6 +600,8 @@ h3,
     border-bottom: 2px solid transparent;
     position: relative;
     -webkit-app-region: no-drag;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .tab:active {
@@ -701,11 +717,6 @@ body.is-reordering * {
     overflow-y: auto;
     position: relative;
     min-height: 0;
-    max-width: var(--content-max-width);
-    width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    box-sizing: border-box;
 }
 
 /* Task Item */
@@ -1300,11 +1311,6 @@ body.is-reordering * {
     border-top: 1px solid var(--border-color);
     position: relative;
     z-index: 5;
-    max-width: var(--content-max-width);
-    width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    box-sizing: border-box;
 }
 
 .input-wrapper {
@@ -1592,11 +1598,6 @@ body.is-reordering * {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-width: var(--content-max-width);
-    width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    box-sizing: border-box;
 }
 
 .done-heading {
