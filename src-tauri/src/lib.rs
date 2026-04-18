@@ -135,7 +135,7 @@ pub fn run() {
                         in collaboration with researchers at the University of \
                         Oxford and the University of Maastricht.",
                     ))
-                    .copyright(Some("© 2025 Reduce Digital Distraction Ltd"))
+                    .copyright(Some("© 2026 Reduce Digital Distraction Ltd"))
                     .website(Some("https://reddfocus.org"))
                     .website_label(Some("reddfocus.org"))
                     .license(Some("CC BY-NC-ND 3.0"))
