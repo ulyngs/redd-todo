@@ -242,7 +242,7 @@ const CURRENT_EULA_REVISION = '1';
 
 /** Compact width for the in-window focus-mode window (Windows/Linux).
  * Kept independent of the main window's size so focus visibly contracts. */
-const FOCUS_WINDOW_WIDTH = 340;
+const FOCUS_WINDOW_WIDTH = 300;
 let eulaAccepted = false;
 let eulaAcceptedVersion = null;
 let eulaAcceptedAt = null;
