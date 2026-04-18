@@ -5180,7 +5180,7 @@ function setupEventListeners() {
 
                 // Only resize when not in fullscreen mode.
                 if ((isFocusPanelWindow || platform !== 'darwin') && canResizeFocusWindowHeight()) {
-                    reddIpc.send('set-focus-window-height', platform !== 'darwin' ? 56 : 48);
+                    reddIpc.send('set-focus-window-height', 48);
                 }
             } else {
                 // Open notes

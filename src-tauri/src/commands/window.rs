@@ -45,6 +45,9 @@ fn fullscreen_focus_window_label(task_id: &str) -> String {
 
 const FOCUS_WINDOW_MIN_WIDTH: f64 = 270.0;
 const FOCUS_WINDOW_MIN_HEIGHT: f64 = 48.0;
+/// Default height of the focus-mode window — matches the `.focus-bar` CSS height.
+/// Same on macOS and Windows; see `set_focus_window_size` and `set_focus_mode_window_state`.
+const FOCUS_BAR_HEIGHT: f64 = 48.0;
 
 #[derive(Clone, Copy)]
 struct FocusWindowGeometry {
@@ -500,11 +503,7 @@ pub fn set_focus_window_size(window: tauri::WebviewWindow, width: f64) -> Result
     #[cfg(not(target_os = "macos"))]
     let _ = window.set_fullscreen(false);
 
-    #[cfg(target_os = "windows")]
-    let focus_height = 56.0;
-    #[cfg(not(target_os = "windows"))]
-    let focus_height = 48.0;
-
+    let focus_height = FOCUS_BAR_HEIGHT;
     let _ = window.set_min_size(Some(tauri::LogicalSize::new(280.0, focus_height)));
     let _ = window.set_size(tauri::LogicalSize::new(width, focus_height));
     Ok(())
@@ -859,11 +858,11 @@ pub fn set_focus_mode_window_state(
         if enabled {
             let _ = window.set_min_size(Some(tauri::LogicalSize::new(
                 FOCUS_WINDOW_MIN_WIDTH,
-                56.0,
+                FOCUS_BAR_HEIGHT,
             )));
         } else {
             // Restore the normal main-window min width (matches tauri.conf.json).
-            let _ = window.set_min_size(Some(tauri::LogicalSize::new(420.0, 0.0)));
+            let _ = window.set_min_size(Some(tauri::LogicalSize::new(460.0, 0.0)));
         }
     }
 
