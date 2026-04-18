@@ -578,6 +578,15 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
     }
 });
 
+// Cross-window theme sync. The macOS focus-mode panel is a separate webview;
+// without this it stays on whatever theme it had at launch when the user
+// switches theme from the main window.
+window.addEventListener('storage', (e) => {
+    if (e.key === 'theme') {
+        applyTheme(e.newValue || 'system');
+    }
+});
+
 if (themeSelect) {
     themeSelect.addEventListener('change', (e) => {
         const theme = e.target.value;
