@@ -63,6 +63,7 @@ const reddIpc = {
                 ),
                 'set-focus-window-size': () => tauriAPI.setFocusWindowSize(args[0]),
                 'set-focus-window-height': () => tauriAPI.setFocusWindowHeight(args[0]),
+                'set-window-bounds': () => tauriAPI.setWindowBounds(args[0]?.width, args[0]?.height),
                 'enter-fullscreen-focus': () => tauriAPI.enterFullscreenFocus(),
                 'exit-fullscreen-focus': () => tauriAPI.exitFullscreenFocus(),
                 'enter-fullscreen-focus-handoff': () => tauriAPI.enterFullscreenFocusHandoff(
@@ -5653,10 +5654,13 @@ function exitFocusMode() {
     normalMode.classList.remove('hidden');
 
     // Restore the previous main-window size after in-window focus mode.
+    // Use a single atomic bounds-set so width and height can't race —
+    // set-focus-window-size hard-codes height to the focus-bar height,
+    // which previously sometimes won the race and left the main window
+    // stuck at focus-mode height.
     if (!isFocusPanelWindow && platform !== 'darwin' && preFocusMainWindowSize) {
         const { width, height } = preFocusMainWindowSize;
-        reddIpc.send('set-focus-window-size', width);
-        reddIpc.send('set-focus-window-height', height);
+        reddIpc.send('set-window-bounds', { width, height });
         preFocusMainWindowSize = null;
     }
 

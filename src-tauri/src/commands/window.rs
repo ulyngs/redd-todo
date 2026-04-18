@@ -518,6 +518,22 @@ pub fn set_focus_window_height(window: tauri::WebviewWindow, height: f64) -> Res
     Ok(())
 }
 
+/// Set both width and height in a single atomic call.
+/// Used to restore the main window after exiting in-window focus mode (Windows/Linux);
+/// avoids the race between separate width/height set calls.
+#[command]
+pub fn set_window_bounds(
+    window: tauri::WebviewWindow,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    #[cfg(not(target_os = "macos"))]
+    let _ = window.set_fullscreen(false);
+
+    let _ = window.set_size(tauri::LogicalSize::new(width, height));
+    Ok(())
+}
+
 /// Enter fullscreen focus mode
 #[command]
 pub fn enter_fullscreen_focus(window: tauri::WebviewWindow) -> Result<(), String> {

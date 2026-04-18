@@ -117,6 +117,10 @@ const tauriAPI = {
         return this.invoke('set_focus_window_height', { height });
     },
 
+    async setWindowBounds(width, height) {
+        return this.invoke('set_window_bounds', { width, height });
+    },
+
     async enterFullscreenFocus() {
         return this.invoke('enter_fullscreen_focus');
     },
