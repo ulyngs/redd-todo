@@ -217,6 +217,8 @@ let focusStartTime = null;
 let previousFocusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
+let focusPersistInterval = null; // Periodic save of cumulative timeSpent (crash resilience)
+const FOCUS_PERSIST_INTERVAL_MS = 30000;
 let preTaskSwitchMenuHeight = null; // Restore exact panel height after menu closes
 // Track dragged items
 let draggedTaskId = null;
@@ -5691,12 +5693,21 @@ function startFocusTimer(initialTimeSpent = 0) {
     // Update immediately
     updateFocusTimer();
     focusTimerInterval = setInterval(updateFocusTimer, 1000);
+
+    // Periodically persist cumulative timeSpent so a crash/force-quit doesn't
+    // lose progress — exit and task-switch still persist explicitly.
+    if (focusPersistInterval) clearInterval(focusPersistInterval);
+    focusPersistInterval = setInterval(persistCurrentFocusTaskTime, FOCUS_PERSIST_INTERVAL_MS);
 }
 
 function stopFocusTimer() {
     if (focusTimerInterval) {
         clearInterval(focusTimerInterval);
         focusTimerInterval = null;
+    }
+    if (focusPersistInterval) {
+        clearInterval(focusPersistInterval);
+        focusPersistInterval = null;
     }
 }
 
