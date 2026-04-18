@@ -492,7 +492,9 @@ pub fn exit_focus_mode(
     }
 }
 
-/// Set focus window size (width only, height stays at 48)
+/// Set focus window size (width only, height stays at the focus-bar height).
+/// Also relaxes the min-inner-size so the window can shrink below the main
+/// app's normal minimum width while in focus mode.
 #[command]
 pub fn set_focus_window_size(window: tauri::WebviewWindow, width: f64) -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
@@ -503,6 +505,7 @@ pub fn set_focus_window_size(window: tauri::WebviewWindow, width: f64) -> Result
     #[cfg(not(target_os = "windows"))]
     let focus_height = 48.0;
 
+    let _ = window.set_min_size(Some(tauri::LogicalSize::new(280.0, focus_height)));
     let _ = window.set_size(tauri::LogicalSize::new(width, focus_height));
     Ok(())
 }
@@ -521,6 +524,8 @@ pub fn set_focus_window_height(window: tauri::WebviewWindow, height: f64) -> Res
 /// Set both width and height in a single atomic call.
 /// Used to restore the main window after exiting in-window focus mode (Windows/Linux);
 /// avoids the race between separate width/height set calls.
+/// Also restores the main app's min-inner-size constraint
+/// (kept in sync with `minWidth` in tauri.conf.json).
 #[command]
 pub fn set_window_bounds(
     window: tauri::WebviewWindow,
@@ -530,6 +535,7 @@ pub fn set_window_bounds(
     #[cfg(not(target_os = "macos"))]
     let _ = window.set_fullscreen(false);
 
+    let _ = window.set_min_size(Some(tauri::LogicalSize::new(460.0, 0.0)));
     let _ = window.set_size(tauri::LogicalSize::new(width, height));
     Ok(())
 }

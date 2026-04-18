@@ -239,6 +239,10 @@ let currentLang = 'en'; // Current language
  * re-prompted.
  */
 const CURRENT_EULA_REVISION = '1';
+
+/** Compact width for the in-window focus-mode window (Windows/Linux).
+ * Kept independent of the main window's size so focus visibly contracts. */
+const FOCUS_WINDOW_WIDTH = 420;
 let eulaAccepted = false;
 let eulaAcceptedVersion = null;
 let eulaAcceptedAt = null;
@@ -5605,12 +5609,12 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
     console.log('Starting focus timer');
     startFocusTimer(initialTimeSpent);
 
-    // Calculate appropriate window width based on content
+    // Resize the focus-mode window to a compact fixed width so it visibly
+    // contracts from the main app. Independent of main-window size — the
+    // main window's size is restored from preFocusMainWindowSize on exit.
     setTimeout(() => {
         if (container && !isNativeFullscreenFocusWindow && !preserveWindowGeometry && !container.classList.contains('fullscreen')) {
-            const containerWidth = Math.min(Math.max(container.offsetWidth, 280), 500);
-            console.log('Calculated container width:', containerWidth);
-            reddIpc.send('set-focus-window-size', containerWidth);
+            reddIpc.send('set-focus-window-size', FOCUS_WINDOW_WIDTH);
         }
     }, 50); // Small delay to ensure DOM is updated
 
