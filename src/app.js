@@ -4039,15 +4039,13 @@ function setupEventListeners() {
     // Reminders Connect Button
     if (remindersConnectBtn) {
         if (platform !== 'darwin') {
-            // Disable for non-Mac
-            remindersConnectBtn.disabled = true;
-            remindersConnectBtn.title = 'Apple Reminders integration is only available on macOS';
-            remindersConnectBtn.style.opacity = '0.5';
-            remindersConnectBtn.style.cursor = 'not-allowed';
-
-            // Add explanatory text near the button if possible, or just rely on title/alert
-            // Let's modify the text to be clear
-            remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders (macOS only)';
+            // Apple Reminders is macOS-only — hide the whole section on other platforms.
+            // (Long-term: surface a way for Windows/Linux users to sync via iCloud.)
+            ['reminders-connect-row', 'reminders-info', 'reminders-status', 'disconnect-reminders-btn']
+                .forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.add('hidden');
+                });
         } else {
             const remindersErrorMessage = (error) => {
                 if (typeof error === 'string') return error;
@@ -7766,6 +7764,9 @@ async function fallbackMoveBasecampTodo(task, sourceTab, targetTab) {
 // Reminders Logic
 
 function updateRemindersUI() {
+    // Apple Reminders is macOS-only; the section is hidden at boot on other platforms.
+    if (platform !== 'darwin') return;
+
     const connectRow = document.getElementById('reminders-connect-row');
 
     if (remindersConfig.isConnected) {
