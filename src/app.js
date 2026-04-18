@@ -2682,7 +2682,7 @@ function renderTabs() {
             // Let's use a list icon SVG.
             icon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-bottom:2px;"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>`;
             icon.style.marginRight = '6px';
-            icon.style.color = '#555'; // Subtle grey
+            icon.style.color = 'var(--text-tertiary)';
             tabContent.appendChild(icon);
         }
 

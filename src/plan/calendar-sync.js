@@ -166,7 +166,7 @@ const CalendarSync = (function () {
             endDate: endDateKey,
             startOffsetX: 40,  // Position after day name/number
             endOffsetX: 200,   // Near end of note area
-            color: '#6366f1',  // Indigo color for calendar events
+            color: '#4a90e2',  // ReDD brand blue for calendar events
             width: 8,
             isCalendarEvent: true,
             calendarEventUid: event.uid

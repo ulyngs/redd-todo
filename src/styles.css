@@ -1,3 +1,42 @@
+/* Bundled fonts — locally hosted so the app works offline.
+   Inter and Caveat woff2 files live in src/fonts/.
+   Each font ships latin + latin-ext (covers English, Danish, and other Western European). */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('fonts/inter-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('fonts/inter-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: 'Caveat';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url('fonts/caveat-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Caveat';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url('fonts/caveat-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 /* Reset and base styles */
 * {
     margin: 0;
@@ -6,112 +45,186 @@
 }
 
 :root {
+    /* ReDD brand tokens */
+    --redd-cream: #faf8f5;
+    --redd-warm-grey: #f1eee9;
+    --redd-card: #ffffff;
+    --redd-navy: #1e2d3e;
+    --redd-body: #2c2c35;
+    --redd-muted: #696977;
+    --redd-border: #e1dcd6;
+    --redd-coral: #d4605a;
+    --redd-coral-soft: #faebea;
+    --redd-teal: #2a9d8f;
+    --redd-teal-hover: #21806f;
+    --redd-teal-soft: #e5f5f3;
+    --redd-blue: #4a90e2;
+    --redd-blue-soft: #e8f1fa;
+
     /* Backgrounds */
-    --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --app-bg: #f0f4f8;
-    --app-bg-solid: #f0f4f8;
-    --task-bg: rgba(255, 255, 255, 0.8);
-    --hover-bg: rgba(0, 0, 0, 0.05);
-    --active-bg: rgba(0, 0, 0, 0.08);
+    --bg-gradient: linear-gradient(180deg, #faf8f5 0%, #f1eee9 100%);
+    --app-bg: #faf8f5;
+    --app-bg-solid: #faf8f5;
+    --bg-subtle: #f1eee9;
+    --bg-card: #ffffff;
+    --task-bg: #ffffff;
+    --hover-bg: rgba(30, 45, 62, 0.04);
+    --active-bg: rgba(30, 45, 62, 0.07);
     --input-bg: transparent;
     --input-surface: #ffffff;
-    --modal-bg: white;
+    --modal-bg: #ffffff;
 
     /* Text */
-    --text-primary: #333333;
-    --text-secondary: #666666;
-    --text-tertiary: #999999;
+    --text-primary: #1e2d3e;
+    --text-secondary: #4a5563;
+    --text-tertiary: #696977;
     --text-inverse: #ffffff;
 
     /* Borders */
-    --border-color: rgba(0, 0, 0, 0.05);
-    --border-color-medium: rgba(0, 0, 0, 0.1);
-    --border-color-strong: rgba(0, 0, 0, 0.2);
+    --border-color: rgba(30, 45, 62, 0.08);
+    --border-color-medium: #e1dcd6;
+    --border-color-strong: rgba(30, 45, 62, 0.20);
 
     /* Accents */
-    --accent-primary: #667eea;
-    --accent-hover: #5a6fd6;
-    --focus-btn-bg: hsl(222.2, 84%, 4.9%);
-    --focus-btn-text: hsl(210, 40%, 98%);
+    --accent-primary: #2a9d8f;
+    --accent-hover: #21806f;
+    --focus-btn-bg: #1e2d3e;
+    --focus-btn-bg-hover: #2c3f55;
+    --focus-btn-text: #ffffff;
 
     /* Status */
-    --danger: #ef4444;
-    --success: #2ecc71;
+    --danger: #d4605a;
+    --success: #2a9d8f;
     --warning: #f59e0b;
 
     /* Navigation */
-    --nav-item-text: rgba(0, 0, 0, 0.5);
-    --nav-item-hover-bg: rgba(255, 255, 255, 0.2);
-    --nav-item-hover-text: rgba(0, 0, 0, 0.8);
+    --nav-item-text: rgba(30, 45, 62, 0.55);
+    --nav-item-hover-bg: rgba(30, 45, 62, 0.05);
+    --nav-item-hover-text: #1e2d3e;
+
+    /* Layout */
+    --content-max-width: 600px;
 }
 
 [data-theme="dark"] {
+    /* ReDD brand tokens - dark surface */
+    --redd-cream: #14202c;
+    --redd-warm-grey: #1a2735;
+    --redd-card: #1e2d3e;
+    --redd-navy: #f5f0e8;
+    --redd-body: #e6e2d8;
+    --redd-muted: #9aa3b0;
+    --redd-border: rgba(255, 255, 255, 0.10);
+    --redd-coral: #e07b75;
+    --redd-coral-soft: rgba(212, 96, 90, 0.16);
+    --redd-teal: #4ec0b0;
+    --redd-teal-hover: #6ad0c1;
+    --redd-teal-soft: rgba(78, 192, 176, 0.14);
+    --redd-blue: #6aa9ea;
+    --redd-blue-soft: rgba(106, 169, 234, 0.14);
+
     /* Backgrounds */
-    --bg-gradient: linear-gradient(135deg, #09090b 0%, #18181b 100%);
-    /* Zinc 950 -> 900 */
-    --app-bg: rgba(24, 24, 27, 0.95);
-    /* Zinc 900 */
-    --app-bg-solid: #18181b;
-    --task-bg: rgba(39, 39, 42, 0.6);
-    /* Zinc 800 */
+    --bg-gradient: linear-gradient(180deg, #14202c 0%, #1a2735 100%);
+    --app-bg: #14202c;
+    --app-bg-solid: #14202c;
+    --bg-subtle: rgba(255, 255, 255, 0.03);
+    --bg-card: #1e2d3e;
+    --task-bg: rgba(255, 255, 255, 0.04);
     --hover-bg: rgba(255, 255, 255, 0.05);
-    --active-bg: rgba(255, 255, 255, 0.1);
-    --input-bg: rgba(0, 0, 0, 0.2);
-    --input-surface: #27272a;
-    --modal-bg: #18181b;
-    /* Zinc 900 */
+    --active-bg: rgba(255, 255, 255, 0.10);
+    --input-bg: rgba(255, 255, 255, 0.04);
+    --input-surface: #1a2735;
+    --modal-bg: #1a2735;
 
     /* Text */
-    --text-primary: #fafafa;
-    /* Zinc 50 */
-    --text-secondary: #a1a1aa;
-    /* Zinc 400 */
-    --text-tertiary: #71717a;
-    /* Zinc 500 */
-    --text-inverse: #09090b;
+    --text-primary: #f5f0e8;
+    --text-secondary: #c9c5bc;
+    --text-tertiary: #9aa3b0;
+    --text-inverse: #1e2d3e;
 
     /* Borders */
-    --border-color: rgba(255, 255, 255, 0.1);
-    --border-color-medium: rgba(255, 255, 255, 0.15);
-    --border-color-strong: rgba(255, 255, 255, 0.25);
+    --border-color: rgba(255, 255, 255, 0.10);
+    --border-color-medium: rgba(255, 255, 255, 0.16);
+    --border-color-strong: rgba(255, 255, 255, 0.28);
 
     /* Accents */
-    --accent-primary: #3b82f6;
-    /* Blue 500 - Professional blue, readable */
-    --accent-hover: #60a5fa;
-    --focus-btn-bg: #fafafa;
-    /* White focus button in dark mode for contrast */
-    --focus-btn-text: #18181b;
+    --accent-primary: #4ec0b0;
+    --accent-hover: #6ad0c1;
+    --focus-btn-bg: #4ec0b0;
+    --focus-btn-bg-hover: #6ad0c1;
+    --focus-btn-text: #0c1620;
+
+    /* Status */
+    --danger: #e07b75;
+    --success: #4ec0b0;
+    --warning: #f3b562;
 
     /* Navigation */
-    --nav-item-text: #a1a1aa;
-    --nav-item-hover-bg: rgba(255, 255, 255, 0.1);
-    --nav-item-hover-text: #ffffff;
+    --nav-item-text: rgba(245, 240, 232, 0.55);
+    --nav-item-hover-bg: rgba(255, 255, 255, 0.08);
+    --nav-item-hover-text: #f5f0e8;
+}
+
+/* Quill editor light mode brand alignment */
+.ql-snow .ql-stroke {
+    stroke: var(--text-tertiary);
+}
+
+.ql-snow .ql-stroke-miter {
+    stroke: var(--text-tertiary);
+}
+
+.ql-snow .ql-fill,
+.ql-snow .ql-stroke.ql-fill {
+    fill: var(--text-tertiary);
+}
+
+.ql-snow .ql-picker {
+    color: var(--text-tertiary);
+}
+
+.ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-snow.ql-toolbar button:focus .ql-stroke,
+.ql-snow.ql-toolbar button.ql-active .ql-stroke {
+    stroke: var(--accent-primary);
+}
+
+.ql-snow.ql-toolbar button:hover .ql-fill,
+.ql-snow.ql-toolbar button:focus .ql-fill,
+.ql-snow.ql-toolbar button.ql-active .ql-fill,
+.ql-snow.ql-toolbar button:hover .ql-stroke.ql-fill,
+.ql-snow.ql-toolbar button:focus .ql-stroke.ql-fill,
+.ql-snow.ql-toolbar button.ql-active .ql-stroke.ql-fill {
+    fill: var(--accent-primary);
+}
+
+.ql-snow .ql-editor a {
+    color: var(--redd-blue);
 }
 
 /* Quill editor dark mode overrides */
 [data-theme="dark"] .ql-snow .ql-stroke {
-    stroke: #a1a1aa;
+    stroke: var(--text-tertiary);
 }
 
 [data-theme="dark"] .ql-snow .ql-stroke-miter {
-    stroke: #a1a1aa;
+    stroke: var(--text-tertiary);
 }
 
 [data-theme="dark"] .ql-snow .ql-fill,
 [data-theme="dark"] .ql-snow .ql-stroke.ql-fill {
-    fill: #a1a1aa;
+    fill: var(--text-tertiary);
 }
 
 [data-theme="dark"] .ql-snow .ql-picker {
-    color: #a1a1aa;
+    color: var(--text-tertiary);
 }
 
 /* Hover/active states for dark mode */
 [data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-stroke,
 [data-theme="dark"] .ql-snow.ql-toolbar button:focus .ql-stroke,
 [data-theme="dark"] .ql-snow.ql-toolbar button.ql-active .ql-stroke {
-    stroke: #3b82f6;
+    stroke: var(--accent-primary);
 }
 
 [data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-fill,
@@ -120,14 +233,25 @@
 [data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-stroke.ql-fill,
 [data-theme="dark"] .ql-snow.ql-toolbar button:focus .ql-stroke.ql-fill,
 [data-theme="dark"] .ql-snow.ql-toolbar button.ql-active .ql-stroke.ql-fill {
-    fill: #3b82f6;
+    fill: var(--accent-primary);
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, Arial, Helvetica, sans-serif;
     background: var(--app-bg-solid);
     color: var(--text-primary);
     overflow: hidden;
+}
+
+/* Display headings use the editorial serif from the brand */
+h1,
+h2,
+h3,
+.modal-content h3,
+.settings-header h3,
+.onboarding-content h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    letter-spacing: -0.01em;
 }
 
 /* App Container */
@@ -160,7 +284,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 6px 16px 12px 16px;
+    padding: 6px 24px 12px 24px;
     min-height: 42px;
     background: transparent;
     -webkit-app-region: drag;
@@ -173,32 +297,32 @@ body {
     display: none;
 }
 
-/* View Switcher */
+/* View Switcher — segmented-control style tab group */
 .view-switcher {
     display: flex;
     align-items: center;
-    background: transparent;
-    /* Removed background */
-    border-radius: 6px;
-    padding: 2px;
+    gap: 2px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 3px;
     margin: 0;
     /* Centered by flex parent */
     -webkit-app-region: no-drag;
 }
 
 .view-btn {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 26px;
     border: none;
     background: transparent;
-    border-radius: 4px;
+    border-radius: 7px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-tertiary);
-    /* Lighter gray for inactive state */
-    transition: all 0.2s ease;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
     padding: 0;
     outline: none;
 }
@@ -207,18 +331,15 @@ body {
     outline: none;
 }
 
-.view-btn:hover {
-    color: var(--text-secondary);
-    background: transparent;
-    /* Removed hover background */
+.view-btn:hover:not(.active) {
+    color: var(--text-primary);
+    background: var(--hover-bg);
 }
 
 .view-btn.active {
-    background: transparent;
-    /* Removed active background */
+    background: var(--bg-card);
     color: var(--text-primary);
-    box-shadow: none;
-    /* Removed active shadow */
+    box-shadow: 0 1px 2px rgba(30, 45, 62, 0.06);
 }
 
 /* Ensure heart is always filled in switch, adjusting opacity or color if needed */
@@ -253,16 +374,16 @@ body {
 }
 
 .win-btn:hover {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--hover-bg);
 }
 
 .win-btn.close-btn:hover {
     background: #e81123;
-    color: white;
+    color: #ffffff;
 }
 
 [data-theme="dark"] .win-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 
@@ -270,7 +391,11 @@ body {
 .groups-container {
     display: flex;
     align-items: center;
-    padding: 0px 16px 0 16px;
+    padding: 0px 24px 0 24px;
+    max-width: var(--content-max-width);
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
     background: transparent;
     /* border-bottom: 1px solid rgba(0, 0, 0, 0.05); */
 }
@@ -327,7 +452,7 @@ body {
 }
 
 .group-tab.drag-over {
-    background: rgba(102, 126, 234, 0.2);
+    background: var(--redd-teal-soft);
     border: 1px dashed var(--accent-primary);
 }
 
@@ -343,11 +468,11 @@ body {
     background: transparent;
     border: none;
     border-radius: 50%;
-    color: rgba(0, 0, 0, 0.3);
+    color: var(--text-tertiary);
     font-size: 12px;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.2s ease, color 0.2s ease;
+    transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
     -webkit-app-region: no-drag;
     line-height: 1;
     width: 16px;
@@ -362,8 +487,8 @@ body {
 }
 
 .group-delete-btn:hover {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    background: var(--redd-coral-soft);
 }
 
 .add-group-btn {
@@ -372,30 +497,35 @@ body {
     border: none;
     border-radius: 4px;
     background: transparent;
-    color: #999;
+    color: var(--text-tertiary);
     font-size: 18px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
     margin-left: 2px;
     -webkit-app-region: no-drag;
 }
 
 .add-group-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #666;
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
 
 .tabs-container {
     display: flex;
     align-items: center;
-    padding: 8px 16px 0 16px;
+    padding: 8px 24px 0 24px;
     background: transparent;
     border-bottom: 1px solid var(--border-color);
     position: relative;
     /* For absolute positioning of settings button if needed */
+    max-width: var(--content-max-width);
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
 }
 
 .tabs {
@@ -418,7 +548,7 @@ body {
     /* New positioning */
     background: transparent;
     border: none;
-    color: #999;
+    color: var(--text-tertiary);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -426,15 +556,15 @@ body {
     align-items: center;
     justify-content: center;
     -webkit-app-region: no-drag;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
     margin-left: auto;
     /* Push to the right */
     flex-shrink: 0;
 }
 
 .settings-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #333;
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
 
 /* Remove previous conditional classes */
@@ -487,13 +617,13 @@ body.is-reordering * {
 }
 
 .tab.drag-over {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--hover-bg);
 }
 
 /* Task drop target styles */
 .tab.task-drop-target {
-    background: rgba(102, 126, 234, 0.15);
-    border-bottom: 2px solid #667eea;
+    background: var(--redd-teal-soft);
+    border-bottom: 2px solid var(--accent-primary);
 }
 
 .tab.task-drop-incompatible {
@@ -516,7 +646,7 @@ body.is-reordering * {
     margin-left: 2px;
     margin-right: -12px;
     padding: 2px 6px;
-    background: rgba(255, 255, 255, 0.2);
+    background: transparent;
     border: none;
     border-radius: 50%;
     color: inherit;
@@ -533,8 +663,8 @@ body.is-reordering * {
 
 .tab-close:hover {
     opacity: 1 !important;
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
+    background: var(--redd-coral-soft);
+    color: var(--danger);
 }
 
 .add-tab-btn-subtle {
@@ -543,14 +673,14 @@ body.is-reordering * {
     border: none;
     border-radius: 4px;
     background: transparent;
-    color: #999;
+    color: var(--text-tertiary);
     font-size: 18px;
     line-height: 1;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
     margin-left: 2px;
     -webkit-app-region: no-drag;
     flex-shrink: 0;
@@ -560,17 +690,22 @@ body.is-reordering * {
 }
 
 .add-tab-btn-subtle:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #666;
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
 
 /* Tasks Container */
 .tasks-container {
     flex: 1 1 auto;
-    padding: 16px 16px 0 16px;
+    padding: 16px 24px 0 24px;
     overflow-y: auto;
     position: relative;
     min-height: 0;
+    max-width: var(--content-max-width);
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
 }
 
 /* Task Item */
@@ -582,9 +717,10 @@ body.is-reordering * {
     padding: 12px;
     margin-bottom: 8px;
     background: var(--task-bg);
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    transition: all 0.2s ease;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(30, 45, 62, 0.04);
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     cursor: default;
     user-select: none;
     -webkit-user-select: none;
@@ -653,10 +789,9 @@ body.is-reordering * {
 }
 
 .notes-editor-wrapper {
-    background: var(--active-bg);
-    /* Subtle light gray background */
-    border: none;
-    border-radius: 6px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     overflow: visible;
     /* Allow done button to be visible */
     position: relative;
@@ -666,11 +801,11 @@ body.is-reordering * {
 /* Custom Quill Styles */
 .ql-toolbar.ql-snow {
     border: none !important;
-    border-bottom: 1px solid var(--border-color-medium) !important;
+    border-bottom: 1px solid var(--border-color) !important;
     padding: 4px 8px !important;
     padding-right: 40px !important;
     /* Make room for done button */
-    background: var(--active-bg);
+    background: transparent;
     display: none;
     /* Hidden by default */
     position: relative;
@@ -691,8 +826,7 @@ body.is-reordering * {
     height: 24px;
     border: none;
     background: transparent;
-    color: #64748b;
-    /* Subtle dark grey */
+    color: var(--text-tertiary);
     border-radius: 4px;
     cursor: pointer;
     display: none;
@@ -708,9 +842,8 @@ body.is-reordering * {
 }
 
 .notes-done-btn:hover {
-    color: #334155;
-    /* Darker on hover */
-    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+    background: var(--hover-bg);
 }
 
 .ql-container.ql-snow {
@@ -739,11 +872,14 @@ body.is-reordering * {
 }
 
 .task-item.completed-task {
-    background: var(--hover-bg);
+    background: var(--bg-subtle);
+    border-color: transparent;
+    box-shadow: none;
 }
 
 .task-item:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 6px 16px rgba(30, 45, 62, 0.08);
+    border-color: var(--border-color-medium);
     transform: translateY(-1px);
 }
 
@@ -765,7 +901,7 @@ body.is-reordering * {
 }
 
 .task-item.drag-over {
-    border-top: 2px solid #667eea;
+    border-top: 2px solid var(--accent-primary);
     margin-top: -2px;
 }
 
@@ -785,14 +921,14 @@ body.is-reordering * {
     left: 12px;
     right: 12px;
     height: 2px;
-    background: #667eea;
+    background: var(--accent-primary);
     border-radius: 1px;
     pointer-events: none;
 }
 
 /* Drag Handle */
 .drag-handle {
-    color: #ccc;
+    color: var(--border-color-strong);
     font-size: 12px;
     cursor: grab;
     margin-right: 8px;
@@ -802,7 +938,7 @@ body.is-reordering * {
 }
 
 .drag-handle:hover {
-    color: #999;
+    color: var(--text-tertiary);
 }
 
 .task-checkbox {
@@ -852,7 +988,7 @@ body.is-reordering * {
 
 .task-checkbox:focus {
     outline: none;
-    box-shadow: 0 0 0 2px hsl(214, 32%, 85%);
+    box-shadow: 0 0 0 2px var(--redd-teal-soft);
 }
 
 .task-text {
@@ -869,7 +1005,7 @@ body.is-reordering * {
 
 .task-meta {
     font-size: 11px;
-    color: #999;
+    color: var(--text-tertiary);
     white-space: nowrap;
     flex-shrink: 0;
     cursor: pointer;
@@ -878,7 +1014,7 @@ body.is-reordering * {
 }
 
 .task-meta.add-time {
-    color: #ccc;
+    color: var(--border-color-strong);
     font-weight: bold;
     padding: 0 4px;
     opacity: 0;
@@ -890,7 +1026,7 @@ body.is-reordering * {
 }
 
 .task-meta.add-time:hover {
-    color: #667eea;
+    color: var(--accent-primary);
 }
 
 .task-meta:hover {
@@ -899,7 +1035,7 @@ body.is-reordering * {
 }
 
 .task-meta.actual-time {
-    color: #999;
+    color: var(--text-tertiary);
     /* Reset to default grey */
     font-weight: normal;
     cursor: pointer;
@@ -922,7 +1058,7 @@ body.is-reordering * {
     font-family: inherit;
     color: inherit;
     outline: none;
-    border-bottom: 1px solid #667eea;
+    border-bottom: 1px solid var(--accent-primary);
     width: 100%;
     -webkit-app-region: no-drag;
     /* Textarea-specific styles */
@@ -969,7 +1105,7 @@ body.is-reordering * {
 
 /* Freeze hover-induced row motion while menu is open to prevent flicker. */
 .task-menu-open .task-item:hover {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px rgba(30, 45, 62, 0.04);
     transform: none;
 }
 
@@ -1000,30 +1136,29 @@ body.is-reordering * {
 }
 
 .focus-btn {
-    background: hsl(222.2, 84%, 4.9%);
-    border: 1px solid hsl(222.2, 84%, 4.9%);
-    color: hsl(210, 40%, 98%);
+    background: var(--focus-btn-bg);
+    border: 1px solid var(--focus-btn-bg);
+    color: var(--focus-btn-text);
     padding: 4px 2px;
     transition: all 0.15s ease;
 }
 
 /* Focus indicator for the currently focused task (main window) */
 .focus-btn.active-focus {
-    background: rgba(0, 0, 0, 0.08);
-    border-color: rgba(0, 0, 0, 0.08);
-    color: #e11d48;
-    /* red */
+    background: var(--redd-coral-soft);
+    border-color: var(--redd-coral-soft);
+    color: var(--redd-coral);
 }
 
 .focus-btn.active-focus:hover {
-    background: rgba(0, 0, 0, 0.12);
-    border-color: rgba(0, 0, 0, 0.12);
-    color: #be123c;
+    background: var(--redd-coral-soft);
+    border-color: var(--redd-coral);
+    color: var(--redd-coral);
 }
 
 .focus-btn:hover {
-    background: hsl(222.2, 84%, 9%);
-    border-color: hsl(222.2, 84%, 9%);
+    background: var(--focus-btn-bg-hover);
+    border-color: var(--focus-btn-bg-hover);
 }
 
 .focus-btn svg {
@@ -1033,7 +1168,7 @@ body.is-reordering * {
 .task-menu-btn {
     background: transparent;
     border: none;
-    color: #999;
+    color: var(--text-tertiary);
     padding: 4px;
     min-width: auto;
     cursor: pointer;
@@ -1041,12 +1176,12 @@ body.is-reordering * {
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .task-menu-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #666;
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
 
 /* Task context menu dropdown */
@@ -1054,10 +1189,10 @@ body.is-reordering * {
     position: absolute;
     top: 100%;
     left: 0;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--modal-bg);
+    border: 1px solid var(--border-color-medium);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(30, 45, 62, 0.12);
     z-index: 100;
     min-width: 140px;
     padding: 4px;
@@ -1106,21 +1241,22 @@ body.is-reordering * {
     padding: 8px 12px;
     border: none;
     background: transparent;
+    font-family: inherit;
     cursor: pointer;
     font-size: 13px;
-    color: #374151;
-    border-radius: 4px;
+    color: var(--text-primary);
+    border-radius: 6px;
     text-align: left;
-    transition: background 0.15s ease;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
 .task-menu-item:hover {
-    background: #f3f4f6;
+    background: var(--hover-bg);
 }
 
 .task-menu-item.delete-task-item:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
+    background: var(--redd-coral-soft);
+    color: var(--danger);
 }
 
 .task-menu-item svg {
@@ -1129,8 +1265,7 @@ body.is-reordering * {
 
 .fav-btn {
     background: transparent;
-    color: #d1d5db;
-    /* Light gray */
+    color: var(--border-color-strong);
     padding: 4px;
     min-width: 28px;
 }
@@ -1141,13 +1276,11 @@ body.is-reordering * {
 
 .fav-btn:hover {
     transform: scale(1.1);
-    color: #9ca3af;
-    /* Slightly darker on hover */
+    color: var(--text-secondary);
 }
 
 .fav-btn.active {
-    color: #4b5563;
-    /* Darker gray */
+    color: var(--text-primary);
 }
 
 .fav-btn.active svg {
@@ -1160,28 +1293,34 @@ body.is-reordering * {
     display: flex;
     align-items: center;
     /* Ensure vertical centering */
-    padding: 12px 16px 0px 16px;
+    padding: 12px 24px 0px 24px;
     gap: 4px;
     flex-shrink: 0;
     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.02);
     border-top: 1px solid var(--border-color);
     position: relative;
     z-index: 5;
+    max-width: var(--content-max-width);
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
 }
 
 .input-wrapper {
     flex: 1;
     display: flex;
     align-items: center;
-    border: 2px solid var(--border-color-medium);
-    border-radius: 8px;
+    border: 1px solid var(--border-color-medium);
+    border-radius: 10px;
     background: var(--input-surface);
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     padding-right: 6px;
 }
 
 .input-wrapper:focus-within {
     border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--redd-teal-soft);
 }
 
 #new-task-input {
@@ -1243,7 +1382,7 @@ body.is-reordering * {
 
 .duration-trigger-btn:hover {
     color: var(--text-primary);
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--hover-bg);
 }
 
 .duration-trigger-btn.hidden {
@@ -1317,7 +1456,7 @@ body.is-reordering * {
 }
 
 .duration-label {
-    color: #999;
+    color: var(--text-tertiary);
     font-size: 13px;
     margin-left: 0;
     width: 0;
@@ -1363,20 +1502,20 @@ body.is-reordering * {
     height: 12px;
     padding: 0;
     border: none;
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--hover-bg);
     border-radius: 3px;
     cursor: pointer;
-    color: #666;
-    transition: all 0.15s ease;
+    color: var(--text-secondary);
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .duration-spinner-btn:hover {
-    background: rgba(0, 0, 0, 0.12);
-    color: #333;
+    background: var(--active-bg);
+    color: var(--text-primary);
 }
 
 .duration-spinner-btn:active {
-    background: rgba(0, 0, 0, 0.18);
+    background: var(--active-bg);
     transform: scale(0.95);
 }
 
@@ -1385,15 +1524,15 @@ body.is-reordering * {
 }
 
 #add-task-btn {
-    padding: 6px 12px;
+    padding: 6px 14px;
     background: var(--accent-primary);
     border: none;
     border-radius: 6px;
-    color: white;
+    color: #ffffff;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
     margin-left: 8px;
     white-space: nowrap;
     opacity: 1;
@@ -1407,7 +1546,7 @@ body.is-reordering * {
 }
 
 #add-task-btn:hover {
-    filter: brightness(1.1);
+    background: var(--accent-hover);
 }
 
 #add-task-btn:disabled {
@@ -1453,6 +1592,11 @@ body.is-reordering * {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-width: var(--content-max-width);
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
 }
 
 .done-heading {
@@ -1460,7 +1604,7 @@ body.is-reordering * {
     font-weight: 600;
     color: var(--text-secondary);
     margin: 0;
-    padding: 0 16px;
+    padding: 0 24px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     display: flex;
@@ -1474,7 +1618,7 @@ body.is-reordering * {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 16px 8px 16px;
+    padding: 0 24px 8px 24px;
     font-size: 12px;
     color: var(--text-tertiary);
 }
@@ -1517,11 +1661,11 @@ body.is-reordering * {
 }
 
 .delete-all-btn:hover {
-    color: #ff4757;
+    color: var(--danger);
 }
 
 .done-tasks {
-    padding: 0 16px;
+    padding: 0 24px;
     position: relative;
     overflow-y: auto;
     min-height: 0;
@@ -1537,7 +1681,7 @@ body.is-reordering * {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4px 16px 6px;
+    padding: 4px 24px 6px;
     font-size: 12px;
     color: var(--text-tertiary);
     z-index: 100;
@@ -1560,7 +1704,7 @@ body.is-reordering * {
 }
 
 .footer .heart {
-    color: #ff4757;
+    color: var(--redd-coral);
     font-size: 14px;
 }
 
@@ -1600,7 +1744,7 @@ body.is-reordering * {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(30, 45, 62, 0.45);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1610,6 +1754,7 @@ body.is-reordering * {
 
 .modal-content {
     background: var(--modal-bg);
+    border: 1px solid var(--border-color-medium);
     border-radius: 12px;
     padding: 24px;
     width: 340px;
@@ -1617,14 +1762,15 @@ body.is-reordering * {
     max-width: 400px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 16px 40px rgba(30, 45, 62, 0.18);
 }
 
 .modal-content h3 {
     margin: 0 0 16px 0;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 700;
     color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 
 .settings-header {
@@ -1647,17 +1793,20 @@ body.is-reordering * {
 #tab-name-input {
     width: 100%;
     padding: 10px 12px;
-    border: 2px solid var(--border-color-medium);
+    border: 1px solid var(--border-color-medium);
     border-radius: 8px;
     font-size: 14px;
+    font-family: inherit;
     outline: none;
     box-sizing: border-box;
-    background: var(--input-bg);
+    background: var(--input-surface);
     color: var(--text-primary);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 #tab-name-input:focus {
     border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--redd-teal-soft);
 }
 
 #export-buttons-container {
@@ -1672,28 +1821,31 @@ body.is-reordering * {
 }
 
 .modal-btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
+    padding: 8px 18px;
+    border: 1px solid transparent;
+    border-radius: 8px;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
+    font-family: inherit;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .cancel-btn {
-    background: var(--hover-bg);
-    color: var(--text-secondary);
+    background: var(--bg-card, #ffffff);
+    color: var(--text-primary);
+    border-color: var(--border-color-medium);
 }
 
 .cancel-btn:hover {
-    background: var(--active-bg);
+    background: var(--hover-bg);
+    border-color: var(--border-color-strong);
 }
 
 .create-btn {
-    background: var(--focus-btn-bg);
-    color: var(--focus-btn-text);
-    border: 1px solid var(--focus-btn-bg);
+    background: var(--accent-primary);
+    color: #ffffff;
+    border-color: var(--accent-primary);
 }
 
 .create-btn:hover {
@@ -1702,14 +1854,13 @@ body.is-reordering * {
 }
 
 .delete-confirm-btn {
-    background: #ef4444;
-    color: white;
-    border: 1px solid #ef4444;
+    background: var(--danger);
+    color: #ffffff;
+    border-color: var(--danger);
 }
 
 .delete-confirm-btn:hover {
-    background: #dc2626;
-    border-color: #dc2626;
+    filter: brightness(0.92);
 }
 
 /* Focus Mode Styles */
@@ -1819,35 +1970,34 @@ body.focus-panel-window.is-fullscreen {
     border-radius: 8px;
     pointer-events: none;
     box-sizing: border-box;
-    border: 5px solid rgba(102, 126, 234, 0);
+    border: 5px solid rgba(42, 157, 143, 0);
     opacity: 0;
-    /* #667eea */
     animation: attentionRing 1200ms ease-out 1 forwards;
 }
 
 @keyframes attentionRing {
     0% {
         opacity: 0;
-        border-color: rgba(102, 126, 234, 0);
-        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+        border-color: rgba(42, 157, 143, 0);
+        box-shadow: 0 0 0 0 rgba(42, 157, 143, 0);
     }
 
     15% {
         opacity: 1;
-        border-color: rgba(102, 126, 234, 0.95);
-        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.35);
+        border-color: rgba(42, 157, 143, 0.95);
+        box-shadow: 0 0 0 2px rgba(42, 157, 143, 0.35);
     }
 
     70% {
         opacity: 0.6;
-        border-color: rgba(102, 126, 234, 0.65);
-        box-shadow: 0 0 0 6px rgba(102, 126, 234, 0.15);
+        border-color: rgba(42, 157, 143, 0.65);
+        box-shadow: 0 0 0 6px rgba(42, 157, 143, 0.15);
     }
 
     100% {
         opacity: 0;
-        border-color: rgba(102, 126, 234, 0);
-        box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+        border-color: rgba(42, 157, 143, 0);
+        box-shadow: 0 0 0 10px rgba(42, 157, 143, 0);
     }
 }
 
@@ -1883,7 +2033,10 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .focus-container.fullscreen .focus-task-name {
-    font-size: 48px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
     text-align: center;
     margin-right: 0;
     white-space: normal;
@@ -1901,7 +2054,10 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .focus-container.fullscreen .focus-timer {
+    font-family: Georgia, 'Times New Roman', serif;
     font-size: 96px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
     text-align: center;
     width: 100%;
     margin: 0;
@@ -1990,10 +2146,11 @@ body.focus-panel-window.is-fullscreen {
     display: flex;
     gap: 4px;
     padding: 4px;
-    border-radius: 12px;
-    background: var(--app-bg);
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
     backdrop-filter: blur(10px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 12px 28px rgba(30, 45, 62, 0.14);
     opacity: 0;
     transition: opacity 0.2s ease;
     pointer-events: none;
@@ -2026,7 +2183,7 @@ body.focus-panel-window.is-fullscreen {
     justify-content: center;
     transition: background 0.15s ease, transform 0.15s ease;
     padding: 0;
-    color: #666;
+    color: var(--text-secondary);
     -webkit-app-region: no-drag;
     outline: none;
 }
@@ -2044,19 +2201,19 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .complete-focus-btn {
-    color: #16a34a;
+    color: var(--accent-primary);
 }
 
 .fullscreen-focus-btn {
-    color: #667eea;
+    color: var(--redd-blue);
 }
 
 .reset-focus-btn {
-    color: #f59e0b;
+    color: var(--warning);
 }
 
 .switch-focus-task-btn {
-    color: #475569;
+    color: var(--text-secondary);
 }
 
 .complete-focus-btn:hover,
@@ -2065,7 +2222,7 @@ body.focus-panel-window.is-fullscreen {
 .fullscreen-focus-btn:hover,
 .reset-focus-btn:hover,
 .exit-focus-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--hover-bg);
     transform: scale(1.05);
 }
 
@@ -2096,10 +2253,10 @@ body.focus-panel-window.is-fullscreen {
     max-width: 400px;
     max-height: 720px;
     overflow-y: auto;
-    background: var(--app-bg-solid);
+    background: var(--modal-bg);
     border: 1px solid var(--border-color-medium);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    border-radius: 12px;
+    box-shadow: 0 16px 32px rgba(30, 45, 62, 0.16);
     padding: 6px;
     margin: 6px 14px 0 auto;
     -webkit-app-region: no-drag;
@@ -2175,10 +2332,10 @@ body.focus-panel-window.is-fullscreen {
     /* Align with left padding */
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
+    background: #1e2d3e;
+    color: #ffffff;
     padding: 6px 14px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 13px;
     pointer-events: auto;
     opacity: 0;
@@ -2187,6 +2344,7 @@ body.focus-panel-window.is-fullscreen {
     display: flex;
     align-items: center;
     gap: 12px;
+    box-shadow: 0 8px 20px rgba(30, 45, 62, 0.18);
 }
 
 .focus-toast.visible {
@@ -2194,37 +2352,37 @@ body.focus-panel-window.is-fullscreen {
 }
 
 #focus-undo-btn {
-    background: var(--app-bg-solid);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    font-family: inherit;
     font-weight: 500;
     font-size: 12px;
     cursor: pointer;
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: 6px;
     text-decoration: none;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 #focus-undo-btn:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-    border-color: var(--border-color-medium);
+    background: rgba(255, 255, 255, 0.20);
+    border-color: rgba(255, 255, 255, 0.45);
+    color: #ffffff;
 }
 
 /* Focus Mode Notes Button */
 .notes-focus-btn {
-    color: #64748b;
+    color: var(--text-tertiary);
 }
 
 .notes-focus-btn.has-notes {
-    color: #334155;
+    color: var(--text-secondary);
 }
 
 .notes-focus-btn.active {
-    background: rgba(0, 0, 0, 0.08);
-    color: #334155;
+    background: var(--active-bg);
+    color: var(--text-primary);
 }
 
 /* Focus Mode Notes Container */
@@ -2240,8 +2398,9 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .focus-notes-editor-wrapper {
-    background: var(--active-bg);
-    border-radius: 6px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     position: relative;
     -webkit-app-region: no-drag;
 }
@@ -2251,10 +2410,10 @@ body.focus-panel-window.is-fullscreen {
 .focus-notes-editor-wrapper .ql-toolbar.ql-snow {
     display: none;
     border: none !important;
-    border-bottom: 1px solid var(--border-color-medium) !important;
+    border-bottom: 1px solid var(--border-color) !important;
     padding: 4px 8px !important;
     padding-right: 40px !important;
-    background: var(--active-bg);
+    background: transparent;
     position: relative;
 }
 
@@ -2308,7 +2467,7 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .settings-desc a {
-    color: #667eea;
+    color: var(--redd-blue);
     text-decoration: none;
 }
 
@@ -2320,14 +2479,14 @@ body.focus-panel-window.is-fullscreen {
 .info-toggle-btn {
     background: transparent;
     border: none;
-    color: #999;
+    color: var(--text-tertiary);
     cursor: pointer;
     padding: 4px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
     flex-shrink: 0;
 }
 
@@ -2341,18 +2500,21 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .info-toggle-btn[aria-expanded="true"] {
-    color: #666;
+    color: var(--text-secondary);
 }
 
 /* Expandable Info Text */
 .info-expandable {
     margin-top: 8px;
     margin-bottom: 12px;
-    padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.03);
-    border-radius: 6px;
+    padding: 10px 12px;
+    background: var(--bg-subtle, var(--hover-bg));
+    border-radius: 8px;
     overflow: hidden;
     transition: all 0.2s ease;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .info-expandable.hidden {
@@ -2361,28 +2523,31 @@ body.focus-panel-window.is-fullscreen {
 
 .settings-input {
     width: 100%;
-    padding: 8px;
+    padding: 8px 10px;
     margin-bottom: 8px;
     border: 1px solid var(--border-color-medium);
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 13px;
-    background: var(--input-bg);
+    font-family: inherit;
+    background: var(--input-surface);
     color: var(--text-primary);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .settings-input:focus {
-    border-color: #667eea;
+    border-color: var(--accent-primary);
     outline: none;
+    box-shadow: 0 0 0 3px var(--redd-teal-soft);
 }
 
 .help-text {
     font-size: 11px;
-    color: #999;
+    color: var(--text-tertiary);
     margin-top: 8px;
 }
 
 .help-text a {
-    color: #667eea;
+    color: var(--redd-blue);
     text-decoration: none;
 }
 
@@ -2391,12 +2556,12 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .connect-btn {
-    background: #2ecc71;
-    color: white;
+    background: var(--accent-primary);
+    color: #ffffff;
     border: none;
     padding: 8px 16px;
-    border-radius: 6px;
-    font-weight: 500;
+    border-radius: 8px;
+    font-weight: 600;
     cursor: pointer;
     font-size: 14px;
     transition: background 0.2s ease;
@@ -2404,13 +2569,14 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .connect-btn:hover {
-    background: #27ae60;
+    background: var(--accent-hover);
 }
 
+/* Basecamp keeps its brand yellow */
 #oauth-connect-btn,
 #connect-bc-btn {
     background-color: #ffe004;
-    color: #333;
+    color: #1e2d3e;
 }
 
 #oauth-connect-btn:hover,
@@ -2420,17 +2586,18 @@ body.focus-panel-window.is-fullscreen {
 
 .disconnect-btn {
     background: transparent;
-    color: #ef4444;
-    border: 1px solid #ef4444;
+    color: var(--danger);
+    border: 1px solid var(--danger);
     padding: 6px 12px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease;
 }
 
 .disconnect-btn:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--redd-coral-soft);
 }
 
 .connection-status {
@@ -2444,9 +2611,10 @@ body.focus-panel-window.is-fullscreen {
 .status-dot {
     width: 8px;
     height: 8px;
-    background: #2ecc71;
+    background: var(--accent-primary);
     border-radius: 50%;
     margin-right: 8px;
+    box-shadow: 0 0 0 3px var(--redd-teal-soft);
 }
 
 /* Basecamp Selection in Modal */
@@ -2465,18 +2633,21 @@ body.focus-panel-window.is-fullscreen {
 
 .bc-select {
     width: 100%;
-    padding: 8px;
+    padding: 8px 10px;
     border: 1px solid var(--border-color-medium);
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 13px;
+    font-family: inherit;
     margin-bottom: 8px;
-    background: var(--input-bg);
+    background: var(--input-surface);
     color: var(--text-primary);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .bc-select:focus {
-    border-color: #667eea;
+    border-color: var(--accent-primary);
     outline: none;
+    box-shadow: 0 0 0 3px var(--redd-teal-soft);
 }
 
 /* Sync Button */
@@ -2485,18 +2656,18 @@ body.focus-panel-window.is-fullscreen {
     height: 24px;
     border: none;
     background: transparent;
-    color: #999;
+    color: var(--text-tertiary);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
     margin-left: 6px;
 }
 
 .sync-btn:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
+    color: var(--accent-primary);
+    background: var(--redd-teal-soft);
     border-radius: 4px;
 }
 
@@ -2515,7 +2686,7 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .sync-btn.disconnected {
-    color: #e5a00d;
+    color: var(--warning);
     position: relative;
 }
 
@@ -2526,8 +2697,8 @@ body.focus-panel-window.is-fullscreen {
     right: -2px;
     width: 12px;
     height: 12px;
-    background: #e5a00d;
-    color: white;
+    background: var(--warning);
+    color: #ffffff;
     font-size: 9px;
     font-weight: bold;
     border-radius: 50%;
@@ -2538,8 +2709,8 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .sync-btn.disconnected:hover {
-    color: #c4870a;
-    background: rgba(229, 160, 13, 0.1);
+    color: var(--warning);
+    background: rgba(245, 158, 11, 0.12);
 }
 
 /* Resizer Handle */
@@ -2585,16 +2756,16 @@ body.focus-panel-window.is-fullscreen {
     bottom: 32px;
     left: 50%;
     transform: translateX(-50%);
-    background: #1f2937;
-    /* Always dark for toast */
-    color: #fff;
+    background: #1e2d3e;
+    /* Always navy for toast */
+    color: #ffffff;
     padding: 12px 32px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--border-color-medium);
+    box-shadow: 0 8px 24px rgba(30, 45, 62, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     z-index: 2000;
     font-size: 14px;
     animation: slideUp 0.3s ease;
@@ -2617,19 +2788,20 @@ body.focus-panel-window.is-fullscreen {
 }
 
 .undo-btn {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    font-family: inherit;
     padding: 4px 12px;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s ease;
+    font-weight: 600;
+    transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .undo-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.50);
 }
 
 .close-undo-btn {
@@ -2646,53 +2818,16 @@ body.focus-panel-window.is-fullscreen {
     color: white;
 }
 
-/* Connect/Disconnect Buttons */
-.connect-btn {
-    background: var(--success);
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    width: 100%;
-}
-
-.connect-btn:hover {
-    filter: brightness(1.1);
-}
-
-/* Apple Reminders specific button style */
+/* Apple Reminders specific button style — outline variant on canvas */
 #reminders-connect-btn {
-    background: var(--app-bg-solid);
+    background: var(--bg-card, #ffffff);
     color: var(--text-primary);
-    /* shadcn-like text color */
-    border: 1px solid var(--border-color-strong);
-    /* shadcn-like border color */
+    border: 1px solid var(--border-color-medium);
 }
 
 #reminders-connect-btn:hover {
     background: var(--hover-bg);
-    /* shadcn-like hover bg */
-}
-
-.disconnect-btn {
-    background: transparent;
-    color: var(--danger);
-    border: 1px solid var(--danger);
-    padding: 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    margin-top: 4px;
-    transition: all 0.2s ease;
-    width: 100%;
-}
-
-.disconnect-btn:hover {
-    background: rgba(239, 68, 68, 0.1);
+    border-color: var(--border-color-strong);
 }
 
 /* Integrations spacing: tighten above and add breathing room below Reminders disconnect */
@@ -2715,23 +2850,23 @@ body.focus-panel-window.is-fullscreen {
     transition: background 0.15s ease, transform 0.15s ease;
     padding: 0;
     color: var(--text-tertiary);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px rgba(30, 45, 62, 0.05);
 }
 
 .manual-update-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--hover-bg);
     transform: scale(1.05);
 }
 
 .focus-like-btn {
-    background: hsl(222.2, 84%, 4.9%);
-    color: hsl(210, 40%, 98%);
-    border: 1px solid hsl(222.2, 84%, 4.9%);
+    background: var(--focus-btn-bg);
+    color: var(--focus-btn-text);
+    border: 1px solid var(--focus-btn-bg);
 }
 
 .focus-like-btn:hover {
-    background: hsl(222.2, 84%, 9%);
-    border-color: hsl(222.2, 84%, 9%);
+    background: var(--focus-btn-bg-hover);
+    border-color: var(--focus-btn-bg-hover);
 }
 
 /* Basecamp Icon Dark Mode Fix */
@@ -2773,10 +2908,10 @@ body.focus-panel-window.is-fullscreen {
     width: 18px;
     left: 3px;
     bottom: 3px;
-    background-color: white;
+    background-color: #ffffff;
     transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
     border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 3px rgba(30, 45, 62, 0.18);
 }
 
 input:checked+.slider {
@@ -2829,13 +2964,13 @@ input:checked+.slider:before {
 
 /* Default "None" swatch */
 .color-swatch[data-color=""] {
-    background: linear-gradient(to bottom right, transparent 45%, #ccc 45%, #ccc 55%, transparent 55%);
-    background-color: var(--bg-secondary);
+    background: linear-gradient(to bottom right, transparent 45%, var(--border-color-strong) 45%, var(--border-color-strong) 55%, transparent 55%);
+    background-color: var(--bg-subtle);
 }
 
 [data-theme="dark"] .color-swatch[data-color=""] {
-    background: linear-gradient(to bottom right, transparent 45%, #666 45%, #666 55%, transparent 55%);
-    background-color: var(--bg-secondary);
+    background: linear-gradient(to bottom right, transparent 45%, var(--border-color-strong) 45%, var(--border-color-strong) 55%, transparent 55%);
+    background-color: var(--bg-subtle);
 }
 
 /* Custom color swatch */
@@ -2867,135 +3002,147 @@ input:checked+.slider:before {
 
 
 
+/* ReDD-aligned tab color presets — muted, editorial tones that sit nicely on cream
+   Color name (data-color) → swatch label in modal:
+   red    Sunset   → brand coral
+   orange Apricot  → warm muted orange
+   yellow Buttercup→ antique butter
+   green  Mint     → sage green
+   blue   Sky      → brand-tinted blue
+   purple Lavender → muted lavender
+   pink   Blush    → dusty rose
+   gray   Ice      → soft teal-gray (brand teal tint)
+*/
+
 /* Tab Border Colors (for grouped mode - bottom border only) */
 .tab.tab-border-red {
-    border-bottom-color: #FF9E9E !important;
+    border-bottom-color: #d4605a !important;
 }
 
 .tab.tab-border-orange {
-    border-bottom-color: #FFC09F !important;
+    border-bottom-color: #d99a6c !important;
 }
 
 .tab.tab-border-yellow {
-    border-bottom-color: #FFEE93 !important;
+    border-bottom-color: #d4ba6a !important;
 }
 
 .tab.tab-border-green {
-    border-bottom-color: #ADF7B6 !important;
+    border-bottom-color: #8cb89c !important;
 }
 
 .tab.tab-border-blue {
-    border-bottom-color: #81B1D1 !important;
+    border-bottom-color: #7da9c8 !important;
 }
 
 .tab.tab-border-purple {
-    border-bottom-color: #B19CD9 !important;
+    border-bottom-color: #a896c0 !important;
 }
 
 .tab.tab-border-pink {
-    border-bottom-color: #FFD1DC !important;
+    border-bottom-color: #d4a5a8 !important;
 }
 
 .tab.tab-border-gray {
-    border-bottom-color: #A0CED9 !important;
+    border-bottom-color: #8eb5b0 !important;
 }
 
-/* Tab Background Colors */
+/* Tab Background Colors (filled style) — soft tints with readable navy-tone text */
 .tab.tab-bg-red {
-    background-color: #FF9E9E;
-    border-color: #FF9E9E;
-    color: #7f1d1d;
+    background-color: #f3d6d3;
+    border-color: #f3d6d3;
+    color: #7a2820;
 }
 
 .tab.tab-bg-orange {
-    background-color: #FFC09F;
-    border-color: #FFC09F;
-    color: #7c2d12;
+    background-color: #f3dbc6;
+    border-color: #f3dbc6;
+    color: #6a3d1a;
 }
 
 .tab.tab-bg-yellow {
-    background-color: #FFEE93;
-    border-color: #FFEE93;
-    color: #713f12;
+    background-color: #f0e4b8;
+    border-color: #f0e4b8;
+    color: #5a4a14;
 }
 
 .tab.tab-bg-green {
-    background-color: #ADF7B6;
-    border-color: #ADF7B6;
-    color: #14532d;
+    background-color: #cee3d4;
+    border-color: #cee3d4;
+    color: #1f4a32;
 }
 
 .tab.tab-bg-blue {
-    background-color: #81B1D1;
-    border-color: #81B1D1;
-    color: #1e3a8a;
+    background-color: #cfe0ed;
+    border-color: #cfe0ed;
+    color: #1f3a5a;
 }
 
 .tab.tab-bg-purple {
-    background-color: #B19CD9;
-    border-color: #B19CD9;
-    color: #581c87;
+    background-color: #ddd2e6;
+    border-color: #ddd2e6;
+    color: #3f2c5a;
 }
 
 .tab.tab-bg-pink {
-    background-color: #FFD1DC;
-    border-color: #FFD1DC;
-    color: #831843;
+    background-color: #efd4d6;
+    border-color: #efd4d6;
+    color: #6a2840;
 }
 
 .tab.tab-bg-gray {
-    background-color: #A0CED9;
-    border-color: #A0CED9;
-    color: #0f4a5a;
+    background-color: #d3e3e0;
+    border-color: #d3e3e0;
+    color: #1d4540;
 }
 
-/* Dark Mode Overrides for Tabs */
+/* Dark Mode Overrides for Tabs — desaturated muted backgrounds with light text */
 [data-theme="dark"] .tab.tab-bg-red {
-    background-color: #B86A6A;
-    border-color: #D88A8A;
-    color: #FF9E9E;
+    background-color: rgba(212, 96, 90, 0.18);
+    border-color: rgba(212, 96, 90, 0.32);
+    color: #e8a39e;
 }
 
 [data-theme="dark"] .tab.tab-bg-orange {
-    background-color: #B88A6A;
-    border-color: #D8A07F;
-    color: #FFC09F;
+    background-color: rgba(217, 154, 108, 0.16);
+    border-color: rgba(217, 154, 108, 0.30);
+    color: #e8c4a0;
 }
 
 [data-theme="dark"] .tab.tab-bg-yellow {
-    background-color: #B8A85A;
-    border-color: #D8C873;
-    color: #FFEE93;
+    background-color: rgba(212, 186, 106, 0.16);
+    border-color: rgba(212, 186, 106, 0.30);
+    color: #e8d8a4;
 }
 
 [data-theme="dark"] .tab.tab-bg-green {
-    background-color: #6BA87A;
-    border-color: #8BC89A;
-    color: #ADF7B6;
+    background-color: rgba(140, 184, 156, 0.18);
+    border-color: rgba(140, 184, 156, 0.32);
+    color: #a8d4b9;
 }
 
 [data-theme="dark"] .tab.tab-bg-blue {
-    background-color: #4A6B8A;
-    border-color: #6B9BA8;
-    color: #81B1D1;
+    background-color: rgba(125, 169, 200, 0.18);
+    border-color: rgba(125, 169, 200, 0.32);
+    color: #a8c4dc;
 }
 
 [data-theme="dark"] .tab.tab-bg-purple {
-    background-color: #7A6BA8;
-    border-color: #9A8BC8;
-    color: #B19CD9;
+    background-color: rgba(168, 150, 192, 0.18);
+    border-color: rgba(168, 150, 192, 0.32);
+    color: #c4b5d4;
 }
 
 [data-theme="dark"] .tab.tab-bg-pink {
-    background-color: #B88A9A;
-    border-color: #D8A1B1;
-    color: #FFD1DC;
+    background-color: rgba(212, 165, 168, 0.18);
+    border-color: rgba(212, 165, 168, 0.32);
+    color: #e0bcc0;
 }
 
 [data-theme="dark"] .tab.tab-bg-gray {
-    background-color: #5B8A9A;
-    border-color: #7BA8B8;
-    color: #A0CED9;
+    background-color: rgba(142, 181, 176, 0.18);
+    border-color: rgba(142, 181, 176, 0.32);
+    color: #a8c8c4;
 }
 
 /* Ensure active tab overrides still work/blend - but usually active tab has its own strong style. 
@@ -3024,100 +3171,100 @@ input:checked+.slider:before {
 
 /* Group Tab Background Colors - mirror the tab colors */
 .group-tab.tab-bg-red {
-    background-color: #FF9E9E;
-    border-color: #FF9E9E;
-    color: #7f1d1d;
+    background-color: #f3d6d3;
+    border-color: #f3d6d3;
+    color: #7a2820;
 }
 
 .group-tab.tab-bg-orange {
-    background-color: #FFC09F;
-    border-color: #FFC09F;
-    color: #7c2d12;
+    background-color: #f3dbc6;
+    border-color: #f3dbc6;
+    color: #6a3d1a;
 }
 
 .group-tab.tab-bg-yellow {
-    background-color: #FFEE93;
-    border-color: #FFEE93;
-    color: #713f12;
+    background-color: #f0e4b8;
+    border-color: #f0e4b8;
+    color: #5a4a14;
 }
 
 .group-tab.tab-bg-green {
-    background-color: #ADF7B6;
-    border-color: #ADF7B6;
-    color: #14532d;
+    background-color: #cee3d4;
+    border-color: #cee3d4;
+    color: #1f4a32;
 }
 
 .group-tab.tab-bg-blue {
-    background-color: #81B1D1;
-    border-color: #81B1D1;
-    color: #1e3a8a;
+    background-color: #cfe0ed;
+    border-color: #cfe0ed;
+    color: #1f3a5a;
 }
 
 .group-tab.tab-bg-purple {
-    background-color: #B19CD9;
-    border-color: #B19CD9;
-    color: #581c87;
+    background-color: #ddd2e6;
+    border-color: #ddd2e6;
+    color: #3f2c5a;
 }
 
 .group-tab.tab-bg-pink {
-    background-color: #FFD1DC;
-    border-color: #FFD1DC;
-    color: #831843;
+    background-color: #efd4d6;
+    border-color: #efd4d6;
+    color: #6a2840;
 }
 
 .group-tab.tab-bg-gray {
-    background-color: #A0CED9;
-    border-color: #A0CED9;
-    color: #0f4a5a;
+    background-color: #d3e3e0;
+    border-color: #d3e3e0;
+    color: #1d4540;
 }
 
 /* Dark Mode Overrides for Group Tabs */
 [data-theme="dark"] .group-tab.tab-bg-red {
-    background-color: #B86A6A;
-    border-color: #D88A8A;
-    color: #FF9E9E;
+    background-color: rgba(212, 96, 90, 0.18);
+    border-color: rgba(212, 96, 90, 0.32);
+    color: #e8a39e;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-orange {
-    background-color: #B88A6A;
-    border-color: #D8A07F;
-    color: #FFC09F;
+    background-color: rgba(217, 154, 108, 0.16);
+    border-color: rgba(217, 154, 108, 0.30);
+    color: #e8c4a0;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-yellow {
-    background-color: #B8A85A;
-    border-color: #D8C873;
-    color: #FFEE93;
+    background-color: rgba(212, 186, 106, 0.16);
+    border-color: rgba(212, 186, 106, 0.30);
+    color: #e8d8a4;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-green {
-    background-color: #6BA87A;
-    border-color: #8BC89A;
-    color: #ADF7B6;
+    background-color: rgba(140, 184, 156, 0.18);
+    border-color: rgba(140, 184, 156, 0.32);
+    color: #a8d4b9;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-blue {
-    background-color: #4A6B8A;
-    border-color: #6B9BA8;
-    color: #81B1D1;
+    background-color: rgba(125, 169, 200, 0.18);
+    border-color: rgba(125, 169, 200, 0.32);
+    color: #a8c4dc;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-purple {
-    background-color: #7A6BA8;
-    border-color: #9A8BC8;
-    color: #B19CD9;
+    background-color: rgba(168, 150, 192, 0.18);
+    border-color: rgba(168, 150, 192, 0.32);
+    color: #c4b5d4;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-pink {
-    background-color: #B88A9A;
-    border-color: #D8A1B1;
-    color: #FFD1DC;
+    background-color: rgba(212, 165, 168, 0.18);
+    border-color: rgba(212, 165, 168, 0.32);
+    color: #e0bcc0;
 }
 
 [data-theme="dark"] .group-tab.tab-bg-gray {
-    background-color: #5B8A9A;
-    border-color: #7BA8B8;
-    color: #A0CED9;
+    background-color: rgba(142, 181, 176, 0.18);
+    border-color: rgba(142, 181, 176, 0.32);
+    color: #a8c8c4;
 }
 
 /* Active group tabs with colors */
@@ -3232,7 +3379,7 @@ input:checked+.slider:before {
     }
 }
 
-/* --- EULA / legal onboarding (aligned with ReDD Block) --- */
+/* --- EULA / legal onboarding (aligned with ReDD brand) --- */
 #eula-onboarding.onboarding-screen {
     --container-bg: var(--app-bg-solid);
     --text-muted: var(--text-tertiary);
@@ -3243,7 +3390,7 @@ input:checked+.slider:before {
     position: fixed;
     inset: 0;
     z-index: 100000;
-    background: var(--container-bg);
+    background: var(--bg-gradient);
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -3280,7 +3427,7 @@ input:checked+.slider:before {
 }
 
 #eula-onboarding .onboarding-content h1 {
-    color: var(--text-secondary);
+    color: var(--text-primary);
 }
 
 .onboarding-screen.hidden {
@@ -3297,19 +3444,21 @@ input:checked+.slider:before {
 }
 
 .onboarding-app-icon {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     display: block;
     margin: 0 auto;
-    border-radius: 14px;
-    box-shadow: 0 6px 18px rgba(10, 45, 123, 0.12);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(30, 45, 62, 0.12);
 }
 
 .onboarding-content h1 {
-    font-size: 24px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 32px;
     font-weight: 700;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    margin-bottom: 12px;
 }
 
 .legal-onboarding-content {
@@ -3323,10 +3472,10 @@ input:checked+.slider:before {
 }
 
 .onboarding-focus-card {
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(10, 45, 123, 0.08);
-    border-radius: 18px;
-    box-shadow: 0 10px 30px rgba(10, 45, 123, 0.08);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color-medium);
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgba(30, 45, 62, 0.08);
     padding: 30px 40px;
     margin: 20px 0 18px;
 }
@@ -3335,9 +3484,13 @@ input:checked+.slider:before {
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    font-size: 17px;
-    line-height: 1.5;
-    color: var(--text-secondary);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--text-primary);
+}
+
+.legal-onboarding-checkbox-label {
+    cursor: pointer;
 }
 
 .legal-onboarding-checkbox-row input[type="checkbox"] {
@@ -3359,14 +3512,15 @@ input:checked+.slider:before {
 
 .legal-onboarding-note {
     margin: 16px 0 0;
-    font-size: 15px;
+    font-size: 14px;
+    font-style: italic;
     line-height: 1.55;
-    color: var(--text-muted);
+    color: var(--text-tertiary);
 }
 
 .legal-onboarding-link {
-    color: hsl(222.2, 47.4%, 11.2%);
-    font-weight: 400;
+    color: var(--redd-blue);
+    font-weight: 500;
     text-decoration: underline;
     text-underline-offset: 2px;
 }
@@ -3378,9 +3532,9 @@ input:checked+.slider:before {
 .legal-onboarding-body {
     max-width: 520px;
     margin: 0 auto;
-    color: var(--text-muted);
-    font-size: 15px;
-    line-height: 1.5;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    line-height: 1.6;
 }
 
 #eula-onboarding .primary-btn,
@@ -3390,11 +3544,12 @@ input:checked+.slider:before {
     border: none;
     border-radius: 8px;
     background: var(--button-bg);
-    color: var(--text-inverse);
+    color: #ffffff;
+    font-family: inherit;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease;
     margin: 18px 0 0;
     justify-content: center;
 }
@@ -3406,13 +3561,14 @@ input:checked+.slider:before {
 
 #eula-onboarding .legal-onboarding-card .onboarding-primary-btn:disabled,
 #eula-onboarding .legal-onboarding-card .primary-btn:disabled {
-    background: hsl(215, 16%, 75%);
+    background: var(--border-color-strong);
+    color: var(--text-tertiary);
     cursor: not-allowed;
 }
 
 #eula-onboarding .legal-onboarding-card .onboarding-primary-btn:disabled:hover,
 #eula-onboarding .legal-onboarding-card .primary-btn:disabled:hover {
-    background: hsl(215, 16%, 75%);
+    background: var(--border-color-strong);
 }
 
 [data-theme="dark"] #eula-onboarding .onboarding-focus-card {
@@ -3421,7 +3577,7 @@ input:checked+.slider:before {
 }
 
 [data-theme="dark"] #eula-onboarding .legal-onboarding-link {
-    color: #93c5fd;
+    color: var(--redd-blue);
 }
 
 @media (max-width: 640px) {

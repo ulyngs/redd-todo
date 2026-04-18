@@ -49,10 +49,9 @@
                     <input type="checkbox" id="eula-agree-checkbox"
                         aria-label="I agree to the End User License Agreement and Privacy Policy">
                     <span class="legal-onboarding-checkbox-text">
-                        I agree to the ReDD Project's
-                        <a href="https://reddfocus.org/eula" target="_blank" rel="noopener noreferrer"
-                            class="legal-onboarding-link" data-external-url="https://reddfocus.org/eula">End User
-                            License Agreement</a>
+                        <label for="eula-agree-checkbox" class="legal-onboarding-checkbox-label">I agree to the ReDD Project's </label><a
+                            href="https://reddfocus.org/eula" target="_blank" rel="noopener noreferrer"
+                            class="legal-onboarding-link" data-external-url="https://reddfocus.org/eula">End User License Agreement</a>
                     </span>
                 </div>
                 <p class="legal-onboarding-note">
@@ -65,7 +64,7 @@
             <p class="legal-onboarding-body">
                 ReDD Do is developed by the Reduce Digital Distraction Project, in collaboration with
                 researchers at the University of Oxford and University of Maastricht. The ReDD Project is a
-                not-for-profit creating insights &amp; open-source digital focus tools for everyone to thrive in
+                not-for-profit that creates insights &amp; open-source digital focus tools for everyone to thrive in
                 the digital world.
             </p>
         </div>
@@ -247,21 +246,21 @@
                     <div class="color-swatches">
                         <button type="button" class="color-swatch selected" data-color="" title="None"></button>
                         <button type="button" class="color-swatch" data-color="blue" title="Sky"
-                            style="background-color: #81B1D1;"></button>
+                            style="background-color: #7da9c8;"></button>
                         <button type="button" class="color-swatch" data-color="gray" title="Ice"
-                            style="background-color: #A0CED9;"></button>
+                            style="background-color: #8eb5b0;"></button>
                         <button type="button" class="color-swatch" data-color="green" title="Mint"
-                            style="background-color: #ADF7B6;"></button>
+                            style="background-color: #8cb89c;"></button>
                         <button type="button" class="color-swatch" data-color="yellow" title="Buttercup"
-                            style="background-color: #FFEE93;"></button>
+                            style="background-color: #d4ba6a;"></button>
                         <button type="button" class="color-swatch" data-color="pink" title="Blush"
-                            style="background-color: #FFD1DC;"></button>
+                            style="background-color: #d4a5a8;"></button>
                         <button type="button" class="color-swatch" data-color="orange" title="Apricot"
-                            style="background-color: #FFC09F;"></button>
+                            style="background-color: #d99a6c;"></button>
                         <button type="button" class="color-swatch" data-color="red" title="Sunset"
-                            style="background-color: #FF9E9E;"></button>
+                            style="background-color: #d4605a;"></button>
                         <button type="button" class="color-swatch" data-color="purple" title="Lavender"
-                            style="background-color: #B19CD9;"></button>
+                            style="background-color: #a896c0;"></button>
                         <label class="color-swatch color-swatch-custom" data-color="custom" title="Custom color">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -269,7 +268,7 @@
                                 <path d="M12 8v8"></path>
                                 <path d="M8 12h8"></path>
                             </svg>
-                            <input type="color" id="custom-color-input" value="#667eea" aria-label="Custom tab color">
+                            <input type="color" id="custom-color-input" value="#2a9d8f" aria-label="Custom tab color">
                         </label>
                     </div>
                 </div>
@@ -316,7 +315,7 @@
                     <div style="display: flex; align-items: center; justify-content: space-between;">
                         <span data-i18n="themeMode" style="font-size: 13px;">Light/dark mode</span>
                         <select id="theme-select"
-                            style="padding: 6px 10px; border: 1px solid var(--border-color-medium); border-radius: 4px; background: var(--modal-bg); color: var(--text-primary); font-size: 13px; cursor: pointer;">
+                            style="padding: 6px 10px; border: 1px solid var(--border-color-medium); border-radius: 8px; background: var(--input-surface); color: var(--text-primary); font-size: 13px; font-family: inherit; cursor: pointer;">
                             <option value="light" data-i18n="themeLight">Light</option>
                             <option value="dark" data-i18n="themeDark">Dark</option>
                             <option value="system" data-i18n="themeSystem">Auto</option>
@@ -325,7 +324,7 @@
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;">
                         <span data-i18n="language" style="font-size: 13px;">Language</span>
                         <select id="language-select"
-                            style="padding: 6px 10px; border: 1px solid var(--border-color-medium); border-radius: 4px; background: var(--modal-bg); color: var(--text-primary); font-size: 13px; cursor: pointer;">
+                            style="padding: 6px 10px; border: 1px solid var(--border-color-medium); border-radius: 8px; background: var(--input-surface); color: var(--text-primary); font-size: 13px; font-family: inherit; cursor: pointer;">
                             <option value="en">English</option>
                             <option value="da">Dansk</option>
                         </select>
@@ -365,12 +364,10 @@
                     <p data-i18n="dataManagementDesc" class="settings-desc" style="margin-bottom: 12px;">Backup or
                         restore your data.</p>
                     <div id="export-buttons-container" style="display: flex; gap: 10px;">
-                        <button id="export-data-btn" class="modal-btn"
-                            style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color-medium); color: var(--text-primary);">
+                        <button id="export-data-btn" class="modal-btn cancel-btn" style="flex: 1;">
                             Export Backup
                         </button>
-                        <button id="import-data-btn" class="modal-btn"
-                            style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border-color-medium); color: var(--text-primary);">
+                        <button id="import-data-btn" class="modal-btn cancel-btn" style="flex: 1;">
                             Import Backup
                         </button>
                         <input type="file" id="import-file-input" accept=".json" style="display: none;">
@@ -457,7 +454,7 @@
                                     <span data-i18n="connectedBasecamp">Connected to Basecamp</span>
                                 </div>
                                 <div id="bc-account-info"
-                                    style="font-size: 0.9em; color: #666; margin-top: 4px; margin-left: 16px;"></div>
+                                    style="font-size: 0.9em; color: var(--text-tertiary); margin-top: 4px; margin-left: 16px;"></div>
                             </div>
                             <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
                                 title="More info" style="margin-left: 8px;">
