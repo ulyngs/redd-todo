@@ -660,7 +660,14 @@ if (languageSelect) {
 }
 
 function isLocalDevRun() {
-    return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    // Tauri's production webviews use tauri://localhost (macOS/Linux) or
+    // http://tauri.localhost (Windows/WebView2), both of which have "localhost"
+    // in the hostname — so hostname alone would flag every prod launch as dev
+    // and trigger resetDevOnlyEulaAcceptance(), re-prompting the EULA forever.
+    const { protocol, hostname } = window.location;
+    if (protocol !== 'http:' && protocol !== 'https:') return false;
+    if (hostname === 'tauri.localhost') return false;
+    return ['localhost', '127.0.0.1'].includes(hostname);
 }
 
 function resetDevOnlyEulaAcceptance() {
