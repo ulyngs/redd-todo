@@ -62,6 +62,64 @@ fn open_url(_app: &tauri::AppHandle, url: &str) {
     }
 }
 
+/// Copy every file/subdirectory from `src` into `dst` without overwriting any
+/// file that already exists at the destination. Existing directories are
+/// merged into; existing files are left alone.
+fn copy_dir_non_destructive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        if file_type.is_dir() {
+            copy_dir_non_destructive(&src_path, &dst_path)?;
+        } else if !dst_path.exists() {
+            std::fs::copy(&src_path, &dst_path)?;
+        }
+    }
+    Ok(())
+}
+
+/// Before v2.4.1 the Tauri app identifier was `com.redd.todo`. We renamed it
+/// to `com.redd.do` in the v2.4.0 rebrand, which moved the per-user data dir
+/// to a new location (e.g. `%APPDATA%\com.redd.do\` on Windows,
+/// `~/Library/Application Support/com.redd.do/` on macOS). On first launch of
+/// the renamed build, copy the old tree in so existing users' tasks survive.
+/// Safe to leave in place indefinitely — guarded by a marker file.
+fn migrate_legacy_identifier_data(app: &tauri::AppHandle) {
+    let resolver = app.path();
+    let targets = [
+        resolver.app_data_dir().ok(),
+        resolver.app_config_dir().ok(),
+        resolver.app_local_data_dir().ok(),
+    ];
+    for new_dir in targets.into_iter().flatten() {
+        let Some(parent) = new_dir.parent() else { continue };
+        let old_dir = parent.join("com.redd.todo");
+        if old_dir == new_dir || !old_dir.exists() {
+            continue;
+        }
+        let marker = new_dir.join(".migrated-from-com-redd-todo");
+        if marker.exists() {
+            continue;
+        }
+        if let Err(e) = std::fs::create_dir_all(&new_dir) {
+            log::warn!("Failed to create {new_dir:?}: {e}");
+            continue;
+        }
+        match copy_dir_non_destructive(&old_dir, &new_dir) {
+            Ok(()) => {
+                log::info!("Migrated user data from {old_dir:?} into {new_dir:?}");
+                if let Err(e) = std::fs::write(&marker, "") {
+                    log::warn!("Failed to write migration marker {marker:?}: {e}");
+                }
+            }
+            Err(e) => log::warn!("Failed to migrate {old_dir:?} -> {new_dir:?}: {e}"),
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default()
@@ -90,6 +148,8 @@ pub fn run() {
             }
         }))
         .setup(|app| {
+            migrate_legacy_identifier_data(app.handle());
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
