@@ -110,6 +110,44 @@ Note: To build with custom icons, place your icon files in the `assets/` directo
 *   `assets/icon.ico` (Windows)
 *   `assets/icon.png` (Linux)
 
+## 🏗 Architecture & data
+
+The app is two pieces: a JS frontend rendered inside a webview, and a Rust shell (Tauri) that owns the native window and handles anything the webview can't reach from the browser sandbox — OAuth, Apple Reminders, window controls, etc. The frontend calls into Rust via Tauri `invoke`.
+
+**Essentially all user data lives in `localStorage` under one key (`redd-todo-data`).** Tasks, tabs, groups, favourites, EULA acceptance, Basecamp/Reminders connection state, theme, language — all of it.
+
+`localStorage` here isn't "stored inside Chrome" or anything ephemeral — it's the standard Web API, and the webview engine (WebKit on macOS, WebView2 on Windows) persists it to a real file on disk that it owns. The file format differs per engine (SQLite on WebKit, LevelDB on WebView2/Chromium), but the app code just calls `localStorage.setItem` / `getItem` and the webview handles the read/write for us. So there is a file, we just don't manage it directly — which is why the paths below point inside WebKit/WebView2 subfolders.
+
+The Rust side is mostly transient: in-memory window geometry, command plumbing, OAuth round-trips. It doesn't own any user data. (The only disk writes from Rust are a macOS-only zoom-level file and a startup migration marker — neither holds anything you'd miss.)
+
+```mermaid
+flowchart LR
+    UI["<b>Webview frontend</b><br/>src/app.js, index.html<br/>(UI, tasks, tabs, groups)"]
+    Rust["<b>Tauri Rust shell</b><br/>src-tauri/<br/>window, OAuth,<br/>reminders, startup migration"]
+
+    LS[("<b>localStorage</b><br/>key: 'redd-todo-data'<br/>tasks, tabs, groups,<br/>EULA, settings,<br/>Basecamp tokens")]
+
+    BC[/"Basecamp API<br/>(OAuth via Netlify fn)"/]
+    AR[/"Apple Reminders<br/>via reminders-connector<br/>binary (macOS only)"/]
+
+    UI <-->|"Tauri invoke"| Rust
+    UI <-->|"read / write"| LS
+    Rust -->|"HTTP"| BC
+    Rust -->|"spawn"| AR
+```
+
+### Where `localStorage` lands on disk
+
+`localStorage` lives inside the webview's storage, which the OS keys off the Tauri `identifier` (currently `com.redd.do`):
+
+| Platform | Path |
+| --- | --- |
+| macOS — DMG (non-sandboxed) | `~/Library/WebKit/com.redd.do/WebsiteData/Default/<origin-hash>/.../LocalStorage/localstorage.sqlite3` |
+| macOS — Mac App Store (sandboxed) | `~/Library/Containers/com.redd.do/Data/Library/WebKit/WebsiteData/...` |
+| Windows (MSIX) | `%APPDATA%\com.redd.do\EBWebView\Default\Local Storage\leveldb\` |
+
+Because sandboxed builds (Mac App Store) can't read outside their container, changing the bundle identifier on those channels is effectively a data-loss event — users get a brand new app with empty `localStorage`. Inside a single sandbox (e.g. Windows MSIX where the package identity stays the same), `src-tauri/src/lib.rs` runs a one-time startup migration that copies an older identifier's data tree into the current one.
+
 ## 📁 Project Structure
 
 ```
