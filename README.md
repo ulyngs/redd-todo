@@ -1,6 +1,6 @@
 # ReDD Do
 
-A simple, beautiful, and distraction-free todo app for Mac, Windows, and Linux built with Electron. Designed to help you focus on one task at a time while keeping track of your time.
+A simple, beautiful, and distraction-free todo app for Mac and Windows, built with Tauri. Designed to help you focus on one task at a time while keeping track of your time.
 
 ## ✨ Features
 
@@ -20,7 +20,7 @@ A simple, beautiful, and distraction-free todo app for Mac, Windows, and Linux b
     *   **Fullscreen Mode**: Immerse yourself completely with a single click.
     *   **Smart Timer**: visual countdown based on expected duration. Turns red if you go overtime.
     *   **Quick Actions**: Complete the task or exit focus mode directly from the mini window.
-*   **Cross-Platform**: Native apps for Mac, Windows, and Linux.
+*   **Cross-Platform**: Native apps for Mac and Windows.
 *   **Data Persistence**: Your tasks, tabs, and settings are saved automatically.
 
 ## 🚀 Usage
@@ -82,7 +82,6 @@ npm run build
 npm run build:mac   # Creates .dmg / .zip (Universal) and tries to create App Store .pkg (skips with warning if App Store prerequisites are not met)
 npm run build:mas   # Creates only App Store .pkg for Transporter (macOS only)
 npm run build:win   # Creates NSIS/MSI + Windows Store package (APPX/MSIX) when available
-npm run build:linux # Creates .AppImage / .deb
 ```
 
 After each build, release artifacts are copied into:
@@ -92,7 +91,6 @@ After each build, release artifacts are copied into:
 Example targets:
 - `for-distribution/universal-apple-darwin/`
 - `for-distribution/x86_64-pc-windows-msvc/`
-- `for-distribution/x86_64-unknown-linux-gnu/`
 
 For Mac App Store submission, `npm run build:mas` writes:
 - `for-distribution/universal-apple-darwin/mas/ReDD Do.pkg`
@@ -109,7 +107,6 @@ For Microsoft Store submission, `npm run build:win` now verifies that at least o
 Note: To build with custom icons, place your icon files in the `assets/` directory:
 *   `assets/icon.icns` (Mac)
 *   `assets/icon.ico` (Windows)
-*   `assets/icon.png` (Linux)
 
 ## 📁 Project Structure
 
