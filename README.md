@@ -53,8 +53,12 @@ Sync your tasks with Basecamp 3:
 ## 🛠 Development
 
 ### Prerequisites
-*   Node.js (v14 or higher)
-*   npm
+*   Node.js (v18 or higher) and npm
+*   Rust toolchain (stable) — install via [rustup](https://rustup.rs)
+*   Platform build tools:
+    *   **macOS**: Xcode Command Line Tools (`xcode-select --install`)
+    *   **Windows**: Visual Studio Build Tools with the "Desktop development with C++" workload, plus WebView2 runtime (usually preinstalled on Win10/11)
+    *   **Linux**: see the [Tauri Linux prerequisites](https://tauri.app/start/prerequisites/#linux)
 
 ### Installation
 ```bash
@@ -63,25 +67,19 @@ npm install
 
 ### Running
 ```bash
-# Development mode (with dev tools)
+# Development mode (hot reload, dev tools)
 npm run dev
-
-# Production mode
-npm start
 ```
 
 ## 📦 Building for Distribution
 
-We use `electron-builder` to create native installers.
+Builds go through the [Tauri](https://tauri.app) CLI, with platform-specific post-processing scripts in `scripts/`.
 
 ```bash
-# Build for all platforms
-npm run build
-
-# Build for specific platform
-npm run build:mac   # Creates .dmg / .zip (Universal) and tries to create App Store .pkg (skips with warning if App Store prerequisites are not met)
-npm run build:mas   # Creates only App Store .pkg for Transporter (macOS only)
-npm run build:win   # Creates NSIS/MSI + Windows Store package (APPX/MSIX) when available
+npm run build:mac     # Creates .dmg / .zip (Universal) and attempts the App Store .pkg alongside
+npm run build:mas     # Builds only the App Store .pkg for Transporter (macOS only)
+npm run build:win     # Creates NSIS/MSI + Microsoft Store package (MSIX)
+npm run build:linux   # Creates AppImage / .deb (via scripts/build-linux.sh)
 ```
 
 After each build, release artifacts are copied into:
@@ -91,36 +89,44 @@ After each build, release artifacts are copied into:
 Example targets:
 - `for-distribution/universal-apple-darwin/`
 - `for-distribution/x86_64-pc-windows-msvc/`
+- `for-distribution/x86_64-unknown-linux-gnu/`
 
 For Mac App Store submission, `npm run build:mas` writes:
 - `for-distribution/universal-apple-darwin/mas/ReDD Do.pkg`
 
 `build:mas` requires:
 - macOS
-- `APPLE_INSTALLER_IDENTITY` set (e.g. `3rd Party Mac Developer Installer: ...`)
+- `APPLE_APP_IDENTITY` set (e.g. `Apple Distribution: Your Company (TEAMID)`)
+- `APPLE_INSTALLER_IDENTITY` set (e.g. `3rd Party Mac Developer Installer: Your Company (TEAMID)`)
+- `APPLE_PROVISIONING_PROFILE_PATH` pointing to a Mac App Store provisioning profile whose listed certificate matches the Apple Distribution cert above
 - `src-tauri/tauri.conf.json` with `app.macOSPrivateApi` set to `false` (App Store requirement)
 
-For Microsoft Store submission, `npm run build:win` now verifies that at least one Store package exists
+For Microsoft Store submission, `npm run build:win` verifies that at least one Store package exists
 (`.appx`, `.msix`, `.appxbundle`, `.msixbundle`, `.appxupload`, or `.msixupload`) in:
 - `for-distribution/x86_64-pc-windows-msvc/`
 
 Note: To build with custom icons, place your icon files in the `assets/` directory:
 *   `assets/icon.icns` (Mac)
 *   `assets/icon.ico` (Windows)
+*   `assets/icon.png` (Linux)
 
 ## 📁 Project Structure
 
 ```
 redd-todo/
-├── main.js              # Electron main process (window mgmt, IPC)
-├── build.js             # Build script using electron-builder
-├── package.json         # Dependencies and build config
-├── assets/              # App icons
-├── src/
+├── package.json         # npm scripts, JS deps
+├── src/                 # Frontend (HTML/CSS/JS — runs inside the webview)
 │   ├── index.html       # Application entry point
 │   ├── styles.css       # Styling (App + Focus mode)
 │   ├── app.js           # Renderer logic (UI, Basecamp sync, focus mode)
 │   └── images/          # UI assets
+├── src-tauri/           # Tauri (Rust) shell
+│   ├── src/             # Rust source (commands, window mgmt, OAuth, etc.)
+│   ├── Cargo.toml       # Rust deps
+│   └── tauri.conf.json  # Tauri config (bundle id, signing, etc.)
+├── scripts/             # Build/signing/notarisation helpers
+├── build/               # macOS entitlements and provisioning profiles
+├── assets/              # App icons
 └── README.md
 ```
 
