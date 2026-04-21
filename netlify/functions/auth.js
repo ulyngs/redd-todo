@@ -185,9 +185,9 @@ function escapeHtml(value) {
 
 function buildLocalBridgePage({ localhostUrl, fallbackUrl, success, message }) {
     const safeLocalhostUrl = JSON.stringify(localhostUrl);
-    const safeFallbackUrl = JSON.stringify(fallbackUrl);
     const title = success ? 'Connecting ReDD Do' : 'Authentication Issue';
-    const buttonLabel = success ? 'Open ReDD Do' : 'Try opening ReDD Do';
+    const primaryLabel = success ? 'Continue in ReDD Do' : 'Return to ReDD Do';
+    const secondaryLabel = 'Use legacy fallback';
 
     return `<!doctype html>
 <html lang="en">
@@ -233,35 +233,40 @@ function buildLocalBridgePage({ localhostUrl, fallbackUrl, success, message }) {
         font-size: 0.95rem;
         color: #5d6d75;
       }
+      .secondary {
+        display: inline-block;
+        margin-top: 0.85rem;
+        color: #5d6d75;
+        text-decoration: underline;
+      }
     </style>
   </head>
   <body>
     <main>
       <h1>${escapeHtml(title)}</h1>
       <p id="status">${escapeHtml(message)}</p>
-      <a id="fallback-link" href="${escapeHtml(fallbackUrl)}">${escapeHtml(buttonLabel)}</a>
-      <p class="hint">If ReDD Do does not come back into focus automatically, use the button above.</p>
+      <a id="primary-link" href="${escapeHtml(localhostUrl)}">${escapeHtml(primaryLabel)}</a>
+      <p class="hint">If nothing happens automatically, use the button above. The legacy fallback is only needed on older installs.</p>
+      <a class="secondary" href="${escapeHtml(fallbackUrl)}">${escapeHtml(secondaryLabel)}</a>
     </main>
     <script>
       const localhostUrl = ${safeLocalhostUrl};
-      const fallbackUrl = ${safeFallbackUrl};
       const statusEl = document.getElementById('status');
+      const primaryLink = document.getElementById('primary-link');
 
-      async function handoff() {
-        try {
-          await fetch(localhostUrl, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
-          statusEl.textContent = 'ReDD Do received the callback. You can close this tab.';
-          setTimeout(() => window.close(), 800);
-          return;
-        } catch (error) {
-          console.error('Localhost callback failed', error);
-        }
-
-        statusEl.textContent = 'Could not reach the local app directly. Trying the fallback link...';
-        window.location.href = fallbackUrl;
+      function handoff() {
+        statusEl.textContent = 'Handing off to the local app...';
+        window.location.assign(localhostUrl);
       }
 
-      handoff();
+      window.addEventListener('pageshow', () => {
+        setTimeout(handoff, 50);
+      }, { once: true });
+
+      setTimeout(() => {
+        statusEl.textContent = 'If ReDD Do did not open, use the button above.';
+        primaryLink.focus();
+      }, 1500);
     </script>
   </body>
 </html>`;
