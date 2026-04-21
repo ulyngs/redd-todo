@@ -1,9 +1,9 @@
 mod commands;
 
 use commands::app::*;
+use commands::oauth::*;
 use commands::reminders::*;
 use commands::window::*;
-use commands::oauth::*;
 use tauri::{Emitter, Manager};
 
 #[cfg(target_os = "macos")]
@@ -16,7 +16,9 @@ const ZOOM_MAX: f64 = 2.5;
 /// Adjust the main window's webview zoom by the given delta (clamped).
 #[cfg(target_os = "macos")]
 fn adjust_main_zoom(app: &tauri::AppHandle, delta: f64) {
-    let Some(window) = app.get_webview_window("main") else { return };
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
     let current = read_main_zoom(app).unwrap_or(1.0);
     let next = (current + delta).clamp(ZOOM_MIN, ZOOM_MAX);
     let _ = window.set_zoom(next);
@@ -25,7 +27,9 @@ fn adjust_main_zoom(app: &tauri::AppHandle, delta: f64) {
 
 #[cfg(target_os = "macos")]
 fn set_main_zoom(app: &tauri::AppHandle, value: f64) {
-    let Some(window) = app.get_webview_window("main") else { return };
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
     let value = value.clamp(ZOOM_MIN, ZOOM_MAX);
     let _ = window.set_zoom(value);
     write_main_zoom(app, value);
@@ -47,7 +51,9 @@ fn read_main_zoom(app: &tauri::AppHandle) -> Option<f64> {
 
 #[cfg(target_os = "macos")]
 fn write_main_zoom(app: &tauri::AppHandle, value: f64) {
-    let Some(path) = zoom_state_path(app) else { return };
+    let Some(path) = zoom_state_path(app) else {
+        return;
+    };
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -95,7 +101,9 @@ fn migrate_legacy_identifier_data(app: &tauri::AppHandle) {
         resolver.app_local_data_dir().ok(),
     ];
     for new_dir in targets.into_iter().flatten() {
-        let Some(parent) = new_dir.parent() else { continue };
+        let Some(parent) = new_dir.parent() else {
+            continue;
+        };
         let old_dir = parent.join("com.redd.todo");
         if old_dir == new_dir || !old_dir.exists() {
             continue;
@@ -135,7 +143,6 @@ pub fn run() {
         builder = builder.plugin(tauri_nspanel::init());
     }
 
-    
     builder
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             // Handle deep link URL passed to running instance
@@ -172,8 +179,8 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 use tauri::menu::{
-                    AboutMetadataBuilder, MenuBuilder, MenuItemBuilder,
-                    PredefinedMenuItem, SubmenuBuilder,
+                    AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, PredefinedMenuItem,
+                    SubmenuBuilder,
                 };
 
                 let app_handle = app.handle();
@@ -182,7 +189,7 @@ pub fn run() {
                     .name(Some("ReDD Do"))
                     .version(Some(env!("CARGO_PKG_VERSION")))
                     .authors(Some(vec![
-                        "The Reduce Digital Distraction Project".to_string(),
+                        "The Reduce Digital Distraction Project".to_string()
                     ]))
                     .comments(Some(
                         "Get back to that thing you meant to do.\n\n\
@@ -253,21 +260,13 @@ pub fn run() {
                     .close_window()
                     .build()?;
 
-                let report_issue = MenuItemBuilder::with_id(
-                    "help_report_issue",
-                    "Report an issue",
-                )
-                .build(app_handle)?;
-                let contact_us = MenuItemBuilder::with_id(
-                    "help_contact_us",
-                    "Contact us",
-                )
-                .build(app_handle)?;
-                let about_redd = MenuItemBuilder::with_id(
-                    "help_about_redd",
-                    "About the ReDD Project",
-                )
-                .build(app_handle)?;
+                let report_issue = MenuItemBuilder::with_id("help_report_issue", "Report an issue")
+                    .build(app_handle)?;
+                let contact_us =
+                    MenuItemBuilder::with_id("help_contact_us", "Contact us").build(app_handle)?;
+                let about_redd =
+                    MenuItemBuilder::with_id("help_about_redd", "About the ReDD Project")
+                        .build(app_handle)?;
 
                 let help_submenu = SubmenuBuilder::new(app_handle, "Help")
                     .item(&report_issue)
@@ -285,7 +284,9 @@ pub fn run() {
                     "zoom_in" => adjust_main_zoom(app, ZOOM_STEP),
                     "zoom_out" => adjust_main_zoom(app, -ZOOM_STEP),
                     "zoom_reset" => set_main_zoom(app, 1.0),
-                    "help_report_issue" => open_url(app, "https://github.com/ulyngs/redd-todo/issues"),
+                    "help_report_issue" => {
+                        open_url(app, "https://github.com/ulyngs/redd-todo/issues")
+                    }
                     "help_contact_us" => open_url(app, "mailto:team@reddfocus.org"),
                     "help_about_redd" => open_url(app, "https://reddfocus.org"),
                     _ => {}
@@ -298,7 +299,7 @@ pub fn run() {
                     }
                 }
             }
-            
+
             // Handle deep link URLs on app startup
             #[cfg(any(target_os = "macos", target_os = "linux"))]
             {
@@ -312,7 +313,7 @@ pub fn run() {
                     }
                 }
             }
-            
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

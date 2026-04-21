@@ -86,8 +86,7 @@ fn run_jxa(script: &str) -> Result<String, String> {
         return Err(format!("JXA execution failed: {}", stderr.trim()));
     }
 
-    String::from_utf8(output.stdout)
-        .map_err(|e| format!("Invalid UTF-8 output from JXA: {}", e))
+    String::from_utf8(output.stdout).map_err(|e| format!("Invalid UTF-8 output from JXA: {}", e))
 }
 
 #[cfg(debug_assertions)]
@@ -282,10 +281,16 @@ fn parse_array_or_error<T: for<'de> Deserialize<'de>>(
                 serde_json::from_value(Value::Array(items))
                     .map_err(|e| format!("Failed to parse {}: {}", label, e))
             } else {
-                Err(format!("Unexpected {} format from reminders connector", label))
+                Err(format!(
+                    "Unexpected {} format from reminders connector",
+                    label
+                ))
             }
         }
-        _ => Err(format!("Unexpected {} format from reminders connector", label)),
+        _ => Err(format!(
+            "Unexpected {} format from reminders connector",
+            label
+        )),
     }
 }
 
@@ -309,10 +314,10 @@ fn parse_result_or_error(output: &str, label: &str) -> Result<RemindersResult, S
 mod native_eventkit {
     use super::{RemindersList, RemindersResult, RemindersTask};
     use block2::RcBlock;
-    use objc2::{msg_send, sel};
     use objc2::rc::Retained;
     use objc2::runtime::Bool;
     use objc2::AnyThread;
+    use objc2::{msg_send, sel};
     use objc2_event_kit::{
         EKAuthorizationStatus, EKCalendar, EKEntityMask, EKEntityType, EKEventStore, EKReminder,
     };
@@ -358,7 +363,9 @@ mod native_eventkit {
 
     fn permission_denied(status: EKAuthorizationStatus, error: Option<String>) -> String {
         match error {
-            Some(error) if !error.trim().is_empty() => format!("Permission denied ({})", error.trim()),
+            Some(error) if !error.trim().is_empty() => {
+                format!("Permission denied ({})", error.trim())
+            }
             _ => format!(
                 "Permission denied ({})",
                 authorization_status_string(status)
@@ -414,7 +421,8 @@ mod native_eventkit {
 
     fn find_calendar(store: &EKEventStore, list_id: &str) -> Result<Retained<EKCalendar>, String> {
         let identifier = ns_string(list_id);
-        unsafe { store.calendarWithIdentifier(&identifier) }.ok_or_else(|| "List not found".to_string())
+        unsafe { store.calendarWithIdentifier(&identifier) }
+            .ok_or_else(|| "List not found".to_string())
     }
 
     fn find_reminder(store: &EKEventStore, task_id: &str) -> Result<Retained<EKReminder>, String> {
@@ -522,7 +530,10 @@ mod native_eventkit {
                 Vec::new()
             } else {
                 let reminders = unsafe { &*reminders };
-                reminders.iter().map(|reminder| reminder_to_task(&reminder)).collect()
+                reminders
+                    .iter()
+                    .map(|reminder| reminder_to_task(&reminder))
+                    .collect()
             };
             let _ = tx.send(tasks);
         });
@@ -628,23 +639,22 @@ mod native_eventkit {
 #[cfg(debug_assertions)]
 fn run_connector(app: &tauri::AppHandle, args: &[&str]) -> Result<String, String> {
     let path = get_connector_path(app)?;
-    
+
     if !path.exists() {
         return Err(format!("Reminders connector not found at: {:?}", path));
     }
-    
+
     let output = Command::new(&path)
         .args(args)
         .output()
         .map_err(|e| format!("Failed to execute reminders-connector: {}", e))?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!("Reminders connector error: {}", stderr));
     }
-    
-    String::from_utf8(output.stdout)
-        .map_err(|e| format!("Invalid UTF-8 output: {}", e))
+
+    String::from_utf8(output.stdout).map_err(|e| format!("Invalid UTF-8 output: {}", e))
 }
 
 /// Fetch all Reminders lists
@@ -652,7 +662,7 @@ fn run_connector(app: &tauri::AppHandle, args: &[&str]) -> Result<String, String
 pub fn fetch_reminders_lists(app: tauri::AppHandle) -> Result<Vec<RemindersList>, String> {
     #[cfg(not(target_os = "macos"))]
     return Ok(vec![]);
-    
+
     #[cfg(target_os = "macos")]
     {
         #[cfg(not(debug_assertions))]
@@ -663,25 +673,28 @@ pub fn fetch_reminders_lists(app: tauri::AppHandle) -> Result<Vec<RemindersList>
 
         #[cfg(debug_assertions)]
         {
-        let output = run_connector(&app, &["lists"])?;
-        match parse_array_or_error(&output, "reminders lists") {
-            Ok(v) => Ok(v),
-            Err(e) if should_use_jxa_fallback(&e) => {
-                let jxa_output = jxa_lists_output()?;
-                parse_array_or_error(&jxa_output, "reminders lists (JXA)")
+            let output = run_connector(&app, &["lists"])?;
+            match parse_array_or_error(&output, "reminders lists") {
+                Ok(v) => Ok(v),
+                Err(e) if should_use_jxa_fallback(&e) => {
+                    let jxa_output = jxa_lists_output()?;
+                    parse_array_or_error(&jxa_output, "reminders lists (JXA)")
+                }
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
-        }
         }
     }
 }
 
 /// Fetch tasks from a specific Reminders list
 #[command]
-pub fn fetch_reminders_tasks(app: tauri::AppHandle, list_id: String) -> Result<Vec<RemindersTask>, String> {
+pub fn fetch_reminders_tasks(
+    app: tauri::AppHandle,
+    list_id: String,
+) -> Result<Vec<RemindersTask>, String> {
     #[cfg(not(target_os = "macos"))]
     return Ok(vec![]);
-    
+
     #[cfg(target_os = "macos")]
     {
         #[cfg(not(debug_assertions))]
@@ -692,25 +705,33 @@ pub fn fetch_reminders_tasks(app: tauri::AppHandle, list_id: String) -> Result<V
 
         #[cfg(debug_assertions)]
         {
-        let output = run_connector(&app, &["tasks", &list_id])?;
-        match parse_array_or_error(&output, "reminders tasks") {
-            Ok(v) => Ok(v),
-            Err(e) if should_use_jxa_fallback(&e) => {
-                let jxa_output = jxa_tasks_output(&list_id)?;
-                parse_array_or_error(&jxa_output, "reminders tasks (JXA)")
+            let output = run_connector(&app, &["tasks", &list_id])?;
+            match parse_array_or_error(&output, "reminders tasks") {
+                Ok(v) => Ok(v),
+                Err(e) if should_use_jxa_fallback(&e) => {
+                    let jxa_output = jxa_tasks_output(&list_id)?;
+                    parse_array_or_error(&jxa_output, "reminders tasks (JXA)")
+                }
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
-        }
         }
     }
 }
 
 /// Update the completion status of a Reminders task
 #[command]
-pub fn update_reminders_status(app: tauri::AppHandle, task_id: String, completed: bool) -> Result<RemindersResult, String> {
+pub fn update_reminders_status(
+    app: tauri::AppHandle,
+    task_id: String,
+    completed: bool,
+) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult { success: Some(false), error: Some("Not on macOS".into()), id: None });
-    
+    return Ok(RemindersResult {
+        success: Some(false),
+        error: Some("Not on macOS".into()),
+        id: None,
+    });
+
     #[cfg(target_os = "macos")]
     {
         #[cfg(not(debug_assertions))]
@@ -721,26 +742,34 @@ pub fn update_reminders_status(app: tauri::AppHandle, task_id: String, completed
 
         #[cfg(debug_assertions)]
         {
-        let completed_str = if completed { "true" } else { "false" };
-        let output = run_connector(&app, &["update-status", &task_id, completed_str])?;
-        match parse_result_or_error(&output, "update reminders status") {
-            Ok(v) => Ok(v),
-            Err(e) if should_use_jxa_fallback(&e) => {
-                let jxa_output = jxa_update_status_output(&task_id, completed)?;
-                parse_result_or_error(&jxa_output, "update reminders status (JXA)")
+            let completed_str = if completed { "true" } else { "false" };
+            let output = run_connector(&app, &["update-status", &task_id, completed_str])?;
+            match parse_result_or_error(&output, "update reminders status") {
+                Ok(v) => Ok(v),
+                Err(e) if should_use_jxa_fallback(&e) => {
+                    let jxa_output = jxa_update_status_output(&task_id, completed)?;
+                    parse_result_or_error(&jxa_output, "update reminders status (JXA)")
+                }
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
-        }
         }
     }
 }
 
 /// Update the title of a Reminders task
 #[command]
-pub fn update_reminders_title(app: tauri::AppHandle, task_id: String, title: String) -> Result<RemindersResult, String> {
+pub fn update_reminders_title(
+    app: tauri::AppHandle,
+    task_id: String,
+    title: String,
+) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult { success: Some(false), error: Some("Not on macOS".into()), id: None });
-    
+    return Ok(RemindersResult {
+        success: Some(false),
+        error: Some("Not on macOS".into()),
+        id: None,
+    });
+
     #[cfg(target_os = "macos")]
     {
         #[cfg(not(debug_assertions))]
@@ -751,25 +780,33 @@ pub fn update_reminders_title(app: tauri::AppHandle, task_id: String, title: Str
 
         #[cfg(debug_assertions)]
         {
-        let output = run_connector(&app, &["update-title", &task_id, &title])?;
-        match parse_result_or_error(&output, "update reminders title") {
-            Ok(v) => Ok(v),
-            Err(e) if should_use_jxa_fallback(&e) => {
-                let jxa_output = jxa_update_title_output(&task_id, &title)?;
-                parse_result_or_error(&jxa_output, "update reminders title (JXA)")
+            let output = run_connector(&app, &["update-title", &task_id, &title])?;
+            match parse_result_or_error(&output, "update reminders title") {
+                Ok(v) => Ok(v),
+                Err(e) if should_use_jxa_fallback(&e) => {
+                    let jxa_output = jxa_update_title_output(&task_id, &title)?;
+                    parse_result_or_error(&jxa_output, "update reminders title (JXA)")
+                }
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
-        }
         }
     }
 }
 
 /// Update the notes of a Reminders task
 #[command]
-pub fn update_reminders_notes(app: tauri::AppHandle, task_id: String, notes: String) -> Result<RemindersResult, String> {
+pub fn update_reminders_notes(
+    app: tauri::AppHandle,
+    task_id: String,
+    notes: String,
+) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult { success: Some(false), error: Some("Not on macOS".into()), id: None });
-    
+    return Ok(RemindersResult {
+        success: Some(false),
+        error: Some("Not on macOS".into()),
+        id: None,
+    });
+
     #[cfg(target_os = "macos")]
     {
         #[cfg(not(debug_assertions))]
@@ -780,25 +817,32 @@ pub fn update_reminders_notes(app: tauri::AppHandle, task_id: String, notes: Str
 
         #[cfg(debug_assertions)]
         {
-        let output = run_connector(&app, &["update-notes", &task_id, &notes])?;
-        match parse_result_or_error(&output, "update reminders notes") {
-            Ok(v) => Ok(v),
-            Err(e) if should_use_jxa_fallback(&e) => {
-                let jxa_output = jxa_update_notes_output(&task_id, &notes)?;
-                parse_result_or_error(&jxa_output, "update reminders notes (JXA)")
+            let output = run_connector(&app, &["update-notes", &task_id, &notes])?;
+            match parse_result_or_error(&output, "update reminders notes") {
+                Ok(v) => Ok(v),
+                Err(e) if should_use_jxa_fallback(&e) => {
+                    let jxa_output = jxa_update_notes_output(&task_id, &notes)?;
+                    parse_result_or_error(&jxa_output, "update reminders notes (JXA)")
+                }
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
-        }
         }
     }
 }
 
 /// Delete a Reminders task
 #[command]
-pub fn delete_reminders_task(app: tauri::AppHandle, task_id: String) -> Result<RemindersResult, String> {
+pub fn delete_reminders_task(
+    app: tauri::AppHandle,
+    task_id: String,
+) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult { success: Some(false), error: Some("Not on macOS".into()), id: None });
-    
+    return Ok(RemindersResult {
+        success: Some(false),
+        error: Some("Not on macOS".into()),
+        id: None,
+    });
+
     #[cfg(target_os = "macos")]
     {
         #[cfg(not(debug_assertions))]
@@ -809,25 +853,33 @@ pub fn delete_reminders_task(app: tauri::AppHandle, task_id: String) -> Result<R
 
         #[cfg(debug_assertions)]
         {
-        let output = run_connector(&app, &["delete-task", &task_id])?;
-        match parse_result_or_error(&output, "delete reminders task") {
-            Ok(v) => Ok(v),
-            Err(e) if should_use_jxa_fallback(&e) => {
-                let jxa_output = jxa_delete_task_output(&task_id)?;
-                parse_result_or_error(&jxa_output, "delete reminders task (JXA)")
+            let output = run_connector(&app, &["delete-task", &task_id])?;
+            match parse_result_or_error(&output, "delete reminders task") {
+                Ok(v) => Ok(v),
+                Err(e) if should_use_jxa_fallback(&e) => {
+                    let jxa_output = jxa_delete_task_output(&task_id)?;
+                    parse_result_or_error(&jxa_output, "delete reminders task (JXA)")
+                }
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
-        }
         }
     }
 }
 
 /// Create a new Reminders task
 #[command]
-pub fn create_reminders_task(app: tauri::AppHandle, list_id: String, title: String) -> Result<RemindersResult, String> {
+pub fn create_reminders_task(
+    app: tauri::AppHandle,
+    list_id: String,
+    title: String,
+) -> Result<RemindersResult, String> {
     #[cfg(not(target_os = "macos"))]
-    return Ok(RemindersResult { success: Some(false), error: Some("Not on macOS".into()), id: None });
-    
+    return Ok(RemindersResult {
+        success: Some(false),
+        error: Some("Not on macOS".into()),
+        id: None,
+    });
+
     #[cfg(target_os = "macos")]
     {
         #[cfg(not(debug_assertions))]
@@ -838,15 +890,15 @@ pub fn create_reminders_task(app: tauri::AppHandle, list_id: String, title: Stri
 
         #[cfg(debug_assertions)]
         {
-        let output = run_connector(&app, &["create-task", &list_id, &title])?;
-        match parse_result_or_error(&output, "create reminders task") {
-            Ok(v) => Ok(v),
-            Err(e) if should_use_jxa_fallback(&e) => {
-                let jxa_output = jxa_create_task_output(&list_id, &title)?;
-                parse_result_or_error(&jxa_output, "create reminders task (JXA)")
+            let output = run_connector(&app, &["create-task", &list_id, &title])?;
+            match parse_result_or_error(&output, "create reminders task") {
+                Ok(v) => Ok(v),
+                Err(e) if should_use_jxa_fallback(&e) => {
+                    let jxa_output = jxa_create_task_output(&list_id, &title)?;
+                    parse_result_or_error(&jxa_output, "create reminders task (JXA)")
+                }
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
-        }
         }
     }
 }
