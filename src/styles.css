@@ -2831,10 +2831,10 @@ body.focus-panel-window.is-fullscreen {
     border-color: var(--border-color-strong);
 }
 
-/* Integrations spacing: tighten above and add breathing room below Reminders disconnect */
+/* Integrations spacing: keep a small gap before the next integration card */
 #disconnect-reminders-btn {
     margin-top: -2px;
-    margin-bottom: 20px;
+    margin-bottom: 0;
 }
 
 .manual-update-btn {

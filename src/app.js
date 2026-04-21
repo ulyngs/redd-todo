@@ -278,7 +278,7 @@ const translations = {
         exportBackup: 'Export Backup',
         importBackup: 'Import Backup',
         integrations: 'Integrations',
-        integrationsDesc: 'Sync tasks with other apps you use.',
+        integrationsDesc: 'Sync tasks from other apps you use.',
         // Note: "Continue" is mandated by Apple — the App Store team rejected
         // earlier wording ("Connect to Apple Reminders") under guideline
         // 5.1.1(iv) as too encouraging of the permission request. Do not change
@@ -337,7 +337,7 @@ const translations = {
         exportBackup: 'Eksporter sikkerhedskopi',
         importBackup: 'Importer sikkerhedskopi',
         integrations: 'Integrationer',
-        integrationsDesc: 'Importér opgaver fra andre apps du bruger.',
+        integrationsDesc: 'Synkronisér opgaver fra andre apps du bruger.',
         appleReminders: 'Apple Påmindelser',
         connectAppleReminders: 'Apple Påmindelser',
         connectedAppleReminders: 'Forbundet til Apple Påmindelser',
