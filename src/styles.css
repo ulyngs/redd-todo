@@ -1766,6 +1766,11 @@ body.is-reordering * {
     box-shadow: 0 16px 40px rgba(30, 45, 62, 0.18);
 }
 
+#settings-modal .modal-content {
+    width: min(420px, calc(100vw - 40px));
+    max-width: 420px;
+}
+
 .modal-content h3 {
     margin: 0 0 16px 0;
     font-size: 20px;
@@ -2831,10 +2836,13 @@ body.focus-panel-window.is-fullscreen {
     border-color: var(--border-color-strong);
 }
 
-/* Integrations spacing: keep a small gap before the next integration card */
-#disconnect-reminders-btn {
-    margin-top: -2px;
-    margin-bottom: 0;
+/* Integrations spacing: keep connected status and action on one row */
+#disconnect-reminders-btn,
+#disconnect-bc-btn {
+    margin: 0;
+    margin-left: auto;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .manual-update-btn {

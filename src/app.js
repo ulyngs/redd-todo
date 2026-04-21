@@ -278,17 +278,17 @@ const translations = {
         exportBackup: 'Export Backup',
         importBackup: 'Import Backup',
         integrations: 'Integrations',
-        integrationsDesc: 'Sync tasks from other apps you use.',
+        integrationsDesc: 'Optionally sync tasks from other apps you use.',
         // Note: "Continue" is mandated by Apple — the App Store team rejected
         // earlier wording ("Connect to Apple Reminders") under guideline
         // 5.1.1(iv) as too encouraging of the permission request. Do not change
         // back to verbs like Connect / Allow / Enable on the button.
         appleReminders: 'Apple Reminders',
         connectAppleReminders: 'Apple Reminders',
-        connectedAppleReminders: 'Connected to Apple Reminders',
+        connectedAppleReminders: 'Apple Reminders: Connected',
         remindersInfo: 'Sync tasks with Apple Reminders.',
         connectBasecamp: 'Basecamp',
-        connectedBasecamp: 'Connected to Basecamp',
+        connectedBasecamp: 'Basecamp: Connected',
         basecampInfo: 'Sync your to-do lists with Basecamp project management software.',
         disconnect: 'Disconnect',
         yourVersion: 'Your version',
@@ -340,10 +340,10 @@ const translations = {
         integrationsDesc: 'Synkronisér opgaver fra andre apps du bruger.',
         appleReminders: 'Apple Påmindelser',
         connectAppleReminders: 'Apple Påmindelser',
-        connectedAppleReminders: 'Forbundet til Apple Påmindelser',
+        connectedAppleReminders: 'Apple Påmindelser: Forbundet',
         remindersInfo: 'Importer opgaver fra Apple Påmindelser.',
         connectBasecamp: 'Basecamp',
-        connectedBasecamp: 'Forbundet til Basecamp',
+        connectedBasecamp: 'Basecamp: Forbundet',
         basecampInfo: 'Synkroniser dine to-do lister med Basecamp projektstyringssoftware.',
         disconnect: 'Afbryd forbindelse',
         yourVersion: 'Din version',

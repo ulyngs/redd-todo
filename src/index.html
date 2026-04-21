@@ -374,7 +374,8 @@
 
                 <div class="settings-section">
                     <h4 data-i18n="dataManagement">Data Management</h4>
-                    <p data-i18n="dataManagementDesc" class="settings-desc" style="margin-bottom: 12px;">Backup or
+                    <p data-i18n="dataManagementDesc" class="settings-desc"
+                        style="font-style: italic; margin-bottom: 12px;">Backup or
                         restore your data.</p>
                     <div id="export-buttons-container" style="display: flex; gap: 10px;">
                         <button id="export-data-btn" class="modal-btn cancel-btn" style="flex: 1;">
@@ -390,7 +391,8 @@
                 <div class="settings-section">
                     <h4 data-i18n="integrations">Integrations</h4>
                     <p data-i18n="integrationsDesc" class="settings-desc"
-                        style="font-style: italic; margin-bottom: 12px;">Sync tasks from other apps you use.</p>
+                        style="font-style: italic; margin-bottom: 12px;">Optionally sync tasks from other apps you use.
+                    </p>
 
                     <!-- Apple Reminders -->
                     <div id="reminders-connect-row"
@@ -421,23 +423,14 @@
                     <p id="reminders-info" data-i18n="remindersInfo" class="settings-desc info-expandable hidden">Import
                         tasks from Apple Reminders.</p>
                     <div id="reminders-status" class="connection-status hidden"
-                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px;">
                         <div style="display: flex; align-items: center;">
                             <span class="status-dot"></span>
-                            <span data-i18n="connectedAppleReminders">Connected to Apple Reminders</span>
+                            <span data-i18n="connectedAppleReminders">Apple Reminders: Connected</span>
                         </div>
-                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info"
-                            title="More info" style="margin-left: 8px;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 16v-4"></path>
-                                <path d="M12 8h.01"></path>
-                            </svg>
-                        </button>
+                        <button id="disconnect-reminders-btn" class="modal-btn disconnect-btn hidden"
+                            data-i18n="disconnect">Disconnect</button>
                     </div>
-                    <button id="disconnect-reminders-btn" class="modal-btn disconnect-btn hidden"
-                        data-i18n="disconnect">Disconnect</button>
 
                     <!-- Basecamp -->
                     <div id="basecamp-connect-row"
@@ -462,25 +455,18 @@
 
                     <div id="bc-auth-container">
                         <div class="connection-status hidden" id="bc-connection-status"
-                            style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px;">
-                            <div>
-                                <div style="display: flex; align-items: center;">
+                            style="display: block; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                                <div style="display: flex; align-items: center; min-width: 0;">
                                     <span class="status-dot"></span>
-                                    <span data-i18n="connectedBasecamp">Connected to Basecamp</span>
+                                    <span data-i18n="connectedBasecamp">Basecamp: Connected</span>
                                 </div>
-                                <div id="bc-account-info"
-                                    style="font-size: 0.9em; color: var(--text-tertiary); margin-top: 4px; margin-left: 16px;">
-                                </div>
+                                <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden"
+                                    data-i18n="disconnect">Disconnect</button>
                             </div>
-                            <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
-                                title="More info" style="margin-left: 8px;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <path d="M12 16v-4"></path>
-                                    <path d="M12 8h.01"></path>
-                                </svg>
-                            </button>
+                            <div id="bc-account-info"
+                                style="font-size: 0.9em; color: var(--text-tertiary); margin-top: 4px; margin-left: 16px;">
+                            </div>
                         </div>
 
                         <div id="bc-login-form" class="hidden">
@@ -506,8 +492,6 @@
                             </div>
                         </div>
 
-                        <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden"
-                            data-i18n="disconnect">Disconnect</button>
                     </div>
                 </div>
 

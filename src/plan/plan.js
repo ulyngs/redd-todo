@@ -291,7 +291,7 @@ const PlanModule = (function () {
                         <input type="text" class="plan-calendar-url-input" placeholder="ICS URL (https:// or webcal://)">
                         <button class="plan-calendar-add-save-btn">Add Calendar</button>
                     </div>
-                    <p class="plan-calendar-hint">Events with "REDD-DO" in description will be shown</p>
+                    <p class="plan-calendar-hint">Events with "REDD-DO" in their description will be shown</p>
                     <div class="plan-calendar-status"></div>
                 </div>
             </div>
