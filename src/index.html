@@ -39,35 +39,38 @@
             </div>
         </div>
         <div class="eula-onboarding-scroll">
-        <div class="onboarding-content legal-onboarding-content">
-            <div class="onboarding-icon">
-                <img src="images/icon.svg" alt="ReDD Do app icon" class="onboarding-app-icon">
-            </div>
-            <h1>Welcome to ReDD Do</h1>
-            <div class="onboarding-focus-card legal-onboarding-card">
-                <div class="legal-onboarding-checkbox-row">
-                    <input type="checkbox" id="eula-agree-checkbox"
-                        aria-label="I agree to the End User License Agreement and Privacy Policy">
-                    <span class="legal-onboarding-checkbox-text">
-                        <label for="eula-agree-checkbox" class="legal-onboarding-checkbox-label">I agree to the ReDD Project's </label><a
-                            href="https://reddfocus.org/eula" target="_blank" rel="noopener noreferrer"
-                            class="legal-onboarding-link" data-external-url="https://reddfocus.org/eula">End User License Agreement</a>
-                    </span>
+            <div class="onboarding-content legal-onboarding-content">
+                <div class="onboarding-icon">
+                    <img src="images/icon.svg" alt="ReDD Do app icon" class="onboarding-app-icon">
                 </div>
-                <p class="legal-onboarding-note">
-                    Note that we do not collect any user data, as per our
-                    <a href="https://reddfocus.org/privacy-policy" target="_blank" rel="noopener noreferrer"
-                        class="legal-onboarding-link" data-external-url="https://reddfocus.org/privacy-policy">Privacy Policy</a>.
+                <h1>Welcome to ReDD Do</h1>
+                <div class="onboarding-focus-card legal-onboarding-card">
+                    <div class="legal-onboarding-checkbox-row">
+                        <input type="checkbox" id="eula-agree-checkbox"
+                            aria-label="I agree to the End User License Agreement and Privacy Policy">
+                        <span class="legal-onboarding-checkbox-text">
+                            <label for="eula-agree-checkbox" class="legal-onboarding-checkbox-label">I agree to the ReDD
+                                Project's </label><a href="https://reddfocus.org/eula" target="_blank"
+                                rel="noopener noreferrer" class="legal-onboarding-link"
+                                data-external-url="https://reddfocus.org/eula">End User License Agreement</a>
+                        </span>
+                    </div>
+                    <p class="legal-onboarding-note">
+                        Note that we do not collect any user data, as per our
+                        <a href="https://reddfocus.org/privacy-policy" target="_blank" rel="noopener noreferrer"
+                            class="legal-onboarding-link"
+                            data-external-url="https://reddfocus.org/privacy-policy">Privacy Policy</a>.
+                    </p>
+                    <button id="eula-continue-btn" type="button" class="modal-btn primary-btn onboarding-primary-btn"
+                        disabled>Continue</button>
+                </div>
+                <p class="legal-onboarding-body">
+                    ReDD Do is developed by the Reduce Digital Distraction Project, in collaboration with
+                    researchers at the University of Oxford and University of Maastricht. The ReDD Project is a
+                    not-for-profit that creates insights &amp; open-source digital focus tools for everyone to thrive in
+                    the digital world.
                 </p>
-                <button id="eula-continue-btn" type="button" class="modal-btn primary-btn onboarding-primary-btn" disabled>Continue</button>
             </div>
-            <p class="legal-onboarding-body">
-                ReDD Do is developed by the Reduce Digital Distraction Project, in collaboration with
-                researchers at the University of Oxford and University of Maastricht. The ReDD Project is a
-                not-for-profit that creates insights &amp; open-source digital focus tools for everyone to thrive in
-                the digital world.
-            </p>
-        </div>
         </div>
     </div>
     <div class="app-container">
@@ -113,12 +116,15 @@
                     <button class="win-btn" data-window-action="maximize" title="Maximize">
                         <svg class="maximize-icon" width="12" height="12" viewBox="0 0 12 12" fill="none"
                             xmlns="http://www.w3.org/2000/svg">
-                            <rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="1.2" fill="none" />
+                            <rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="1.2"
+                                fill="none" />
                         </svg>
                         <svg class="restore-icon" width="12" height="12" viewBox="0 0 12 12" fill="none"
                             xmlns="http://www.w3.org/2000/svg" style="display: none;">
-                            <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1.2" fill="none" />
-                            <rect x="0" y="0" width="8" height="8" stroke="currentColor" stroke-width="1.2" fill="none" />
+                            <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1.2"
+                                fill="none" />
+                            <rect x="0" y="0" width="8" height="8" stroke="currentColor" stroke-width="1.2"
+                                fill="none" />
                         </svg>
                     </button>
                     <button class="win-btn close-btn" data-window-action="close" title="Close">
@@ -135,99 +141,103 @@
 
             <!-- Centered content column (capped width on wide windows) -->
             <div class="content-column">
-            <!-- Groups -->
-            <div class="groups-container">
-                <div class="groups">
-                    <!-- Groups will be dynamically added here -->
+                <!-- Groups -->
+                <div class="groups-container">
+                    <div class="groups">
+                        <!-- Groups will be dynamically added here -->
+                    </div>
                 </div>
-            </div>
 
-            <!-- Tabs -->
-            <div class="tabs-container">
-                <div class="tabs">
-                    <!-- Tabs will be dynamically added here -->
+                <!-- Tabs -->
+                <div class="tabs-container">
+                    <div class="tabs">
+                        <!-- Tabs will be dynamically added here -->
+                    </div>
                 </div>
-            </div>
 
-            <!-- Tasks Container -->
-            <div class="tasks-container">
-                <!-- Active tasks will be dynamically added here -->
-            </div>
+                <!-- Tasks Container -->
+                <div class="tasks-container">
+                    <!-- Active tasks will be dynamically added here -->
+                </div>
 
-            <!-- Add Task Input -->
-            <div class="add-task-container" id="add-task-container">
-                <div class="add-task-resizer" id="add-task-resizer"></div>
-                <div class="input-wrapper">
-                    <input type="text" id="new-task-input" placeholder="Add task..." maxlength="100">
-                    <div id="duration-input-container" class="duration-input-container">
-                        <button type="button" id="duration-trigger-btn" class="duration-trigger-btn" tabindex="0">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 6v6l3.644 1.822" />
-                                <path d="M16 19h6" />
-                                <path d="M19 16v6" />
-                                <path d="M21.92 13.267a10 10 0 1 0-8.653 8.653" />
+                <!-- Add Task Input -->
+                <div class="add-task-container" id="add-task-container">
+                    <div class="add-task-resizer" id="add-task-resizer"></div>
+                    <div class="input-wrapper">
+                        <input type="text" id="new-task-input" placeholder="Add task..." maxlength="100">
+                        <div id="duration-input-container" class="duration-input-container">
+                            <button type="button" id="duration-trigger-btn" class="duration-trigger-btn" tabindex="0">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 6v6l3.644 1.822" />
+                                    <path d="M16 19h6" />
+                                    <path d="M19 16v6" />
+                                    <path d="M21.92 13.267a10 10 0 1 0-8.653 8.653" />
+                                </svg>
+                            </button>
+                            <input type="number" id="task-duration-input" class="task-duration-input hidden"
+                                placeholder="" min="0" max="999">
+                            <span class="duration-label">m</span>
+                            <div class="duration-spinners">
+                                <button type="button" class="duration-spinner-btn" id="duration-increment"
+                                    tabindex="-1">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="18 15 12 9 6 15"></polyline>
+                                    </svg>
+                                </button>
+                                <button type="button" class="duration-spinner-btn" id="duration-decrement"
+                                    tabindex="-1">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <button id="add-task-btn" class="hidden">Add</button>
+                    </div>
+                    <button id="sync-btn" class="sync-btn hidden" title="Sync with Basecamp">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                        </svg>
+                    </button>
+                    <button id="settings-btn" class="sync-btn settings-inline-btn" title="Settings">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.16.1a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.2a2 2 0 0 1-1 1.73l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.16.09a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.16-.09a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.73v-.2a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.16-.1a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
+                            </path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Done Tasks Container -->
+                <div class="done-container" id="done-container">
+                    <div class="done-heading" id="done-heading">
+                        <div class="done-toggle">
+                            <svg class="arrow-down-icon" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 5v14"></path>
+                                <path d="m19 12-7 7-7-7"></path>
                             </svg>
-                        </button>
-                        <input type="number" id="task-duration-input" class="task-duration-input hidden" placeholder=""
-                            min="0" max="999">
-                        <span class="duration-label">m</span>
-                        <div class="duration-spinners">
-                            <button type="button" class="duration-spinner-btn" id="duration-increment" tabindex="-1">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="18 15 12 9 6 15"></polyline>
-                                </svg>
-                            </button>
-                            <button type="button" class="duration-spinner-btn" id="duration-decrement" tabindex="-1">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
-                            </button>
+                            <span>Done</span>
                         </div>
                     </div>
-                    <button id="add-task-btn" class="hidden">Add</button>
-                </div>
-                <button id="sync-btn" class="sync-btn hidden" title="Sync with Basecamp">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-                    </svg>
-                </button>
-                <button id="settings-btn" class="sync-btn settings-inline-btn" title="Settings">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path
-                            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.16.1a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.2a2 2 0 0 1-1 1.73l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.16.09a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.16-.09a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.73v-.2a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.16-.1a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
-                        </path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Done Tasks Container -->
-            <div class="done-container" id="done-container">
-                <div class="done-heading" id="done-heading">
-                    <div class="done-toggle">
-                        <svg class="arrow-down-icon" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 5v14"></path>
-                            <path d="m19 12-7 7-7-7"></path>
-                        </svg>
-                        <span>Done</span>
+                    <div class="done-summary">
+                        <span id="done-task-count" class="done-task-count"></span>
+                        <span id="done-time-spent" class="done-time-spent"></span>
+                        <button id="delete-all-btn" class="delete-all-btn hidden"
+                            title="Delete all completed tasks">Clear
+                            all</button>
+                    </div>
+                    <div class="done-tasks">
+                        <!-- Completed tasks will be dynamically added here -->
                     </div>
                 </div>
-                <div class="done-summary">
-                    <span id="done-task-count" class="done-task-count"></span>
-                    <span id="done-time-spent" class="done-time-spent"></span>
-                    <button id="delete-all-btn" class="delete-all-btn hidden" title="Delete all completed tasks">Clear
-                        all</button>
-                </div>
-                <div class="done-tasks">
-                    <!-- Completed tasks will be dynamically added here -->
-                </div>
-            </div>
             </div><!-- /.content-column -->
 
             <!-- Footer -->
@@ -378,7 +388,9 @@
                 </div>
 
                 <div class="settings-section">
-                    <h4 data-i18n="integrations" style="margin-bottom: 12px;">Integrations</h4>
+                    <h4 data-i18n="integrations">Integrations</h4>
+                    <p data-i18n="integrationsDesc" class="settings-desc"
+                        style="font-style: italic; margin-bottom: 12px;"> from other apps you use.</p>
 
                     <!-- Apple Reminders -->
                     <div id="reminders-connect-row"
@@ -394,7 +406,7 @@
                                 <path d="M3 12h.01"></path>
                                 <path d="M3 18h.01"></path>
                             </svg>
-                            <span data-i18n="connectAppleReminders">Connect to Apple Reminders</span>
+                            <span data-i18n="appleReminders">Apple Reminders</span>
                         </button>
                         <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info"
                             title="More info" style="margin-left: 8px;">
@@ -433,7 +445,7 @@
                         <button id="oauth-connect-btn" class="modal-btn connect-btn"
                             style="flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px;">
                             <img src="images/basecamp_logo_icon_147315.png" width="16" height="16">
-                            <span data-i18n="connectBasecamp">Connect to Basecamp</span>
+                            <span data-i18n="connectBasecamp">Basecamp</span>
                         </button>
                         <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
                             title="More info" style="margin-left: 8px;">
@@ -457,7 +469,8 @@
                                     <span data-i18n="connectedBasecamp">Connected to Basecamp</span>
                                 </div>
                                 <div id="bc-account-info"
-                                    style="font-size: 0.9em; color: var(--text-tertiary); margin-top: 4px; margin-left: 16px;"></div>
+                                    style="font-size: 0.9em; color: var(--text-tertiary); margin-top: 4px; margin-left: 16px;">
+                                </div>
                             </div>
                             <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
                                 title="More info" style="margin-left: 8px;">

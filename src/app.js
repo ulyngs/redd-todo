@@ -278,10 +278,16 @@ const translations = {
         exportBackup: 'Export Backup',
         importBackup: 'Import Backup',
         integrations: 'Integrations',
-        connectAppleReminders: 'Connect to Apple Reminders',
+        integrationsDesc: 'Sync tasks with other apps you use.',
+        // Note: "Continue" is mandated by Apple — the App Store team rejected
+        // earlier wording ("Connect to Apple Reminders") under guideline
+        // 5.1.1(iv) as too encouraging of the permission request. Do not change
+        // back to verbs like Connect / Allow / Enable on the button.
+        appleReminders: 'Apple Reminders',
+        connectAppleReminders: 'Apple Reminders',
         connectedAppleReminders: 'Connected to Apple Reminders',
-        remindersInfo: 'Import tasks from Apple Reminders.',
-        connectBasecamp: 'Connect to Basecamp',
+        remindersInfo: 'Sync tasks with Apple Reminders.',
+        connectBasecamp: 'Basecamp',
         connectedBasecamp: 'Connected to Basecamp',
         basecampInfo: 'Sync your to-do lists with Basecamp project management software.',
         disconnect: 'Disconnect',
@@ -331,10 +337,12 @@ const translations = {
         exportBackup: 'Eksporter sikkerhedskopi',
         importBackup: 'Importer sikkerhedskopi',
         integrations: 'Integrationer',
-        connectAppleReminders: 'Opret forbindelse til Apple Påmindelser',
+        integrationsDesc: 'Importér opgaver fra andre apps du bruger.',
+        appleReminders: 'Apple Påmindelser',
+        connectAppleReminders: 'Apple Påmindelser',
         connectedAppleReminders: 'Forbundet til Apple Påmindelser',
         remindersInfo: 'Importer opgaver fra Apple Påmindelser.',
-        connectBasecamp: 'Opret forbindelse til Basecamp',
+        connectBasecamp: 'Basecamp',
         connectedBasecamp: 'Forbundet til Basecamp',
         basecampInfo: 'Synkroniser dine to-do lister med Basecamp projektstyringssoftware.',
         disconnect: 'Afbryd forbindelse',
@@ -4086,7 +4094,7 @@ function setupEventListeners() {
             const handleRemindersPermissionDenied = async () => {
                 alert(
                     'Reminders access is currently denied.\n\n' +
-                    'I will open macOS Privacy settings now. Enable access for this app, then click "Connect Reminders" again.'
+                    'I will open macOS Privacy settings now. Enable access for this app, then return here and try again.'
                 );
                 if (reddIsTauri && typeof tauriAPI !== 'undefined') {
                     try {
@@ -4132,7 +4140,7 @@ function setupEventListeners() {
                             alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
                         }
                         remindersConnectBtn.disabled = false;
-                        remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+                        remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> ' + t('appleReminders');
                     }
                 } catch (error) {
                     console.error(error);
@@ -4142,7 +4150,7 @@ function setupEventListeners() {
                         alert('Failed to connect to Reminders: ' + error);
                     }
                     remindersConnectBtn.disabled = false;
-                    remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+                    remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> ' + t('appleReminders');
                 }
             });
         }
@@ -4158,7 +4166,7 @@ function setupEventListeners() {
 
             // Reset connect button state
             remindersConnectBtn.disabled = false;
-            remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+            remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> ' + t('appleReminders');
         });
     }
 
