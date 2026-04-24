@@ -1,6 +1,6 @@
 # ReDD Do
 
-A simple, beautiful, and distraction-free todo app for Mac and Windows, built with Tauri. Designed to help you focus on one task at a time while keeping track of your time.
+Simple to-do app meant to make it easier to avoid rabbitholing with an always-on-top window displaying your current task. Cross-platform application for Mac and Windows built with Tauri.
 
 ## ✨ Features
 
