@@ -40,6 +40,12 @@ function makeAppStoreConfig(baseConfig) {
   const config = JSON.parse(JSON.stringify(baseConfig));
   if (!config.app) config.app = {};
   config.app.macOSPrivateApi = false;
+  if (!config.bundle) config.bundle = {};
+  if (!config.bundle.macOS) config.bundle.macOS = {};
+  // Avoid Tauri's default app signing pass (which uses the Developer ID
+  // identity from tauri.conf.json and can fail on timestamp requirements).
+  // build:mas re-signs the app explicitly with MAS identities later.
+  config.bundle.macOS.signingIdentity = null;
   return config;
 }
 

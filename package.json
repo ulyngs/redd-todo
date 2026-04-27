@@ -1,8 +1,7 @@
 {
   "name": "redd-todo",
-  "version": "2.3.1",
+  "version": "2.4.3",
   "description": "ReDD Do - keep your goals in sight and get back to what you wanted to do",
-  "main": "main.js",
   "scripts": {
     "dev": "tauri dev",
     "tauri:build:mas-app": "CI=true tauri build --target universal-apple-darwin --bundles app --config src-tauri/tauri.appstore.temp.conf.json",
@@ -10,15 +9,11 @@
     "build:mac": "rm -f src-tauri/target/universal-apple-darwin/release/bundle/macos/rw.*.dmg src-tauri/target/universal-apple-darwin/release/bundle/dmg/rw.*.dmg && CARGO_TARGET_DIR=target CI=false tauri build --target universal-apple-darwin && node scripts/collect-distribution-artifacts.js --target universal-apple-darwin && node scripts/notarize-direct-mac.js && node scripts/build-mas-package.js --skip-tauri-build --optional",
     "build:mas": "node scripts/build-mas-package.js",
     "build:win": "tauri build --target x86_64-pc-windows-msvc --no-bundle && tauri bundle --target x86_64-pc-windows-msvc --bundles nsis,msi --config src-tauri/tauri.microsoftstore.conf.json && node scripts/collect-distribution-artifacts.js --target x86_64-pc-windows-msvc && node scripts/verify-windows-store-artifacts.js && powershell -ExecutionPolicy Bypass -File scripts/build-msix.ps1",
-    "build:linux": "bash scripts/build-linux.sh && node scripts/collect-distribution-artifacts.js --target x86_64-unknown-linux-gnu && node scripts/normalize-linux-artifact-names.js x86_64-unknown-linux-gnu",
-    "electron:start": "electron .",
-    "electron:dev": "electron . --dev",
-    "electron:build": "node build.js"
+    "build:linux": "bash scripts/build-linux.sh && node scripts/collect-distribution-artifacts.js --target x86_64-unknown-linux-gnu && node scripts/normalize-linux-artifact-names.js x86_64-unknown-linux-gnu"
   },
   "keywords": [
     "todo",
     "task",
-    "electron",
     "productivity"
   ],
   "author": {
@@ -27,21 +22,11 @@
   },
   "license": "CC-BY-NC-ND-3.0",
   "dependencies": {
-    "@tauri-apps/api": "^2.9.1",
-    "electron-log": "^5.4.3",
-    "electron-updater": "^6.6.2",
-    "node-fetch": "^2.7.0"
-  },
-  "optionalDependencies": {
-    "@redd/electron-panel-window-darwin": "file:vendor/electron-panel-window-darwin"
+    "@tauri-apps/api": "^2.9.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.9.6",
     "dotenv": "^17.2.3",
-    "electron": "^25.9.8",
-    "electron-builder": "^26.0.12",
-    "electron-icon-builder": "^2.0.1",
-    "icon-gen": "^5.0.0",
     "quill": "^2.0.3",
     "sharp": "^0.34.5"
   }

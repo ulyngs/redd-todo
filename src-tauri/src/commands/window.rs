@@ -1,9 +1,11 @@
-use tauri::{command, Emitter, LogicalPosition, Manager, WebviewUrl};
-use tauri::WebviewWindowBuilder;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
+use tauri::WebviewWindowBuilder;
+use tauri::{command, Emitter, LogicalPosition, Manager, WebviewUrl};
 #[cfg(target_os = "macos")]
-use tauri_nspanel::{CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask, TrackingAreaOptions};
+use tauri_nspanel::{
+    CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask, TrackingAreaOptions,
+};
 
 #[cfg(target_os = "macos")]
 tauri_nspanel::tauri_panel! {
@@ -45,6 +47,9 @@ fn fullscreen_focus_window_label(task_id: &str) -> String {
 
 const FOCUS_WINDOW_MIN_WIDTH: f64 = 270.0;
 const FOCUS_WINDOW_MIN_HEIGHT: f64 = 48.0;
+/// Default height of the focus-mode window — matches the `.focus-bar` CSS height.
+/// Same on macOS and Windows; see `set_focus_window_size` and `set_focus_mode_window_state`.
+const FOCUS_BAR_HEIGHT: f64 = 48.0;
 
 #[derive(Clone, Copy)]
 struct FocusWindowGeometry {
@@ -259,30 +264,37 @@ pub fn open_focus_window(
             if !apply_last_focus_window_geometry(&window) {
                 position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
             }
-            
+
             // Emit event to the window with task data
-            let _ = window.emit("enter-focus-mode", serde_json::json!({
-                "taskId": task_id,
-                "taskName": task_name,
-                "duration": duration,
-                "initialTimeSpent": time_spent.unwrap_or(0.0),
-                "preserveWindowGeometry": preserve_window_geometry
-            }));
-            
+            let _ = window.emit(
+                "enter-focus-mode",
+                serde_json::json!({
+                    "taskId": task_id,
+                    "taskName": task_name,
+                    "duration": duration,
+                    "initialTimeSpent": time_spent.unwrap_or(0.0),
+                    "preserveWindowGeometry": preserve_window_geometry
+                }),
+            );
+
             // Notify main window about focus status change
             if let Some(main_window) = app.get_webview_window("main") {
-                let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                    "activeTaskId": task_id,
-                    "openedTaskId": task_id
-                }));
+                let _ = main_window.emit(
+                    "focus-status-changed",
+                    serde_json::json!({
+                        "activeTaskId": task_id,
+                        "openedTaskId": task_id
+                    }),
+                );
                 let _ = main_window.hide();
             }
-            
+
             return Ok(());
         }
-        
+
         // Build the URL with query params
-        let url = format!("index.html?focus=1&taskId={}&taskName={}&duration={}&timeSpent={}",
+        let url = format!(
+            "index.html?focus=1&taskId={}&taskName={}&duration={}&timeSpent={}",
             urlencoding::encode(&task_id),
             urlencoding::encode(&task_name),
             duration.unwrap_or(0.0),
@@ -320,28 +332,34 @@ pub fn open_focus_window(
                 position_focus_window(&app, &window, anchor_left, anchor_right, anchor_top);
             }
             if preserve_window_geometry {
-                let _ = window.emit("enter-focus-mode", serde_json::json!({
-                    "taskId": task_id,
-                    "taskName": task_name,
-                    "duration": duration,
-                    "initialTimeSpent": time_spent.unwrap_or(0.0),
-                    "preserveWindowGeometry": true
-                }));
+                let _ = window.emit(
+                    "enter-focus-mode",
+                    serde_json::json!({
+                        "taskId": task_id,
+                        "taskName": task_name,
+                        "duration": duration,
+                        "initialTimeSpent": time_spent.unwrap_or(0.0),
+                        "preserveWindowGeometry": true
+                    }),
+                );
             }
         }
-        
+
         // Notify main window about focus status change
         if let Some(main_window) = app.get_webview_window("main") {
-            let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                "activeTaskId": task_id,
-                "openedTaskId": task_id
-            }));
+            let _ = main_window.emit(
+                "focus-status-changed",
+                serde_json::json!({
+                    "activeTaskId": task_id,
+                    "openedTaskId": task_id
+                }),
+            );
             let _ = main_window.hide();
         }
-        
+
         Ok(())
     }
-    
+
     #[cfg(not(target_os = "macos"))]
     {
         if let Some(window) = app.get_webview_window(&label) {
@@ -391,10 +409,13 @@ pub fn open_focus_window(
         }
 
         if let Some(main_window) = app.get_webview_window("main") {
-            let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                "activeTaskId": task_id,
-                "openedTaskId": task_id
-            }));
+            let _ = main_window.emit(
+                "focus-status-changed",
+                serde_json::json!({
+                    "activeTaskId": task_id,
+                    "openedTaskId": task_id
+                }),
+            );
         }
 
         Ok(())
@@ -439,21 +460,24 @@ pub fn exit_focus_mode(
             save_focus_window_geometry(&window);
             let _ = window.hide();
         }
-        
+
         // Notify main window that focus mode ended and bring it to front
         if let Some(main_window) = app.get_webview_window("main") {
-            let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                "activeTaskId": Option::<String>::None,
-                "closedTaskId": task_id
-            }));
+            let _ = main_window.emit(
+                "focus-status-changed",
+                serde_json::json!({
+                    "activeTaskId": Option::<String>::None,
+                    "closedTaskId": task_id
+                }),
+            );
             // Bring main window to front
             let _ = main_window.show();
             let _ = main_window.set_focus();
         }
-        
+
         Ok(())
     }
-    
+
     #[cfg(not(target_os = "macos"))]
     {
         let mut closed_any = false;
@@ -480,10 +504,13 @@ pub fn exit_focus_mode(
         }
 
         if let Some(main_window) = app.get_webview_window("main") {
-            let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                "activeTaskId": Option::<String>::None,
-                "closedTaskId": task_id
-            }));
+            let _ = main_window.emit(
+                "focus-status-changed",
+                serde_json::json!({
+                    "activeTaskId": Option::<String>::None,
+                    "closedTaskId": task_id
+                }),
+            );
             let _ = main_window.show();
             let _ = main_window.set_focus();
         }
@@ -492,17 +519,16 @@ pub fn exit_focus_mode(
     }
 }
 
-/// Set focus window size (width only, height stays at 48)
+/// Set focus window size (width only, height stays at the focus-bar height).
+/// Also relaxes the min-inner-size so the window can shrink below the main
+/// app's normal minimum width while in focus mode.
 #[command]
 pub fn set_focus_window_size(window: tauri::WebviewWindow, width: f64) -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
     let _ = window.set_fullscreen(false);
 
-    #[cfg(target_os = "windows")]
-    let focus_height = 56.0;
-    #[cfg(not(target_os = "windows"))]
-    let focus_height = 48.0;
-
+    let focus_height = FOCUS_BAR_HEIGHT;
+    let _ = window.set_min_size(Some(tauri::LogicalSize::new(280.0, focus_height)));
     let _ = window.set_size(tauri::LogicalSize::new(width, focus_height));
     Ok(())
 }
@@ -515,6 +541,25 @@ pub fn set_focus_window_height(window: tauri::WebviewWindow, height: f64) -> Res
         let current_width = (size.width as f64) / scale;
         let _ = window.set_size(tauri::LogicalSize::new(current_width, height));
     }
+    Ok(())
+}
+
+/// Set both width and height in a single atomic call.
+/// Used to restore the main window after exiting in-window focus mode (Windows/Linux);
+/// avoids the race between separate width/height set calls.
+/// Also restores the main app's min-inner-size constraint
+/// (kept in sync with `minWidth` in tauri.conf.json).
+#[command]
+pub fn set_window_bounds(
+    window: tauri::WebviewWindow,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    #[cfg(not(target_os = "macos"))]
+    let _ = window.set_fullscreen(false);
+
+    let _ = window.set_min_size(Some(tauri::LogicalSize::new(460.0, 0.0)));
+    let _ = window.set_size(tauri::LogicalSize::new(width, height));
     Ok(())
 }
 
@@ -709,16 +754,21 @@ pub fn exit_fullscreen_focus_handoff(
 
         if let Ok(mut store) = fullscreen_handoff_geometry().lock() {
             if let Some(geometry) = store.remove(&task_id) {
-                if let Some(restored_window) = app.get_webview_window(&focus_window_label(&task_id)) {
-                    let _ = restored_window.set_size(tauri::LogicalSize::new(geometry.width, geometry.height));
-                    let _ = restored_window.set_position(LogicalPosition::new(geometry.x, geometry.y));
+                if let Some(restored_window) = app.get_webview_window(&focus_window_label(&task_id))
+                {
+                    let _ = restored_window
+                        .set_size(tauri::LogicalSize::new(geometry.width, geometry.height));
+                    let _ =
+                        restored_window.set_position(LogicalPosition::new(geometry.x, geometry.y));
                 }
             }
         }
 
         if window.label().starts_with("focusfs-") {
             let _ = window.close();
-        } else if let Some(fullscreen_window) = app.get_webview_window(&fullscreen_focus_window_label(&task_id)) {
+        } else if let Some(fullscreen_window) =
+            app.get_webview_window(&fullscreen_focus_window_label(&task_id))
+        {
             let _ = fullscreen_window.close();
         }
         return Ok(());
@@ -752,7 +802,9 @@ pub fn exit_fullscreen_focus_to_home(
 
         if window.label().starts_with("focusfs-") {
             let _ = window.close();
-        } else if let Some(fullscreen_window) = app.get_webview_window(&fullscreen_focus_window_label(&task_id)) {
+        } else if let Some(fullscreen_window) =
+            app.get_webview_window(&fullscreen_focus_window_label(&task_id))
+        {
             let _ = fullscreen_window.close();
         }
 
@@ -765,12 +817,15 @@ pub fn exit_fullscreen_focus_to_home(
         }
 
         if let Some(main_window) = app.get_webview_window("main") {
-            let _ = main_window.emit("focus-status-changed", serde_json::json!({
-                "activeTaskId": Option::<String>::None,
-                "closedTaskId": task_id,
-                "completeOnHome": complete_on_home.unwrap_or(false),
-                "elapsedMs": elapsed_ms
-            }));
+            let _ = main_window.emit(
+                "focus-status-changed",
+                serde_json::json!({
+                    "activeTaskId": Option::<String>::None,
+                    "closedTaskId": task_id,
+                    "completeOnHome": complete_on_home.unwrap_or(false),
+                    "elapsedMs": elapsed_ms
+                }),
+            );
             let _ = main_window.show();
             let _ = main_window.set_focus();
         }
@@ -800,15 +855,24 @@ pub fn refresh_main_window(app: tauri::AppHandle) -> Result<(), String> {
 /// Emit task update to all windows
 #[command]
 pub fn task_updated(app: tauri::AppHandle, task_id: String, text: String) -> Result<(), String> {
-    app.emit("task-updated", serde_json::json!({ "taskId": task_id, "text": text }))
-        .map_err(|e| e.to_string())
+    app.emit(
+        "task-updated",
+        serde_json::json!({ "taskId": task_id, "text": text }),
+    )
+    .map_err(|e| e.to_string())
 }
 
 /// Emit focus status changed to all windows
 #[command]
-pub fn focus_status_changed(app: tauri::AppHandle, active_task_id: Option<String>) -> Result<(), String> {
-    app.emit("focus-status-changed", serde_json::json!({ "activeTaskId": active_task_id }))
-        .map_err(|e| e.to_string())
+pub fn focus_status_changed(
+    app: tauri::AppHandle,
+    active_task_id: Option<String>,
+) -> Result<(), String> {
+    app.emit(
+        "focus-status-changed",
+        serde_json::json!({ "activeTaskId": active_task_id }),
+    )
+    .map_err(|e| e.to_string())
 }
 
 /// Toggle main focus-mode window behavior (always on top, workspace visibility)
@@ -837,11 +901,11 @@ pub fn set_focus_mode_window_state(
         if enabled {
             let _ = window.set_min_size(Some(tauri::LogicalSize::new(
                 FOCUS_WINDOW_MIN_WIDTH,
-                56.0,
+                FOCUS_BAR_HEIGHT,
             )));
         } else {
             // Restore the normal main-window min width (matches tauri.conf.json).
-            let _ = window.set_min_size(Some(tauri::LogicalSize::new(420.0, 0.0)));
+            let _ = window.set_min_size(Some(tauri::LogicalSize::new(460.0, 0.0)));
         }
     }
 

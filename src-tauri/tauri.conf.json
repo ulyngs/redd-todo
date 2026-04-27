@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "ReDD Do",
-  "version": "2.3.1",
+  "version": "2.4.3",
   "identifier": "com.redd.do",
   "build": {
     "frontendDist": "../src"
@@ -13,9 +13,9 @@
       {
         "label": "main",
         "title": "ReDD Do",
-        "width": 450,
+        "width": 540,
         "height": 600,
-        "minWidth": 420,
+        "minWidth": 460,
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
@@ -48,7 +48,7 @@
       "icons/icon.ico"
     ],
     "category": "Productivity",
-    "copyright": "Copyright © 2025 Reduce Digital Distraction Ltd",
+    "copyright": "Copyright © 2026 Reduce Digital Distraction Ltd",
     "macOS": {
       "entitlements": null,
       "exceptionDomain": "",

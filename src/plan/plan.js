@@ -128,8 +128,8 @@ const PlanModule = (function () {
     };
 
     const DEFAULT_GROUPS = [
-        { id: 'personal', translationKey: 'personal', color: '#667eea', visible: true },
-        { id: 'work', translationKey: 'work', color: '#f59e0b', visible: true }
+        { id: 'personal', translationKey: 'personal', color: '#2a9d8f', visible: true },
+        { id: 'work', translationKey: 'work', color: '#d4605a', visible: true }
     ];
 
     // Storage keys
@@ -291,7 +291,7 @@ const PlanModule = (function () {
                         <input type="text" class="plan-calendar-url-input" placeholder="ICS URL (https:// or webcal://)">
                         <button class="plan-calendar-add-save-btn">Add Calendar</button>
                     </div>
-                    <p class="plan-calendar-hint">Events with "REDD-DO" in description will be shown</p>
+                    <p class="plan-calendar-hint">Events with "REDD-DO" in their description will be shown</p>
                     <div class="plan-calendar-status"></div>
                 </div>
             </div>
@@ -2113,7 +2113,7 @@ const PlanModule = (function () {
                             n.calendarId = cal.id;
                             n.calendarName = cal.name;
                             n.fontFamily = cal.fontFamily || 'Inter';
-                            n.fontColor = cal.fontColor || '#818cf8';
+                            n.fontColor = cal.fontColor || '#4a90e2';
                         });
 
                         // Add calendar styling and source markers to lines
@@ -2121,9 +2121,9 @@ const PlanModule = (function () {
                             l.source = 'calendar';
                             l.calendarId = cal.id;
                             l.calendarName = cal.name;
-                            l.color = cal.lineColor || '#6366f1';
+                            l.color = cal.lineColor || '#4a90e2';
                             l.fontFamily = cal.fontFamily || 'Inter';
-                            l.fontColor = cal.fontColor || '#818cf8';
+                            l.fontColor = cal.fontColor || '#4a90e2';
                         });
 
                         // Merge into freeform arrays, restoring user customizations
@@ -2281,7 +2281,7 @@ const PlanModule = (function () {
                 toggle.title = 'Click name to rename';
                 toggle.innerHTML = `
                     <input type="checkbox" ${cal.visible ? 'checked' : ''}>
-                    <span class="calendar-name" style="color: ${cal.fontColor || '#6366f1'}">${cal.name || 'Calendar'}</span>
+                    <span class="calendar-name" style="color: ${cal.fontColor || '#4a90e2'}">${cal.name || 'Calendar'}</span>
                 `;
                 toggle.querySelector('input').addEventListener('change', e => {
                     cal.visible = e.target.checked;

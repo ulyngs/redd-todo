@@ -63,6 +63,7 @@ const reddIpc = {
                 ),
                 'set-focus-window-size': () => tauriAPI.setFocusWindowSize(args[0]),
                 'set-focus-window-height': () => tauriAPI.setFocusWindowHeight(args[0]),
+                'set-window-bounds': () => tauriAPI.setWindowBounds(args[0]?.width, args[0]?.height),
                 'enter-fullscreen-focus': () => tauriAPI.enterFullscreenFocus(),
                 'exit-fullscreen-focus': () => tauriAPI.exitFullscreenFocus(),
                 'enter-fullscreen-focus-handoff': () => tauriAPI.enterFullscreenFocusHandoff(
@@ -216,6 +217,8 @@ let focusStartTime = null;
 let previousFocusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
 let focusTimerInterval = null;
+let focusPersistInterval = null; // Periodic save of cumulative timeSpent (crash resilience)
+const FOCUS_PERSIST_INTERVAL_MS = 30000;
 let preTaskSwitchMenuHeight = null; // Restore exact panel height after menu closes
 // Track dragged items
 let draggedTaskId = null;
@@ -238,6 +241,10 @@ let currentLang = 'en'; // Current language
  * re-prompted.
  */
 const CURRENT_EULA_REVISION = '1';
+
+/** Compact width for the in-window focus-mode window (Windows/Linux).
+ * Kept independent of the main window's size so focus visibly contracts. */
+const FOCUS_WINDOW_WIDTH = 300;
 let eulaAccepted = false;
 let eulaAcceptedVersion = null;
 let eulaAcceptedAt = null;
@@ -271,11 +278,17 @@ const translations = {
         exportBackup: 'Export Backup',
         importBackup: 'Import Backup',
         integrations: 'Integrations',
-        connectAppleReminders: 'Connect to Apple Reminders',
-        connectedAppleReminders: 'Connected to Apple Reminders',
-        remindersInfo: 'Import tasks from Apple Reminders.',
-        connectBasecamp: 'Connect to Basecamp',
-        connectedBasecamp: 'Connected to Basecamp',
+        integrationsDesc: 'Optionally sync tasks from other apps you use.',
+        // Note: "Continue" is mandated by Apple — the App Store team rejected
+        // earlier wording ("Connect to Apple Reminders") under guideline
+        // 5.1.1(iv) as too encouraging of the permission request. Do not change
+        // back to verbs like Connect / Allow / Enable on the button.
+        appleReminders: 'Apple Reminders',
+        connectAppleReminders: 'Apple Reminders',
+        connectedAppleReminders: 'Apple Reminders: Connected',
+        remindersInfo: 'Sync tasks with Apple Reminders.',
+        connectBasecamp: 'Basecamp',
+        connectedBasecamp: 'Basecamp: Connected',
         basecampInfo: 'Sync your to-do lists with Basecamp project management software.',
         disconnect: 'Disconnect',
         yourVersion: 'Your version',
@@ -324,11 +337,13 @@ const translations = {
         exportBackup: 'Eksporter sikkerhedskopi',
         importBackup: 'Importer sikkerhedskopi',
         integrations: 'Integrationer',
-        connectAppleReminders: 'Opret forbindelse til Apple Påmindelser',
-        connectedAppleReminders: 'Forbundet til Apple Påmindelser',
+        integrationsDesc: 'Synkronisér opgaver fra andre apps du bruger.',
+        appleReminders: 'Apple Påmindelser',
+        connectAppleReminders: 'Apple Påmindelser',
+        connectedAppleReminders: 'Apple Påmindelser: Forbundet',
         remindersInfo: 'Importer opgaver fra Apple Påmindelser.',
-        connectBasecamp: 'Opret forbindelse til Basecamp',
-        connectedBasecamp: 'Forbundet til Basecamp',
+        connectBasecamp: 'Basecamp',
+        connectedBasecamp: 'Basecamp: Forbundet',
         basecampInfo: 'Synkroniser dine to-do lister med Basecamp projektstyringssoftware.',
         disconnect: 'Afbryd forbindelse',
         yourVersion: 'Din version',
@@ -573,6 +588,15 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
     }
 });
 
+// Cross-window theme sync. The macOS focus-mode panel is a separate webview;
+// without this it stays on whatever theme it had at launch when the user
+// switches theme from the main window.
+window.addEventListener('storage', (e) => {
+    if (e.key === 'theme') {
+        applyTheme(e.newValue || 'system');
+    }
+});
+
 if (themeSelect) {
     themeSelect.addEventListener('change', (e) => {
         const theme = e.target.value;
@@ -644,7 +668,14 @@ if (languageSelect) {
 }
 
 function isLocalDevRun() {
-    return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    // Tauri's production webviews use tauri://localhost (macOS/Linux) or
+    // http://tauri.localhost (Windows/WebView2), both of which have "localhost"
+    // in the hostname — so hostname alone would flag every prod launch as dev
+    // and trigger resetDevOnlyEulaAcceptance(), re-prompting the EULA forever.
+    const { protocol, hostname } = window.location;
+    if (protocol !== 'http:' && protocol !== 'https:') return false;
+    if (hostname === 'tauri.localhost') return false;
+    return ['localhost', '127.0.0.1'].includes(hostname);
 }
 
 function resetDevOnlyEulaAcceptance() {
@@ -2682,7 +2713,7 @@ function renderTabs() {
             // Let's use a list icon SVG.
             icon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-bottom:2px;"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>`;
             icon.style.marginRight = '6px';
-            icon.style.color = '#555'; // Subtle grey
+            icon.style.color = 'var(--text-tertiary)';
             tabContent.appendChild(icon);
         }
 
@@ -2742,6 +2773,7 @@ function switchView(viewName) {
     currentView = viewName;
 
     // Get content elements that should be hidden in plan view
+    const contentColumn = document.querySelector('.content-column');
     const tasksContainer = document.querySelector('.tasks-container');
     const addTaskContainer = document.getElementById('add-task-container');
     const doneContainer = document.querySelector('.done-container');
@@ -2752,7 +2784,8 @@ function switchView(viewName) {
         viewFavBtn.classList.remove('active');
         if (viewPlanBtn) viewPlanBtn.classList.add('active');
 
-        // Hide all content elements below title bar
+        // Hide the entire centered content column (and its inner pieces).
+        if (contentColumn) contentColumn.style.display = 'none';
         if (groupsContainerMain) groupsContainerMain.style.display = 'none';
         if (tabsContainerMain) tabsContainerMain.style.display = 'none';
         if (tasksContainer) tasksContainer.style.display = 'none';
@@ -2781,6 +2814,7 @@ function switchView(viewName) {
     }
 
     // Show content elements
+    if (contentColumn) contentColumn.style.display = '';
     if (tasksContainer) tasksContainer.style.display = '';
     if (addTaskContainer) addTaskContainer.style.display = '';
     if (doneContainer) doneContainer.style.display = '';
@@ -4039,15 +4073,13 @@ function setupEventListeners() {
     // Reminders Connect Button
     if (remindersConnectBtn) {
         if (platform !== 'darwin') {
-            // Disable for non-Mac
-            remindersConnectBtn.disabled = true;
-            remindersConnectBtn.title = 'Apple Reminders integration is only available on macOS';
-            remindersConnectBtn.style.opacity = '0.5';
-            remindersConnectBtn.style.cursor = 'not-allowed';
-
-            // Add explanatory text near the button if possible, or just rely on title/alert
-            // Let's modify the text to be clear
-            remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders (macOS only)';
+            // Apple Reminders is macOS-only — hide the whole section on other platforms.
+            // (Long-term: surface a way for Windows/Linux users to sync via iCloud.)
+            ['reminders-connect-row', 'reminders-info', 'reminders-status', 'disconnect-reminders-btn']
+                .forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.add('hidden');
+                });
         } else {
             const remindersErrorMessage = (error) => {
                 if (typeof error === 'string') return error;
@@ -4062,7 +4094,7 @@ function setupEventListeners() {
             const handleRemindersPermissionDenied = async () => {
                 alert(
                     'Reminders access is currently denied.\n\n' +
-                    'I will open macOS Privacy settings now. Enable access for this app, then click "Connect Reminders" again.'
+                    'I will open macOS Privacy settings now. Enable access for this app, then return here and try again.'
                 );
                 if (reddIsTauri && typeof tauriAPI !== 'undefined') {
                     try {
@@ -4108,7 +4140,7 @@ function setupEventListeners() {
                             alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
                         }
                         remindersConnectBtn.disabled = false;
-                        remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+                        remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> ' + t('appleReminders');
                     }
                 } catch (error) {
                     console.error(error);
@@ -4118,7 +4150,7 @@ function setupEventListeners() {
                         alert('Failed to connect to Reminders: ' + error);
                     }
                     remindersConnectBtn.disabled = false;
-                    remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+                    remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> ' + t('appleReminders');
                 }
             });
         }
@@ -4134,7 +4166,7 @@ function setupEventListeners() {
 
             // Reset connect button state
             remindersConnectBtn.disabled = false;
-            remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Connect Reminders';
+            remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> ' + t('appleReminders');
         });
     }
 
@@ -5168,7 +5200,7 @@ function setupEventListeners() {
 
                 // Only resize when not in fullscreen mode.
                 if ((isFocusPanelWindow || platform !== 'darwin') && canResizeFocusWindowHeight()) {
-                    reddIpc.send('set-focus-window-height', platform !== 'darwin' ? 56 : 48);
+                    reddIpc.send('set-focus-window-height', 48);
                 }
             } else {
                 // Open notes
@@ -5606,12 +5638,12 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
     console.log('Starting focus timer');
     startFocusTimer(initialTimeSpent);
 
-    // Calculate appropriate window width based on content
+    // Resize the focus-mode window to a compact fixed width so it visibly
+    // contracts from the main app. Independent of main-window size — the
+    // main window's size is restored from preFocusMainWindowSize on exit.
     setTimeout(() => {
         if (container && !isNativeFullscreenFocusWindow && !preserveWindowGeometry && !container.classList.contains('fullscreen')) {
-            const containerWidth = Math.min(Math.max(container.offsetWidth, 280), 500);
-            console.log('Calculated container width:', containerWidth);
-            reddIpc.send('set-focus-window-size', containerWidth);
+            reddIpc.send('set-focus-window-size', FOCUS_WINDOW_WIDTH);
         }
     }, 50); // Small delay to ensure DOM is updated
 
@@ -5655,10 +5687,13 @@ function exitFocusMode() {
     normalMode.classList.remove('hidden');
 
     // Restore the previous main-window size after in-window focus mode.
+    // Use a single atomic bounds-set so width and height can't race —
+    // set-focus-window-size hard-codes height to the focus-bar height,
+    // which previously sometimes won the race and left the main window
+    // stuck at focus-mode height.
     if (!isFocusPanelWindow && platform !== 'darwin' && preFocusMainWindowSize) {
         const { width, height } = preFocusMainWindowSize;
-        reddIpc.send('set-focus-window-size', width);
-        reddIpc.send('set-focus-window-height', height);
+        reddIpc.send('set-window-bounds', { width, height });
         preFocusMainWindowSize = null;
     }
 
@@ -5673,12 +5708,21 @@ function startFocusTimer(initialTimeSpent = 0) {
     // Update immediately
     updateFocusTimer();
     focusTimerInterval = setInterval(updateFocusTimer, 1000);
+
+    // Periodically persist cumulative timeSpent so a crash/force-quit doesn't
+    // lose progress — exit and task-switch still persist explicitly.
+    if (focusPersistInterval) clearInterval(focusPersistInterval);
+    focusPersistInterval = setInterval(persistCurrentFocusTaskTime, FOCUS_PERSIST_INTERVAL_MS);
 }
 
 function stopFocusTimer() {
     if (focusTimerInterval) {
         clearInterval(focusTimerInterval);
         focusTimerInterval = null;
+    }
+    if (focusPersistInterval) {
+        clearInterval(focusPersistInterval);
+        focusPersistInterval = null;
     }
 }
 
@@ -7766,6 +7810,9 @@ async function fallbackMoveBasecampTodo(task, sourceTab, targetTab) {
 // Reminders Logic
 
 function updateRemindersUI() {
+    // Apple Reminders is macOS-only; the section is hidden at boot on other platforms.
+    if (platform !== 'darwin') return;
+
     const connectRow = document.getElementById('reminders-connect-row');
 
     if (remindersConfig.isConnected) {

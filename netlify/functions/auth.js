@@ -4,6 +4,7 @@ const https = require('https');
 const CLIENT_ID = process.env.BC_CLIENT_ID;
 const CLIENT_SECRET = process.env.BC_CLIENT_SECRET;
 const REDIRECT_URI = 'https://redd-todo.netlify.app/.netlify/functions/auth';
+const LOCAL_CALLBACK_STATE_PREFIX = 'localhost:';
 
 exports.handler = async function (event, context) {
     // 1. HANDLE TOKEN REFRESH (POST)
@@ -39,6 +40,7 @@ exports.handler = async function (event, context) {
     // 2. HANDLE OAUTH CALLBACK (GET)
     if (event.httpMethod === 'GET') {
         const code = event.queryStringParameters.code;
+        const state = event.queryStringParameters.state || '';
 
         if (!code) {
             return { statusCode: 400, body: 'Missing code parameter' };
@@ -61,6 +63,25 @@ exports.handler = async function (event, context) {
                 expires_in: tokenData.expires_in
             });
 
+            const localhostPort = getLocalCallbackPort(state);
+            if (localhostPort) {
+                const localhostUrl = `http://127.0.0.1:${localhostPort}/callback?${params.toString()}`;
+                const fallbackUrl = `redddo://oauth-callback?${params.toString()}`;
+                return {
+                    statusCode: 200,
+                    headers: {
+                        'Content-Type': 'text/html; charset=utf-8',
+                        'Cache-Control': 'no-store'
+                    },
+                    body: buildLocalBridgePage({
+                        localhostUrl,
+                        fallbackUrl,
+                        success: true,
+                        message: 'Sending Basecamp authentication back to ReDD Do...'
+                    })
+                };
+            }
+
             return {
                 statusCode: 302,
                 headers: {
@@ -75,6 +96,26 @@ exports.handler = async function (event, context) {
                 error: 'auth_failed',
                 error_description: error.message
             });
+
+            const localhostPort = getLocalCallbackPort(state);
+            if (localhostPort) {
+                const localhostUrl = `http://127.0.0.1:${localhostPort}/callback?${errorParams.toString()}`;
+                const fallbackUrl = `redddo://oauth-callback?${errorParams.toString()}`;
+                return {
+                    statusCode: 200,
+                    headers: {
+                        'Content-Type': 'text/html; charset=utf-8',
+                        'Cache-Control': 'no-store'
+                    },
+                    body: buildLocalBridgePage({
+                        localhostUrl,
+                        fallbackUrl,
+                        success: false,
+                        message: 'Basecamp returned an authentication error.'
+                    })
+                };
+            }
+
             return {
                 statusCode: 302,
                 headers: {
@@ -120,3 +161,113 @@ function exchangeToken(payload) {
     });
 }
 
+function getLocalCallbackPort(state) {
+    if (!state || !state.startsWith(LOCAL_CALLBACK_STATE_PREFIX)) {
+        return null;
+    }
+
+    const port = Number.parseInt(state.slice(LOCAL_CALLBACK_STATE_PREFIX.length), 10);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        return null;
+    }
+
+    return port;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function buildLocalBridgePage({ localhostUrl, fallbackUrl, success, message }) {
+    const safeLocalhostUrl = JSON.stringify(localhostUrl);
+    const title = success ? 'Connecting ReDD Do' : 'Authentication Issue';
+    const primaryLabel = success ? 'Continue in ReDD Do' : 'Return to ReDD Do';
+    const secondaryLabel = 'Use legacy fallback';
+
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(title)}</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f6f2ec;
+        color: #1f2f38;
+      }
+      main {
+        max-width: 36rem;
+        margin: 10vh auto;
+        background: rgba(255, 255, 255, 0.92);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 18px 50px rgba(17, 36, 48, 0.12);
+        text-align: center;
+      }
+      h1 {
+        margin-top: 0;
+        font-size: 2rem;
+      }
+      p {
+        line-height: 1.5;
+      }
+      a {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.9rem 1.2rem;
+        border-radius: 12px;
+        background: #1f7a58;
+        color: white;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .hint {
+        margin-top: 1rem;
+        font-size: 0.95rem;
+        color: #5d6d75;
+      }
+      .secondary {
+        display: inline-block;
+        margin-top: 0.85rem;
+        color: #5d6d75;
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${escapeHtml(title)}</h1>
+      <p id="status">${escapeHtml(message)}</p>
+      <a id="primary-link" href="${escapeHtml(localhostUrl)}">${escapeHtml(primaryLabel)}</a>
+      <p class="hint">If nothing happens automatically, use the button above. The legacy fallback is only needed on older installs.</p>
+      <a class="secondary" href="${escapeHtml(fallbackUrl)}">${escapeHtml(secondaryLabel)}</a>
+    </main>
+    <script>
+      const localhostUrl = ${safeLocalhostUrl};
+      const statusEl = document.getElementById('status');
+      const primaryLink = document.getElementById('primary-link');
+
+      function handoff() {
+        statusEl.textContent = 'Handing off to the local app...';
+        window.location.assign(localhostUrl);
+      }
+
+      window.addEventListener('pageshow', () => {
+        setTimeout(handoff, 50);
+      }, { once: true });
+
+      setTimeout(() => {
+        statusEl.textContent = 'If ReDD Do did not open, use the button above.';
+        primaryLink.focus();
+      }, 1500);
+    </script>
+  </body>
+</html>`;
+}
