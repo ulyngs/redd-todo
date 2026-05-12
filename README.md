@@ -23,6 +23,21 @@ Simple to-do app meant to make it easier to avoid rabbitholing with an always-on
 *   **Cross-Platform**: Native apps for Mac and Windows.
 *   **Data Persistence**: Your tasks, tabs, and settings are saved automatically.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="./docs/screenshots/RT-git-1.png" alt="ReDD Do — 1" width="100%" /></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/RT-git-2.png" alt="ReDD Do — 2" width="100%" /></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/RT-git-3.1.png" alt="ReDD Do — 3" width="100%" /></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="./docs/screenshots/RT-git-5.png" alt="ReDD Do — 5" width="100%" /></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/RT-git-6.png" alt="ReDD Do — 6" width="100%" /></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/RT-git-7.png" alt="ReDD Do — 7" width="100%" /></td>
+  </tr>
+</table>
+
 ## 🚀 Usage
 
 ### Main Window
