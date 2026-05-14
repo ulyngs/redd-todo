@@ -1942,6 +1942,99 @@ body.focus-panel-window .focus-container {
     overflow: visible;
 }
 
+/* Popped-out focus panel: flat canary sticky + matching chrome (same whether the main app is light or dark) */
+body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) {
+    --text-primary: #1e2d3e;
+    --text-secondary: #4a5563;
+    --text-tertiary: #696977;
+    --hover-bg: rgba(30, 45, 62, 0.06);
+    --active-bg: rgba(30, 45, 62, 0.1);
+    --modal-bg: #ffffff;
+    --bg-subtle: #f1eee9;
+    --border-color: rgba(30, 45, 62, 0.08);
+    --border-color-medium: #e1dcd6;
+    --accent-primary: #2a9d8f;
+    --accent-hover: #21806f;
+    --redd-blue: #4a90e2;
+    --warning: #f59e0b;
+    background: #fff9c4;
+    backdrop-filter: none;
+    box-shadow:
+        0 1px 2px rgba(30, 45, 62, 0.1),
+        0 6px 14px rgba(30, 45, 62, 0.12);
+    border: 1px solid rgba(212, 190, 100, 0.45);
+}
+
+body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-notes-container {
+    background: transparent;
+}
+
+/* Toolbar pill + icon wells: tone-on-tone with the sticky (no harsh white card) */
+body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container {
+    background: #f2e79e;
+    border: 1px solid rgba(120, 100, 35, 0.28);
+    backdrop-filter: none;
+    box-shadow: 0 3px 10px rgba(30, 45, 62, 0.08);
+}
+
+body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container :is(
+        .complete-focus-btn,
+        .fullscreen-focus-btn,
+        .reset-focus-btn,
+        #notes-focus-btn,
+        .switch-focus-task-btn,
+        .exit-focus-btn
+    ) {
+    background: rgba(255, 254, 245, 0.88);
+}
+
+body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container
+    :is(.complete-focus-btn, .fullscreen-focus-btn, .reset-focus-btn, #notes-focus-btn, .switch-focus-task-btn, .exit-focus-btn):hover,
+body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container
+    :is(.complete-focus-btn, .fullscreen-focus-btn, .reset-focus-btn, #notes-focus-btn, .switch-focus-task-btn, .exit-focus-btn):focus-visible {
+    background: rgba(255, 255, 255, 0.82);
+}
+
+body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container .notes-focus-btn.active {
+    background: rgba(255, 255, 255, 0.7);
+}
+
+/* Dark mode: toolbar matches main app controls on top of the canary sticky */
+[data-theme="dark"] body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container {
+    --accent-primary: #4ec0b0;
+    --accent-hover: #6ad0c1;
+    --redd-blue: #6aa9ea;
+    --warning: #f3b562;
+    --text-secondary: #c9c5bc;
+    --text-tertiary: #9aa3b0;
+    background: #1e2d3e;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.42);
+}
+
+[data-theme="dark"] body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container :is(
+        .complete-focus-btn,
+        .fullscreen-focus-btn,
+        .reset-focus-btn,
+        #notes-focus-btn,
+        .switch-focus-task-btn,
+        .exit-focus-btn
+    ) {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container
+    :is(.complete-focus-btn, .fullscreen-focus-btn, .reset-focus-btn, #notes-focus-btn, .switch-focus-task-btn, .exit-focus-btn):hover,
+[data-theme="dark"] body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container
+    :is(.complete-focus-btn, .fullscreen-focus-btn, .reset-focus-btn, #notes-focus-btn, .switch-focus-task-btn, .exit-focus-btn):focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container .notes-focus-btn.active {
+    background: rgba(255, 255, 255, 0.14);
+    color: #f5f0e8;
+}
+
 /* In fullscreen mode, use solid background */
 body.focus-panel-window.is-fullscreen .focus-container.fullscreen {
     border-radius: 0;
