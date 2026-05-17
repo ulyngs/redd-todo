@@ -3621,7 +3621,7 @@ input:checked+.slider:before {
 }
 
 .legal-onboarding-link {
-    color: var(--redd-blue);
+    color: inherit;
     font-weight: 500;
     text-decoration: underline;
     text-underline-offset: 2px;
@@ -3637,6 +3637,7 @@ input:checked+.slider:before {
     color: var(--text-tertiary);
     font-size: 14px;
     line-height: 1.6;
+    font-style: italic;
 }
 
 #eula-onboarding .primary-btn,
@@ -3676,10 +3677,6 @@ input:checked+.slider:before {
 [data-theme="dark"] #eula-onboarding .onboarding-focus-card {
     background: var(--task-bg);
     border-color: var(--border-color-medium);
-}
-
-[data-theme="dark"] #eula-onboarding .legal-onboarding-link {
-    color: var(--redd-blue);
 }
 
 @media (max-width: 640px) {
