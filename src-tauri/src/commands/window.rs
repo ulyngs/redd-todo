@@ -373,7 +373,7 @@ pub fn open_focus_window(
         let url = "index.html?focus=1".to_string();
 
         let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
-            .zoom_hotkeys_enabled(true)
+            .zoom_hotkeys_enabled(false)
             .always_on_top(true)
             .decorations(false)
             .resizable(true)
@@ -677,7 +677,7 @@ pub fn enter_fullscreen_focus_handoff(
 
             let fullscreen_window =
                 WebviewWindowBuilder::new(&app, &fullscreen_label, WebviewUrl::App(url.into()))
-                    .zoom_hotkeys_enabled(true)
+                    .zoom_hotkeys_enabled(false)
                     .always_on_top(true)
                     .decorations(false)
                     .resizable(true)

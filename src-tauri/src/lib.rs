@@ -6,58 +6,12 @@ use commands::reminders::*;
 use commands::window::*;
 use tauri::{Emitter, Manager};
 
+/// Forward macOS menu zoom actions to the frontend (same pattern as redd-block).
 #[cfg(target_os = "macos")]
-const ZOOM_STEP: f64 = 0.1;
-#[cfg(target_os = "macos")]
-const ZOOM_MIN: f64 = 0.5;
-#[cfg(target_os = "macos")]
-const ZOOM_MAX: f64 = 2.5;
-
-/// Adjust the main window's webview zoom by the given delta (clamped).
-#[cfg(target_os = "macos")]
-fn adjust_main_zoom(app: &tauri::AppHandle, delta: f64) {
-    let Some(window) = app.get_webview_window("main") else {
-        return;
-    };
-    let current = read_main_zoom(app).unwrap_or(1.0);
-    let next = (current + delta).clamp(ZOOM_MIN, ZOOM_MAX);
-    let _ = window.set_zoom(next);
-    write_main_zoom(app, next);
-}
-
-#[cfg(target_os = "macos")]
-fn set_main_zoom(app: &tauri::AppHandle, value: f64) {
-    let Some(window) = app.get_webview_window("main") else {
-        return;
-    };
-    let value = value.clamp(ZOOM_MIN, ZOOM_MAX);
-    let _ = window.set_zoom(value);
-    write_main_zoom(app, value);
-}
-
-/// Persist + read zoom level so it survives restarts. Stored in the Tauri
-/// app config dir as a tiny JSON file.
-#[cfg(target_os = "macos")]
-fn zoom_state_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
-    app.path().app_config_dir().ok().map(|d| d.join("zoom.txt"))
-}
-
-#[cfg(target_os = "macos")]
-fn read_main_zoom(app: &tauri::AppHandle) -> Option<f64> {
-    let path = zoom_state_path(app)?;
-    let raw = std::fs::read_to_string(path).ok()?;
-    raw.trim().parse::<f64>().ok()
-}
-
-#[cfg(target_os = "macos")]
-fn write_main_zoom(app: &tauri::AppHandle, value: f64) {
-    let Some(path) = zoom_state_path(app) else {
-        return;
-    };
-    if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
+fn emit_menu_zoom(app: &tauri::AppHandle, event: &str) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.emit(event, ());
     }
-    let _ = std::fs::write(path, format!("{value}"));
 }
 
 /// Open a URL (https, mailto, etc.) in the user's default handler.
@@ -281,9 +235,9 @@ pub fn run() {
                 app.set_menu(menu)?;
 
                 app.on_menu_event(move |app, event| match event.id().as_ref() {
-                    "zoom_in" => adjust_main_zoom(app, ZOOM_STEP),
-                    "zoom_out" => adjust_main_zoom(app, -ZOOM_STEP),
-                    "zoom_reset" => set_main_zoom(app, 1.0),
+                    "zoom_in" => emit_menu_zoom(app, "menu-zoom-in"),
+                    "zoom_out" => emit_menu_zoom(app, "menu-zoom-out"),
+                    "zoom_reset" => emit_menu_zoom(app, "menu-zoom-reset"),
                     "help_report_issue" => {
                         open_url(app, "https://github.com/ulyngs/redd-todo/issues")
                     }
@@ -291,13 +245,6 @@ pub fn run() {
                     "help_about_redd" => open_url(app, "https://reddfocus.org"),
                     _ => {}
                 });
-
-                // Restore last-saved zoom level on startup.
-                if let Some(window) = app.get_webview_window("main") {
-                    if let Some(saved) = read_main_zoom(app.handle()) {
-                        let _ = window.set_zoom(saved.clamp(ZOOM_MIN, ZOOM_MAX));
-                    }
-                }
             }
 
             // Handle deep link URLs on app startup

@@ -1679,20 +1679,73 @@ body.is-reordering * {
     bottom: 0;
     left: 0;
     right: 0;
-    display: flex;
+    z-index: 100;
+    /* 3-col grid keeps made-with centered; zoom sits bottom-right (matches redd-block). */
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: center;
-    padding: 4px 24px 6px;
+    padding: 4px 8px 6px;
     font-size: 12px;
     color: var(--text-tertiary);
-    z-index: 100;
     background: transparent;
 }
 
 .footer-text {
-    flex: 0 1 auto;
+    grid-column: 2;
     text-align: center;
     font-size: 11px;
+    padding-bottom: 2px;
+}
+
+.footer-zoom-control {
+    grid-column: 3;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-tertiary);
+    padding-bottom: 2px;
+}
+
+.footer-zoom-btn {
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.footer-zoom-btn:hover:not(:disabled) {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.footer-zoom-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.footer-zoom-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+
+.footer-zoom-value {
+    font-variant-numeric: tabular-nums;
+    min-width: 40px;
+    text-align: right;
+    font-size: 12px;
 }
 
 .settings-inline-btn {
@@ -1717,6 +1770,44 @@ body.is-reordering * {
 
 .footer a:hover {
     text-decoration: underline;
+}
+
+/* Zoom Toast */
+.zoom-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--redd-navy);
+    color: white;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    z-index: 2100;
+    animation: zoomToastIn 0.18s ease;
+}
+
+:root[data-theme="dark"] .zoom-toast {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.zoom-toast.hidden {
+    display: none;
+}
+
+@keyframes zoomToastIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Theme Toggle Icon Button */

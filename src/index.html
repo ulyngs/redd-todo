@@ -244,7 +244,24 @@
             <div class="footer">
                 <span class="footer-text">Made with <span class="heart">♥</span> by <a href="https://reddfocus.org"
                         target="_blank">reddfocus.org</a></span>
+                <div class="footer-zoom-control" id="footer-zoom-control" role="group" aria-label="UI zoom">
+                    <button type="button" class="footer-zoom-btn zoom-out-btn" id="footer-zoom-out" title="Zoom out"
+                        aria-label="Zoom out">−</button>
+                    <svg class="footer-zoom-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <span class="footer-zoom-value zoom-value" id="footer-zoom-value">100%</span>
+                    <button type="button" class="footer-zoom-btn zoom-in-btn" id="footer-zoom-in" title="Zoom in"
+                        aria-label="Zoom in">+</button>
+                </div>
             </div>
+        </div>
+
+        <!-- Zoom Toast -->
+        <div id="zoom-toast" class="zoom-toast hidden">
+            <span id="zoom-toast-message">Zoom 100%</span>
         </div>
 
         <!-- Tab Name Modal -->

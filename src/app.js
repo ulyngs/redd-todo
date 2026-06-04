@@ -853,6 +853,20 @@ function finishCommonInit() {
     }
 
     setWindowsControlsVisibility(platform !== 'darwin');
+
+    if (!isFocusPanelWindow) {
+        void initUiZoom();
+    }
+}
+
+async function initUiZoom() {
+    if (!reddIsTauri) return;
+    try {
+        const { setupUiZoomShortcuts } = await import('./ui-zoom.js');
+        setupUiZoomShortcuts();
+    } catch (err) {
+        console.warn('[ui-zoom] setup failed:', err);
+    }
 }
 
 // Initialize app
