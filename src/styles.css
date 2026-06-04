@@ -2007,7 +2007,11 @@ body.is-reordering * {
     border: none;
     position: relative;
     cursor: grab;
-    transition: all 0.3s ease;
+    /* Exclude background so fullscreen cream applies instantly (resize can animate separately). */
+    transition:
+        box-shadow 0.3s ease,
+        border-radius 0.3s ease,
+        border-color 0.3s ease;
 }
 
 /* Rounded corners and styling for the focus panel window */
@@ -2124,6 +2128,15 @@ body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .f
 [data-theme="dark"] body.focus-panel-window:not(.is-fullscreen) .focus-container:not(.fullscreen) .focus-buttons-container .notes-focus-btn.active {
     background: rgba(255, 255, 255, 0.14);
     color: #f5f0e8;
+}
+
+/* Fullscreen chrome as soon as is-fullscreen is set (before .fullscreen on the container). */
+body.focus-panel-window.is-fullscreen .focus-container {
+    border-radius: 0;
+    background: var(--app-bg);
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
 }
 
 /* In fullscreen mode, use solid background */

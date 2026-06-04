@@ -179,6 +179,10 @@ let isNativeFullscreenFocusWindow = isFocusPanelWindow && launchParams.get('full
 if (isFocusPanelWindow) {
     document.documentElement.classList.add('focus-panel-window');
     document.body.classList.add('focus-panel-window');
+    // Native fullscreen window: cream layout from first paint (avoid yellow flash before JS init).
+    if (isNativeFullscreenFocusWindow) {
+        document.body.classList.add('is-fullscreen');
+    }
 }
 
 function markAsFocusPanelWindow() {
@@ -5136,8 +5140,7 @@ function setupEventListeners() {
                     return;
                 }
                 // Exit fullscreen - restore previous width
-                focusContainer.classList.remove('fullscreen');
-                document.body.classList.remove('is-fullscreen');
+                applyFocusFullscreenChrome(false);
                 updateFullscreenButtonState(false);
                 if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
                     reddIpc.send('exit-fullscreen-focus');
@@ -5146,6 +5149,9 @@ function setupEventListeners() {
                     reddIpc.send('set-focus-window-size', preFullscreenWidth);
                 }
             } else {
+                preFullscreenWidth = focusContainer.offsetWidth || 320;
+
+                // macOS handoff: leave the pop-out on yellow sticky chrome; cream is on the fullscreen window.
                 if (reddIsTauri && platform === 'darwin' && isFocusPanelWindow && !isNativeFullscreenFocusWindow && focusedTaskId) {
                     reddIpc.send('enter-fullscreen-focus-handoff', {
                         taskId: focusedTaskId,
@@ -5155,17 +5161,19 @@ function setupEventListeners() {
                     });
                     return;
                 }
-                // Enter fullscreen - save current width first
-                preFullscreenWidth = focusContainer.offsetWidth || 320;
-                focusContainer.classList.add('fullscreen');
-                document.body.classList.add('is-fullscreen');
+
+                applyFocusFullscreenChrome(true);
                 updateFullscreenButtonState(true);
-                if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
-                    reddIpc.send('enter-fullscreen-focus');
-                }
-                if (isFocusPanelWindow) {
-                    reddIpc.send('enter-fullscreen-focus');
-                }
+
+                const resizeToFullscreen = () => {
+                    if (reddIsTauri && platform !== 'darwin' && !isFocusPanelWindow) {
+                        reddIpc.send('enter-fullscreen-focus');
+                    }
+                    if (isFocusPanelWindow) {
+                        reddIpc.send('enter-fullscreen-focus');
+                    }
+                };
+                requestAnimationFrame(resizeToFullscreen);
             }
         });
     }
@@ -5572,6 +5580,13 @@ function switchFocusTask(nextTaskId) {
     );
 }
 
+function applyFocusFullscreenChrome(enabled) {
+    const focusContainer = document.querySelector('.focus-container');
+    if (!focusContainer) return;
+    focusContainer.classList.toggle('fullscreen', enabled);
+    document.body.classList.toggle('is-fullscreen', enabled);
+}
+
 function updateFullscreenButtonState(isFullscreen) {
     const btn = document.getElementById('fullscreen-focus-btn');
     if (!btn) return;
@@ -5603,29 +5618,34 @@ function enterFocusMode(taskName, duration = null, initialTimeSpent = 0, preserv
         reddIpc.send('set-focus-mode-window-state', true);
     }
 
-    // Reset fullscreen state if present (ensure we start fresh)
+    // Reset fullscreen chrome: pop-out is always yellow; only the native fullscreen window uses cream layout.
     const container = document.querySelector('.focus-container');
     if (container) {
-        // Preserve fullscreen if already in CSS fullscreen (e.g. task switch while fullscreen).
         const alreadyFullscreen = container.classList.contains('fullscreen');
-        if (isNativeFullscreenFocusWindow || alreadyFullscreen) {
-            container.classList.add('fullscreen');
-            document.body.classList.add('is-fullscreen');
+        if (isNativeFullscreenFocusWindow) {
+            applyFocusFullscreenChrome(true);
+            updateFullscreenButtonState(true);
+        } else if (isFocusPanelWindow) {
+            applyFocusFullscreenChrome(false);
+            updateFullscreenButtonState(false);
+        } else if (alreadyFullscreen) {
+            applyFocusFullscreenChrome(true);
             updateFullscreenButtonState(true);
         } else {
-            container.classList.remove('fullscreen');
-            document.body.classList.remove('is-fullscreen');
+            applyFocusFullscreenChrome(false);
             updateFullscreenButtonState(false);
         }
 
         // Draw attention to the focus window location (useful when it pops up).
-        container.classList.remove('attention-ring');
-        // Force reflow so restarting the class retriggers the animation
-        void container.offsetWidth;
-        container.classList.add('attention-ring');
-        setTimeout(() => {
+        if (!isNativeFullscreenFocusWindow) {
             container.classList.remove('attention-ring');
-        }, 1000);
+            // Force reflow so restarting the class retriggers the animation
+            void container.offsetWidth;
+            container.classList.add('attention-ring');
+            setTimeout(() => {
+                container.classList.remove('attention-ring');
+            }, 1000);
+        }
     }
 
     focusTaskName.textContent = taskName;
