@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "ReDD Do",
+  "productName": "Enkelt",
   "version": "2.6.1",
   "identifier": "com.redd.do",
   "build": {
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "ReDD Do",
+        "title": "Enkelt",
         "width": 540,
         "height": 600,
         "minWidth": 460,

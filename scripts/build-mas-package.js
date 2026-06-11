@@ -305,7 +305,7 @@ try {
   }
 
   // 2) Locate generated .app.
-  const productName = appStoreConfig.productName || 'ReDD Do';
+  const productName = appStoreConfig.productName || 'Enkelt';
   const appBundlePath = path.join(
     repoRoot,
     'src-tauri',

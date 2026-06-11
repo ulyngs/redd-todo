@@ -41,7 +41,7 @@ if (-not $IdentityName -or -not $Publisher) {
     exit 1
 }
 
-Write-Host "  App: ReDD Do v$AppVersion" -ForegroundColor White
+Write-Host "  App: Enkelt v$AppVersion" -ForegroundColor White
 Write-Host "  Architecture: $Architecture" -ForegroundColor White
 Write-Host "  Identity: $IdentityName" -ForegroundColor White
 Write-Host ""
@@ -158,7 +158,7 @@ $manifest = @"
     ProcessorArchitecture="$msixArch" />
   
   <Properties>
-    <DisplayName>ReDD Do</DisplayName>
+    <DisplayName>Enkelt</DisplayName>
     <PublisherDisplayName>$PublisherDisplayName</PublisherDisplayName>
     <Logo>Assets\StoreLogo.scale-100.png</Logo>
   </Properties>
@@ -174,7 +174,7 @@ $manifest = @"
   <Applications>
     <Application Id="App" Executable="redd-todo.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements 
-        DisplayName="ReDD Do" 
+        DisplayName="Enkelt" 
         Description="Keep your goals in sight and get back to what you wanted to do"
         BackgroundColor="transparent" 
         Square150x150Logo="Assets\Square150x150Logo.scale-100.png"

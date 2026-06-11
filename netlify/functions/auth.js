@@ -77,7 +77,7 @@ exports.handler = async function (event, context) {
                         localhostUrl,
                         fallbackUrl,
                         success: true,
-                        message: 'Sending Basecamp authentication back to ReDD Do...'
+                        message: 'Sending Basecamp authentication back to Enkelt...'
                     })
                 };
             }
@@ -185,8 +185,8 @@ function escapeHtml(value) {
 
 function buildLocalBridgePage({ localhostUrl, fallbackUrl, success, message }) {
     const safeLocalhostUrl = JSON.stringify(localhostUrl);
-    const title = success ? 'Connecting ReDD Do' : 'Authentication Issue';
-    const primaryLabel = success ? 'Continue in ReDD Do' : 'Return to ReDD Do';
+    const title = success ? 'Connecting Enkelt' : 'Authentication Issue';
+    const primaryLabel = success ? 'Continue in Enkelt' : 'Return to Enkelt';
     const secondaryLabel = 'Use legacy fallback';
 
     return `<!doctype html>
@@ -264,7 +264,7 @@ function buildLocalBridgePage({ localhostUrl, fallbackUrl, success, message }) {
       }, { once: true });
 
       setTimeout(() => {
-        statusEl.textContent = 'If ReDD Do did not open, use the button above.';
+        statusEl.textContent = 'If Enkelt did not open, use the button above.';
         primaryLink.focus();
       }, 1500);
     </script>

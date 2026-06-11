@@ -1,4 +1,4 @@
-# ReDD Do
+# Enkelt: To-Do & Floating Task Pin
 
 Simple to-do app meant to make it easier to avoid rabbitholing with an always-on-top window displaying your current task. Cross-platform application for Mac and Windows built with Tauri.
 
@@ -26,14 +26,14 @@ Simple to-do app meant to make it easier to avoid rabbitholing with an always-on
 ## Screenshots
 
 <p align="center">
-  <img src="./docs/screenshots/RT-git-1.png" alt="ReDD Do — 1" width="32%" />
-  <img src="./docs/screenshots/RT-git-2.png" alt="ReDD Do — 2" width="32%" />
-  <img src="./docs/screenshots/RT-git-3.1.png" alt="ReDD Do — 3" width="32%" />
+  <img src="./docs/screenshots/RT-git-1.png" alt="Enkelt — 1" width="32%" />
+  <img src="./docs/screenshots/RT-git-2.png" alt="Enkelt — 2" width="32%" />
+  <img src="./docs/screenshots/RT-git-3.1.png" alt="Enkelt — 3" width="32%" />
 </p>
 <p align="center">
-  <img src="./docs/screenshots/RT-git-5.png" alt="ReDD Do — 5" width="32%" />
-  <img src="./docs/screenshots/RT-git-6.png" alt="ReDD Do — 6" width="32%" />
-  <img src="./docs/screenshots/RT-git-7.png" alt="ReDD Do — 7" width="32%" />
+  <img src="./docs/screenshots/RT-git-5.png" alt="Enkelt — 5" width="32%" />
+  <img src="./docs/screenshots/RT-git-6.png" alt="Enkelt — 6" width="32%" />
+  <img src="./docs/screenshots/RT-git-7.png" alt="Enkelt — 7" width="32%" />
 </p>
 
 ## 🚀 Usage
@@ -105,7 +105,7 @@ Example targets:
 - `for-distribution/x86_64-unknown-linux-gnu/`
 
 For Mac App Store submission, `npm run build:mas` writes:
-- `for-distribution/universal-apple-darwin/mas/ReDD Do.pkg`
+- `for-distribution/universal-apple-darwin/mas/Enkelt.pkg`
 
 `build:mas` requires:
 - macOS

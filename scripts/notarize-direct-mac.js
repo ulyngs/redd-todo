@@ -95,7 +95,7 @@ if (!appleId || !teamId || !appSpecificPassword) {
 
 const tauriConfig = getTauriConfig();
 const version = tauriConfig.version;
-const productName = tauriConfig.productName || 'ReDD Do';
+const productName = tauriConfig.productName || 'Enkelt';
 if (!version) {
   fail('Missing version in src-tauri/tauri.conf.json');
 }
