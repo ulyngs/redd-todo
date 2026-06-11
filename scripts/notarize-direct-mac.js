@@ -106,7 +106,7 @@ if (!sourceDmgPath) {
 }
 
 fs.mkdirSync(distDir, { recursive: true });
-const outputDmgPath = path.join(distDir, `redd-do-${version}-universal.dmg`);
+const outputDmgPath = path.join(distDir, `enkelt-${version}-universal.dmg`);
 
 const appIdentity =
   tauriConfig?.bundle?.macOS?.signingIdentity ||

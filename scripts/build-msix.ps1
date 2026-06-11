@@ -218,7 +218,7 @@ Write-Host "  [4/4] Creating MSIX package..." -ForegroundColor Gray
 # Output path
 $distDir = Join-Path $ProjectRoot "for-distribution\$target"
 if (-not (Test-Path $distDir)) { New-Item -ItemType Directory -Path $distDir | Out-Null }
-$msixPath = Join-Path $distDir "ReDD_Do_${MsixVersion}_${msixArch}.msix"
+$msixPath = Join-Path $distDir "Enkelt_${MsixVersion}_${msixArch}.msix"
 
 # Run makeappx
 & $makeappx.FullName pack /d $stagingDir /p $msixPath /o

@@ -8201,7 +8201,7 @@ function exportData() {
 
         // Format date: YYYY-MM-DD
         const date = new Date().toISOString().split('T')[0];
-        a.download = `redd-do-backup-${date}.json`;
+        a.download = `enkelt-backup-${date}.json`;
         a.href = url;
         a.click();
 

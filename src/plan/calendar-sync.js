@@ -1,8 +1,20 @@
 // Calendar Sync Module for Plan Mode
-// Fetches and parses ICS calendar feeds, filtering events by "REDD-DO" prefix
+// Fetches and parses ICS calendar feeds, filtering events by "ENKELT" or legacy "REDD-DO" prefix
 
 const CalendarSync = (function () {
     'use strict';
+
+    const CALENDAR_MARKERS = ['enkelt', 'redd-do'];
+
+    function containsCalendarMarker(text) {
+        const desc = (text || '').toLowerCase();
+        return CALENDAR_MARKERS.some(marker => desc.includes(marker));
+    }
+
+    function startsWithCalendarMarker(text) {
+        const desc = (text || '').trim().toLowerCase();
+        return CALENDAR_MARKERS.find(marker => desc.startsWith(marker)) || null;
+    }
 
     // Parse ICS data and return events
     function parseICS(icsData) {
@@ -48,7 +60,7 @@ const CalendarSync = (function () {
                 }
 
                 // Debug logging for date parsing
-                if (event.description && event.description.toLowerCase().includes('redd-do')) {
+                if (containsCalendarMarker(event.description)) {
                     console.log('[CalendarSync] Parsing event:', event.summary, {
                         isAllDay,
                         rawStartObj: event.startDate ? JSON.stringify(event.startDate) : null,
@@ -81,7 +93,7 @@ const CalendarSync = (function () {
         }
     }
 
-    // Filter events whose description starts with "REDD-DO" (case-insensitive)
+    // Filter events whose description starts with "ENKELT" or legacy "REDD-DO" (case-insensitive)
     // AND within date range: 2 months ago to 1 year in the future
     function filterReddDoEvents(events) {
         const now = new Date();
@@ -90,8 +102,8 @@ const CalendarSync = (function () {
 
         return events.filter(event => {
             // Check description prefix
-            const desc = (event.description || '').trim().toLowerCase();
-            if (!desc.startsWith('redd-do')) return false;
+            const marker = startsWithCalendarMarker(event.description);
+            if (!marker) return false;
 
             // Check date range
             const eventStart = event.startDate;
@@ -103,11 +115,11 @@ const CalendarSync = (function () {
         });
     }
 
-    // Extract display text from description (remove "REDD-DO" prefix)
+    // Extract display text from description (remove "ENKELT" or legacy "REDD-DO" prefix)
     function getDisplayText(event) {
         const desc = (event.description || '').trim();
-        // Remove "REDD-DO" prefix (case-insensitive) and any following whitespace/punctuation
-        const cleaned = desc.replace(/^redd-do[\s:,-]*/i, '').trim();
+        // Remove marker prefix (case-insensitive) and any following whitespace/punctuation
+        const cleaned = desc.replace(/^(enkelt|redd-do)[\s:,-]*/i, '').trim();
         // If there's remaining text, use it; otherwise fall back to summary
         return cleaned || event.summary || 'Calendar Event';
     }
@@ -147,7 +159,7 @@ const CalendarSync = (function () {
         const endDateKey = formatDateKey(adjustedEndDate, event.isAllDay);
 
         // Debug logging for specific event
-        if (event.description && event.description.toLowerCase().includes('redd-do') && event.durationDays > 1) {
+        if (containsCalendarMarker(event.description) && event.durationDays > 1) {
             console.log('[CalendarSync] Converting Line:', getDisplayText(event), {
                 isAllDay: event.isAllDay,
                 startDate: startDate.toISOString(),
@@ -240,7 +252,7 @@ const CalendarSync = (function () {
         console.log('[CalendarSync] Parsed events:', allEvents.length);
 
         const filteredEvents = filterReddDoEvents(allEvents);
-        console.log('[CalendarSync] Filtered REDD-DO events:', filteredEvents.length);
+        console.log('[CalendarSync] Filtered ENKELT/REDD-DO events:', filteredEvents.length);
 
         const notes = [];
         const lines = [];
