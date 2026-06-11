@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
   <key>NSRemindersUsageDescription</key>
-  <string>ReDD Do needs Reminders access to sync your to-do lists.</string>
+  <string>Enkelt needs Reminders access to sync your to-do lists.</string>
   <key>NSRemindersFullAccessUsageDescription</key>
-  <string>ReDD Do needs full Reminders access to read and update your tasks.</string>
+  <string>Enkelt needs full Reminders access to read and update your tasks.</string>
 </dict>
 </plist>

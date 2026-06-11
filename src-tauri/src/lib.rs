@@ -140,14 +140,14 @@ pub fn run() {
                 let app_handle = app.handle();
 
                 let about_metadata = AboutMetadataBuilder::new()
-                    .name(Some("ReDD Do"))
+                    .name(Some("Enkelt"))
                     .version(Some(env!("CARGO_PKG_VERSION")))
                     .authors(Some(vec![
                         "The Reduce Digital Distraction Project".to_string()
                     ]))
                     .comments(Some(
                         "Get back to that thing you meant to do.\n\n\
-                        ReDD Do is a calm, distraction-free todo app with focus \
+                        Enkelt is a calm, distraction-free todo app with focus \
                         mode and time tracking. Your data lives on your device — \
                         nothing is collected.\n\n\
                         Built by the Reduce Digital Distraction Project, a \
@@ -164,11 +164,11 @@ pub fn run() {
 
                 let about_item = PredefinedMenuItem::about(
                     app_handle,
-                    Some("About ReDD Do"),
+                    Some("About Enkelt"),
                     Some(about_metadata),
                 )?;
 
-                let app_submenu = SubmenuBuilder::new(app_handle, "ReDD Do")
+                let app_submenu = SubmenuBuilder::new(app_handle, "Enkelt")
                     .item(&about_item)
                     .separator()
                     .services()
