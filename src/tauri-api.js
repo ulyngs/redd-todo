@@ -30,6 +30,10 @@ const tauriAPI = {
         return this.invoke('get_app_version');
     },
 
+    async getDistributionChannel() {
+        return this.invoke('get_distribution_channel');
+    },
+
     // Reminders commands
     async fetchRemindersLists() {
         return this.invoke('fetch_reminders_lists');

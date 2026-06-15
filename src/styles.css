@@ -3586,6 +3586,7 @@ input:checked+.slider:before {
 }
 
 /* --- EULA / legal onboarding (aligned with ReDD brand) --- */
+#rebrand-onboarding.onboarding-screen,
 #eula-onboarding.onboarding-screen {
     --container-bg: var(--app-bg-solid);
     --text-muted: var(--text-tertiary);
@@ -3606,6 +3607,7 @@ input:checked+.slider:before {
 }
 
 /* Draggable titlebar zone (parity with the main title bar) */
+#rebrand-onboarding .eula-title-bar,
 #eula-onboarding .eula-title-bar {
     flex-shrink: 0;
     min-height: 42px;
@@ -3615,6 +3617,7 @@ input:checked+.slider:before {
     cursor: move;
 }
 
+#rebrand-onboarding .eula-onboarding-scroll,
 #eula-onboarding .eula-onboarding-scroll {
     flex: 1;
     min-height: 0;
@@ -3626,12 +3629,16 @@ input:checked+.slider:before {
 }
 
 /* Interactives must not steal window drag (if drag region expands later) */
+#rebrand-onboarding .legal-onboarding-card input,
+#rebrand-onboarding .legal-onboarding-card button,
+#rebrand-onboarding .legal-onboarding-card a,
 #eula-onboarding .legal-onboarding-card input,
 #eula-onboarding .legal-onboarding-card button,
 #eula-onboarding .legal-onboarding-card a {
     -webkit-app-region: no-drag;
 }
 
+#rebrand-onboarding .onboarding-content h1,
 #eula-onboarding .onboarding-content h1 {
     color: var(--text-primary);
 }
@@ -3665,6 +3672,30 @@ input:checked+.slider:before {
     letter-spacing: -0.01em;
     color: var(--text-primary);
     margin-bottom: 12px;
+}
+
+.enkelt-definition-pill {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 0 auto 10px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(30, 45, 62, 0.06);
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--text-secondary);
+    text-wrap: balance;
+}
+
+.enkelt-definition-word {
+    font-weight: 600;
+}
+
+.enkelt-definition-sep {
+    margin: 0 0.35em;
+    opacity: 0.55;
 }
 
 .legal-onboarding-content {
@@ -3778,9 +3809,63 @@ input:checked+.slider:before {
     background: var(--border-color-strong);
 }
 
+#rebrand-onboarding .primary-btn,
+#rebrand-onboarding .modal-btn.primary-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--button-bg);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    margin: 6px 0 0;
+    justify-content: center;
+}
+
+#rebrand-onboarding .primary-btn:hover:not(:disabled),
+#rebrand-onboarding .modal-btn.primary-btn:hover:not(:disabled) {
+    background: var(--button-hover);
+}
+
 [data-theme="dark"] #eula-onboarding .onboarding-focus-card {
     background: var(--task-bg);
     border-color: var(--border-color-medium);
+}
+
+[data-theme="dark"] .enkelt-definition-pill {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] #rebrand-onboarding .onboarding-focus-card {
+    background: var(--task-bg);
+    border-color: var(--border-color-medium);
+}
+
+.rebrand-onboarding-content {
+    max-width: 520px;
+}
+
+.rebrand-onboarding-subtitle {
+    max-width: 440px;
+    margin: 0 auto;
+    color: var(--text-secondary);
+    font-size: 16px;
+    line-height: 1.55;
+}
+
+.rebrand-onboarding-card p {
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.65;
+    margin: 0 0 14px;
+}
+
+.rebrand-onboarding-card p:last-of-type {
+    margin-bottom: 18px;
 }
 
 @media (max-width: 640px) {

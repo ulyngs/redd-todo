@@ -256,6 +256,10 @@ let eulaAcceptedAt = null;
 let eulaRevisionPendingAccept = null;
 let eulaListenersAttached = false;
 let windowControlsInitialized = false;
+let rebrandOnboardingShown = false;
+let distributionChannel = 'desktop';
+const DEV_FORCE_REBRAND_ONBOARDING = true;
+let rebrandOnboardingDismissedForSession = false;
 
 // Translations
 const translations = {
@@ -689,6 +693,63 @@ function resetDevOnlyEulaAcceptance() {
     saveData();
 }
 
+function shouldForceRebrandOnboardingInDev() {
+    return DEV_FORCE_REBRAND_ONBOARDING && isLocalDevRun();
+}
+
+function isStoreUpgradeChannel() {
+    return distributionChannel === 'mac-app-store' || distributionChannel === 'msix';
+}
+
+function hasLegacyReddDoData() {
+    return taskCounter > 0
+        || Object.keys(tabs).length > 0
+        || Object.keys(groups).length > 0
+        || basecampConfig?.isConnected === true
+        || remindersConfig?.isConnected === true
+        || eulaAccepted === true
+        || eulaAcceptedVersion != null
+        || eulaAcceptedAt != null;
+}
+
+function shouldShowRebrandOnboarding() {
+    if (shouldForceRebrandOnboardingInDev()) {
+        return !rebrandOnboardingDismissedForSession;
+    }
+    return isStoreUpgradeChannel() && hasLegacyReddDoData() && !rebrandOnboardingShown;
+}
+
+function hideRebrandOnboarding() {
+    document.getElementById('rebrand-onboarding')?.classList.add('hidden');
+}
+
+function showRebrandOnboarding() {
+    document.getElementById('rebrand-onboarding')?.classList.remove('hidden');
+    document.getElementById('eula-onboarding')?.classList.add('hidden');
+    normalMode?.classList.add('hidden');
+}
+
+function persistRebrandOnboardingShown() {
+    rebrandOnboardingDismissedForSession = true;
+    if (shouldForceRebrandOnboardingInDev()) {
+        return;
+    }
+    rebrandOnboardingShown = true;
+    saveData();
+}
+
+function setupRebrandOnboardingEventListeners() {
+    const continueBtn = document.getElementById('rebrand-onboarding-continue-btn');
+    if (!continueBtn || continueBtn.dataset.bound === 'true') return;
+
+    continueBtn.dataset.bound = 'true';
+    continueBtn.addEventListener('click', async () => {
+        persistRebrandOnboardingShown();
+        hideRebrandOnboarding();
+        await startMainWindowWithEulaGate();
+    });
+}
+
 function hideEulaOnboarding() {
     eulaRevisionPendingAccept = null;
     document.getElementById('eula-onboarding')?.classList.add('hidden');
@@ -700,6 +761,7 @@ function showEulaOnboarding(revision) {
     const btn = document.getElementById('eula-continue-btn');
     if (cb) cb.checked = false;
     if (btn) btn.disabled = true;
+    normalMode?.classList.add('hidden');
     document.getElementById('eula-onboarding')?.classList.remove('hidden');
 }
 
@@ -761,6 +823,10 @@ function setupEulaEventListeners() {
 }
 
 async function startMainWindowWithEulaGate() {
+    if (shouldShowRebrandOnboarding()) {
+        showRebrandOnboarding();
+        return;
+    }
     const needsEula = eulaAccepted !== true || eulaAcceptedVersion !== CURRENT_EULA_REVISION;
     if (needsEula) {
         showEulaOnboarding(CURRENT_EULA_REVISION);
@@ -771,6 +837,10 @@ async function startMainWindowWithEulaGate() {
 
 /** Shared startup after loadData (and after EULA acceptance on main window). */
 function finishCommonInit() {
+    hideRebrandOnboarding();
+    hideEulaOnboarding();
+    normalMode?.classList.remove('hidden');
+
     // If this is the dedicated focus panel window (macOS), hide the full UI immediately.
     if (isFocusPanelWindow) {
         normalMode.classList.add('hidden');
@@ -881,6 +951,7 @@ function initApp() {
 
     loadData();
     resetDevOnlyEulaAcceptance();
+    setupRebrandOnboardingEventListeners();
     setupEulaEventListeners();
     if (isMacFocusPanelWindow()) {
         setWindowsControlsVisibility(false);
@@ -895,7 +966,16 @@ function initApp() {
         return;
     }
 
-    void startMainWindowWithEulaGate();
+    void (async () => {
+        if (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.getDistributionChannel) {
+            try {
+                distributionChannel = await tauriAPI.getDistributionChannel() || 'desktop';
+            } catch (err) {
+                console.warn('[rebrand-onboarding] failed to detect distribution channel:', err);
+            }
+        }
+        await startMainWindowWithEulaGate();
+    })();
 }
 
 // Group Management
@@ -3595,7 +3675,7 @@ function closeTaskMenu(menu) {
 }
 
 function setWindowsControlsVisibility(visible) {
-    document.querySelectorAll('#window-controls, #eula-window-controls').forEach((controls) => {
+    document.querySelectorAll('#window-controls, #eula-window-controls, #rebrand-window-controls').forEach((controls) => {
         controls.classList.toggle('hidden', !visible);
     });
 }
@@ -7100,6 +7180,7 @@ function saveData() {
         currentGroupId: currentGroupId,
         enableGroups: enableGroups,
         favouritesOrder: favouritesOrder,
+        rebrandOnboardingShown,
         eulaAccepted,
         eulaAcceptedVersion,
         eulaAcceptedAt
@@ -7158,6 +7239,7 @@ function loadData() {
             currentGroupId = data.currentGroupId || null;
             enableGroups = data.enableGroups !== undefined ? data.enableGroups : (Object.keys(groups).length > 0); // Default to true if groups exist, else false
             favouritesOrder = data.favouritesOrder || [];
+            rebrandOnboardingShown = data.rebrandOnboardingShown === true;
             eulaAccepted = data.eulaAccepted === true;
             eulaAcceptedVersion = data.eulaAcceptedVersion != null ? String(data.eulaAcceptedVersion) : null;
             eulaAcceptedAt = data.eulaAcceptedAt != null ? data.eulaAcceptedAt : null;
