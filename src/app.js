@@ -258,8 +258,6 @@ let eulaListenersAttached = false;
 let windowControlsInitialized = false;
 let rebrandOnboardingShown = false;
 let distributionChannel = 'desktop';
-const DEV_FORCE_REBRAND_ONBOARDING = true;
-let rebrandOnboardingDismissedForSession = false;
 
 // Translations
 const translations = {
@@ -693,10 +691,6 @@ function resetDevOnlyEulaAcceptance() {
     saveData();
 }
 
-function shouldForceRebrandOnboardingInDev() {
-    return DEV_FORCE_REBRAND_ONBOARDING && isLocalDevRun();
-}
-
 function isStoreUpgradeChannel() {
     return distributionChannel === 'mac-app-store' || distributionChannel === 'msix';
 }
@@ -713,9 +707,6 @@ function hasLegacyReddDoData() {
 }
 
 function shouldShowRebrandOnboarding() {
-    if (shouldForceRebrandOnboardingInDev()) {
-        return !rebrandOnboardingDismissedForSession;
-    }
     return isStoreUpgradeChannel() && hasLegacyReddDoData() && !rebrandOnboardingShown;
 }
 
@@ -730,10 +721,6 @@ function showRebrandOnboarding() {
 }
 
 function persistRebrandOnboardingShown() {
-    rebrandOnboardingDismissedForSession = true;
-    if (shouldForceRebrandOnboardingInDev()) {
-        return;
-    }
     rebrandOnboardingShown = true;
     saveData();
 }
