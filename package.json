@@ -1,6 +1,6 @@
 {
   "name": "redd-todo",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "Enkelt: To-Do & Floating Task Pin - keep your goals in sight and get back to what you wanted to do",
   "scripts": {
     "dev": "tauri dev",
