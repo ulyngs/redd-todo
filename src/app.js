@@ -318,6 +318,17 @@ const translations = {
         exitFocus: 'Exit Focus',
         // Time
         minutes: 'm',
+        rebrandOnboardingTitleHtml:
+            'ReDD Do is now <span class="rebrand-onboarding-title-brand">Enkelt</span>',
+        rebrandOnboardingSubtitle:
+            'All functionality is unchanged — it\u2019s just a new name that reflects what the app is for.',
+        rebrandOnboardingWord: 'en·kelt',
+        rebrandOnboardingIpa: '/ˈɛŋ.kəl/',
+        rebrandOnboardingLanguage: 'Danish',
+        rebrandOnboardingPartOfSpeech: 'noun',
+        rebrandOnboardingDefinitionHtml:
+            '<em class="rebrand-definition-quote">\u201csimple; single.\u201d</em> Keep one clear task in sight, so you can focus on what matters most.',
+        rebrandOnboardingContinueBtn: 'Continue',
     },
     da: {
         // Add task
@@ -372,6 +383,17 @@ const translations = {
         exitFocus: 'Afslut fokus',
         // Time
         minutes: 'm',
+        rebrandOnboardingTitleHtml:
+            'ReDD Do hedder nu <span class="rebrand-onboarding-title-brand">Enkelt</span>',
+        rebrandOnboardingSubtitle:
+            'Al funktionalitet er u\u00e6ndret \u2014 det er bare et nyt navn, der afspejler, hvad appen er til.',
+        rebrandOnboardingWord: 'en·kelt',
+        rebrandOnboardingIpa: '/ˈɛŋ.kəl/',
+        rebrandOnboardingLanguage: 'Dansk',
+        rebrandOnboardingPartOfSpeech: 'substantiv',
+        rebrandOnboardingDefinitionHtml:
+            '<em class="rebrand-definition-quote">\u201csimpel; enkelt.\u201d</em> \u00c9n opgave ad gangen i sigte \u2014 holdt enkelt, s\u00e5 du kan fokusere p\u00e5 det, der betyder mest.',
+        rebrandOnboardingContinueBtn: 'Fortsæt',
     }
 };
 
@@ -714,10 +736,37 @@ function hideRebrandOnboarding() {
     document.getElementById('rebrand-onboarding')?.classList.add('hidden');
 }
 
+function applyRebrandOnboardingLanguage() {
+    const title = document.getElementById('rebrand-onboarding-title');
+    if (title) title.innerHTML = t('rebrandOnboardingTitleHtml');
+
+    const subtitle = document.getElementById('rebrand-onboarding-subtitle');
+    if (subtitle) subtitle.textContent = t('rebrandOnboardingSubtitle');
+
+    const word = document.getElementById('rebrand-onboarding-word');
+    if (word) word.textContent = t('rebrandOnboardingWord');
+
+    const ipa = document.getElementById('rebrand-onboarding-ipa');
+    if (ipa) ipa.textContent = t('rebrandOnboardingIpa');
+
+    const language = document.getElementById('rebrand-onboarding-language');
+    if (language) language.textContent = t('rebrandOnboardingLanguage');
+
+    const partOfSpeech = document.getElementById('rebrand-onboarding-part-of-speech');
+    if (partOfSpeech) partOfSpeech.textContent = t('rebrandOnboardingPartOfSpeech');
+
+    const definition = document.getElementById('rebrand-onboarding-definition');
+    if (definition) definition.innerHTML = t('rebrandOnboardingDefinitionHtml');
+
+    const continueBtn = document.getElementById('rebrand-onboarding-continue-btn');
+    if (continueBtn) continueBtn.textContent = t('rebrandOnboardingContinueBtn');
+}
+
 function showRebrandOnboarding() {
     document.getElementById('rebrand-onboarding')?.classList.remove('hidden');
     document.getElementById('eula-onboarding')?.classList.add('hidden');
     normalMode?.classList.add('hidden');
+    applyRebrandOnboardingLanguage();
 }
 
 function persistRebrandOnboardingShown() {
