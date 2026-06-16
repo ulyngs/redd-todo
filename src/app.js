@@ -272,14 +272,21 @@ const translations = {
         by: 'by',
         // Settings modal
         settings: 'Settings',
+        settingsGeneral: 'General',
+        settingsAppearance: 'Theme',
+        settingsFeatures: 'Features',
+        settingsDataHint: 'Save a backup or restore from a file.',
+        exportLabel: 'Export',
+        importLabel: 'Import',
+        connect: 'Connect',
         language: 'Language',
         themeMode: 'Light/dark mode',
         themeLight: 'Light',
         themeDark: 'Dark',
         themeSystem: 'Auto',
-        enableTabGroups: 'Enable Tab Groups',
+        enableTabGroups: 'Tab Groups',
         tabGroupsInfo: 'Organize your to-do lists into groups (shown in a top bar).',
-        dataManagement: 'Data Management',
+        dataManagement: 'Data',
         dataManagementDesc: 'Backup or restore your data.',
         exportBackup: 'Export Backup',
         importBackup: 'Import Backup',
@@ -341,14 +348,21 @@ const translations = {
         by: 'af',
         // Settings modal
         settings: 'Indstillinger',
+        settingsGeneral: 'Generelt',
+        settingsAppearance: 'Tema',
+        settingsFeatures: 'Funktioner',
+        settingsDataHint: 'Gem en sikkerhedskopi eller gendan fra en fil.',
+        exportLabel: 'Eksporter',
+        importLabel: 'Importer',
+        connect: 'Forbind',
         language: 'Sprog',
         themeMode: 'Lys/mørk tilstand',
         themeLight: 'Lys',
         themeDark: 'Mørk',
         themeSystem: 'Auto',
-        enableTabGroups: 'Aktiver fanegrupper',
+        enableTabGroups: 'Fanegrupper',
         tabGroupsInfo: 'Organiser dine to-do lister i grupper (vist i en topbar).',
-        dataManagement: 'Datahåndtering',
+        dataManagement: 'Data',
         dataManagementDesc: 'Sikkerhedskopier eller gendan dine data.',
         exportBackup: 'Eksporter sikkerhedskopi',
         importBackup: 'Importer sikkerhedskopi',
@@ -663,11 +677,21 @@ function applyTranslations() {
     }
 
     // Export/Import buttons
-    const exportBtn = document.getElementById('export-data-btn');
-    if (exportBtn) exportBtn.textContent = t('exportBackup');
+    const exportBtnLabel = document.getElementById('export-data-btn-label');
+    if (exportBtnLabel) exportBtnLabel.textContent = t('exportLabel');
 
-    const importBtn = document.getElementById('import-data-btn');
-    if (importBtn) importBtn.textContent = t('importBackup');
+    const importBtnLabel = document.getElementById('import-data-btn-label');
+    if (importBtnLabel) importBtnLabel.textContent = t('importLabel');
+
+    const remindersConnectBtn = document.getElementById('reminders-connect-btn');
+    if (remindersConnectBtn && !remindersConnectBtn.disabled) {
+        remindersConnectBtn.textContent = t('connect');
+    }
+
+    const oauthConnectBtn = document.getElementById('oauth-connect-btn');
+    if (oauthConnectBtn && !oauthConnectBtn.disabled) {
+        oauthConnectBtn.textContent = t('connect');
+    }
 
     // Settings button tooltip
     const settingsBtn = document.getElementById('settings-btn');
@@ -4258,7 +4282,7 @@ function setupEventListeners() {
                             alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
                         }
                         remindersConnectBtn.disabled = false;
-                        remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> ' + t('appleReminders');
+                        remindersConnectBtn.textContent = t('connect');
                     }
                 } catch (error) {
                     console.error(error);
@@ -4268,7 +4292,7 @@ function setupEventListeners() {
                         alert('Failed to connect to Reminders: ' + error);
                     }
                     remindersConnectBtn.disabled = false;
-                    remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> ' + t('appleReminders');
+                    remindersConnectBtn.textContent = t('connect');
                 }
             });
         }
@@ -4284,7 +4308,7 @@ function setupEventListeners() {
 
             // Reset connect button state
             remindersConnectBtn.disabled = false;
-            remindersConnectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> ' + t('appleReminders');
+            remindersConnectBtn.textContent = t('connect');
         });
     }
 
@@ -7188,7 +7212,7 @@ reddIpc.on('basecamp-auth-success', async (event, data) => {
 
     // Reset button
     if (oauthConnectBtn) {
-        oauthConnectBtn.innerHTML = '<img src="images/basecamp_logo_icon_147315.png" width="16" height="16" style="filter: brightness(0) invert(1); margin-right: 8px;"> Connect with Basecamp';
+        oauthConnectBtn.textContent = t('connect');
         oauthConnectBtn.disabled = false;
     }
 });
@@ -7197,7 +7221,7 @@ reddIpc.on('basecamp-auth-error', (event, errorMessage) => {
     console.error('[Basecamp OAuth] ERROR - Authentication failed:', errorMessage);
     alert('Authentication failed: ' + errorMessage);
     if (oauthConnectBtn) {
-        oauthConnectBtn.textContent = 'Connect with Basecamp';
+        oauthConnectBtn.textContent = t('connect');
         oauthConnectBtn.disabled = false;
     }
 });

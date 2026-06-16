@@ -394,176 +394,198 @@
         <!-- Settings Modal -->
         <div id="settings-modal" class="modal-overlay hidden">
             <div class="modal-content">
-                <div class="settings-header">
-                    <h3 data-i18n="settings">Settings</h3>
-                    <span id="current-app-version" class="settings-version">Your version: ...</span>
+                <div class="settings-modal-header">
+                    <h3 id="settings-modal-title" data-i18n="settings">Settings</h3>
+                    <div id="current-app-version" class="settings-current-version">Your version: ...</div>
                 </div>
 
-                <div class="settings-section">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <span data-i18n="themeMode" style="font-size: 13px;">Light/dark mode</span>
-                        <select id="theme-select"
-                            style="padding: 6px 10px; border: 1px solid var(--border-color-medium); border-radius: 8px; background: var(--input-surface); color: var(--text-primary); font-size: 13px; font-family: inherit; cursor: pointer;">
-                            <option value="light" data-i18n="themeLight">Light</option>
-                            <option value="dark" data-i18n="themeDark">Dark</option>
-                            <option value="system" data-i18n="themeSystem">Auto</option>
-                        </select>
-                    </div>
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;">
-                        <span data-i18n="language" style="font-size: 13px;">Language</span>
-                        <select id="language-select"
-                            style="padding: 6px 10px; border: 1px solid var(--border-color-medium); border-radius: 8px; background: var(--input-surface); color: var(--text-primary); font-size: 13px; font-family: inherit; cursor: pointer;">
-                            <option value="en">English</option>
-                            <option value="da">Dansk</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="settings-section">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <label class="setting-toggle"
-                            style="display: flex; align-items: center; font-size: 13px; cursor: pointer; user-select: none;">
-                            <input type="checkbox" id="enable-groups-toggle" class="task-checkbox">
-                            <span data-i18n="enableTabGroups">Enable Tab Groups</span>
-                        </label>
-                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="groups-info"
-                            title="More info">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 16v-4"></path>
-                                <path d="M12 8h.01"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <p id="groups-info" data-i18n="tabGroupsInfo" class="settings-desc info-expandable hidden">Organize
-                        your to-do lists into groups (shown in a top bar).</p>
-                </div>
-
-                <div class="settings-section">
-                    <h4 data-i18n="dataManagement">Data Management</h4>
-                    <p data-i18n="dataManagementDesc" class="settings-desc"
-                        style="font-style: italic; margin-bottom: 12px;">Backup or
-                        restore your data.</p>
-                    <div id="export-buttons-container" style="display: flex; gap: 10px;">
-                        <button id="export-data-btn" class="modal-btn cancel-btn" style="flex: 1;">
-                            Export Backup
-                        </button>
-                        <button id="import-data-btn" class="modal-btn cancel-btn" style="flex: 1;">
-                            Import Backup
-                        </button>
-                        <input type="file" id="import-file-input" accept=".json" style="display: none;">
-                    </div>
-                </div>
-
-                <div class="settings-section">
-                    <h4 data-i18n="integrations">Integrations</h4>
-                    <p data-i18n="integrationsDesc" class="settings-desc"
-                        style="font-style: italic; margin-bottom: 12px;">Optionally sync tasks from other apps you use.
-                    </p>
-
-                    <!-- Apple Reminders -->
-                    <div id="reminders-connect-row"
-                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                        <button id="reminders-connect-btn" class="modal-btn connect-btn"
-                            style="flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M8 6h13"></path>
-                                <path d="M8 12h13"></path>
-                                <path d="M8 18h13"></path>
-                                <path d="M3 6h.01"></path>
-                                <path d="M3 12h.01"></path>
-                                <path d="M3 18h.01"></path>
-                            </svg>
-                            <span data-i18n="appleReminders">Apple Reminders</span>
-                        </button>
-                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="reminders-info"
-                            title="More info" style="margin-left: 8px;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 16v-4"></path>
-                                <path d="M12 8h.01"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <p id="reminders-info" data-i18n="remindersInfo" class="settings-desc info-expandable hidden">Import
-                        tasks from Apple Reminders.</p>
-                    <div id="reminders-status" class="connection-status hidden"
-                        style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px;">
-                        <div style="display: flex; align-items: center;">
-                            <span class="status-dot"></span>
-                            <span data-i18n="connectedAppleReminders">Apple Reminders: Connected</span>
-                        </div>
-                        <button id="disconnect-reminders-btn" class="modal-btn disconnect-btn hidden"
-                            data-i18n="disconnect">Disconnect</button>
-                    </div>
-
-                    <!-- Basecamp -->
-                    <div id="basecamp-connect-row"
-                        style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; margin-bottom: 10px;">
-                        <button id="oauth-connect-btn" class="modal-btn connect-btn"
-                            style="flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                            <img src="images/basecamp_logo_icon_147315.png" width="16" height="16">
-                            <span data-i18n="connectBasecamp">Basecamp</span>
-                        </button>
-                        <button class="info-toggle-btn" aria-expanded="false" aria-controls="basecamp-info"
-                            title="More info" style="margin-left: 8px;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 16v-4"></path>
-                                <path d="M12 8h.01"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <p id="basecamp-info" class="settings-desc info-expandable hidden">Sync your to-do lists with <a
-                            href="https://basecamp.com" target="_blank">Basecamp</a> project management software.</p>
-
-                    <div id="bc-auth-container">
-                        <div class="connection-status hidden" id="bc-connection-status"
-                            style="display: block; margin-bottom: 8px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                <div style="display: flex; align-items: center; min-width: 0;">
-                                    <span class="status-dot"></span>
-                                    <span data-i18n="connectedBasecamp">Basecamp: Connected</span>
+                <div class="settings-stack">
+                    <section class="settings-section">
+                        <h4 class="settings-section-heading" data-i18n="settingsGeneral">General</h4>
+                        <div class="settings-panel">
+                            <div class="settings-panel-rows">
+                                <div class="settings-row">
+                                    <label class="settings-row-label" for="language-select" data-i18n="language">Language</label>
+                                    <div class="settings-row-control">
+                                        <select id="language-select" class="settings-select">
+                                            <option value="en">English</option>
+                                            <option value="da">Dansk</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <button id="disconnect-bc-btn" class="modal-btn disconnect-btn hidden"
-                                    data-i18n="disconnect">Disconnect</button>
-                            </div>
-                            <div id="bc-account-info"
-                                style="font-size: 0.9em; color: var(--text-tertiary); margin-top: 4px; margin-left: 16px;">
+                                <div class="settings-row">
+                                    <label class="settings-row-label" for="theme-select" data-i18n="settingsAppearance">Theme</label>
+                                    <div class="settings-row-control">
+                                        <select id="theme-select" class="settings-select">
+                                            <option value="system" data-i18n="themeSystem">Auto</option>
+                                            <option value="light" data-i18n="themeLight">Light</option>
+                                            <option value="dark" data-i18n="themeDark">Dark</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="settings-row">
+                                    <div class="settings-row-copy">
+                                        <span class="settings-row-label" data-i18n="dataManagement">Data</span>
+                                        <span class="settings-row-hint" data-i18n="settingsDataHint">Save a backup or restore from a file.</span>
+                                    </div>
+                                    <div class="settings-row-control settings-blocklists-io-btns">
+                                        <button id="export-data-btn" class="settings-blocklists-io-btn" type="button">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                            <span id="export-data-btn-label" data-i18n="exportLabel">Export</span>
+                                        </button>
+                                        <button id="import-data-btn" class="settings-blocklists-io-btn" type="button">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="17 8 12 3 7 8"></polyline>
+                                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                                            </svg>
+                                            <span id="import-data-btn-label" data-i18n="importLabel">Import</span>
+                                        </button>
+                                        <input type="file" id="import-file-input" accept=".json" class="hidden">
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </section>
 
-                        <div id="bc-login-form" class="hidden">
-                            <!-- Old fields hidden by default -->
-                            <div id="manual-auth-fields" class="hidden">
-                                <input type="text" id="bc-account-id" placeholder="Account ID" class="settings-input">
-                                <input type="email" id="bc-email" placeholder="Email Address (Optional)"
-                                    class="settings-input">
-                                <input type="password" id="bc-access-token" placeholder="Access Token (OAuth)"
-                                    class="settings-input">
-                                <input type="password" id="bc-refresh-token"
-                                    placeholder="Refresh Token (Optional - for auto-renewal)" class="settings-input">
-                                <input type="text" id="bc-client-id"
-                                    placeholder="Client ID (Optional - for auto-renewal)" class="settings-input">
-                                <input type="password" id="bc-client-secret"
-                                    placeholder="Client Secret (Optional - for auto-renewal)" class="settings-input">
-                                <button id="connect-bc-btn" class="modal-btn connect-btn">Save Manual
-                                    Credentials</button>
-                                <p class="help-text">
-                                    You can get a token from the <a href="#" id="bc-help-link">Basecamp Developer
-                                        Launchpad</a>.
-                                </p>
+                    <section class="settings-section">
+                        <h4 class="settings-section-heading" data-i18n="settingsFeatures">Features</h4>
+                        <div class="settings-panel">
+                            <div class="settings-panel-rows">
+                                <div class="settings-row">
+                                    <div class="settings-row-copy">
+                                        <div class="settings-row-label-line">
+                                            <span class="settings-row-label" data-i18n="enableTabGroups">Tab Groups</span>
+                                            <div class="settings-info-hover-wrap">
+                                                <button type="button" class="info-toggle-btn settings-info-btn" aria-describedby="groups-info">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                        <circle cx="12" cy="12" r="10"></circle>
+                                                        <path d="M12 16v-4"></path>
+                                                        <path d="M12 8h.01"></path>
+                                                    </svg>
+                                                </button>
+                                                <div id="groups-info" class="settings-info-tooltip" role="tooltip"
+                                                    data-i18n="tabGroupsInfo">Organize your to-do lists into groups (shown in a top bar).</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="settings-row-control">
+                                        <label class="enforcement-switch" for="enable-groups-toggle">
+                                            <input type="checkbox" id="enable-groups-toggle" class="enforcement-toggle-input">
+                                            <span class="enforcement-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </section>
 
-                    </div>
+                    <section class="settings-section">
+                        <h4 class="settings-section-heading" data-i18n="integrations">Integrations</h4>
+                        <div class="settings-panel">
+                            <div class="settings-panel-rows">
+                                <div id="reminders-connect-row" class="settings-row">
+                                    <div class="settings-row-copy">
+                                        <span class="settings-row-label" data-i18n="appleReminders">Apple Reminders</span>
+                                    </div>
+                                    <div class="settings-row-control settings-row-actions">
+                                        <button id="reminders-connect-btn" class="settings-connect-btn" type="button">Connect</button>
+                                        <button class="info-toggle-btn settings-info-btn" aria-expanded="false"
+                                            aria-controls="reminders-info" title="More info">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <path d="M12 16v-4"></path>
+                                                <path d="M12 8h.01"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <p id="reminders-info" data-i18n="remindersInfo"
+                                    class="settings-panel-info info-expandable hidden">Import tasks from Apple Reminders.</p>
+                                <div id="reminders-status" class="settings-row settings-connection-row hidden">
+                                    <div class="settings-row-copy">
+                                        <div class="connection-status">
+                                            <span class="status-dot"></span>
+                                            <span data-i18n="connectedAppleReminders">Apple Reminders: Connected</span>
+                                        </div>
+                                    </div>
+                                    <div class="settings-row-control">
+                                        <button id="disconnect-reminders-btn" class="settings-disconnect-btn hidden"
+                                            data-i18n="disconnect">Disconnect</button>
+                                    </div>
+                                </div>
+
+                                <div id="basecamp-connect-row" class="settings-row">
+                                    <div class="settings-row-copy">
+                                        <span class="settings-row-label" data-i18n="connectBasecamp">Basecamp</span>
+                                    </div>
+                                    <div class="settings-row-control settings-row-actions">
+                                        <button id="oauth-connect-btn" class="settings-connect-btn settings-connect-btn--basecamp"
+                                            type="button">Connect</button>
+                                        <button class="info-toggle-btn settings-info-btn" aria-expanded="false"
+                                            aria-controls="basecamp-info" title="More info">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <path d="M12 16v-4"></path>
+                                                <path d="M12 8h.01"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <p id="basecamp-info" class="settings-panel-info info-expandable hidden">Sync your to-do lists with <a
+                                        href="https://basecamp.com" target="_blank">Basecamp</a> project management software.</p>
+
+                                <div id="bc-connection-status" class="settings-row settings-connection-row hidden">
+                                    <div class="settings-row-copy">
+                                        <div class="connection-status">
+                                            <span class="status-dot"></span>
+                                            <span data-i18n="connectedBasecamp">Basecamp: Connected</span>
+                                        </div>
+                                        <div id="bc-account-info" class="settings-account-info"></div>
+                                    </div>
+                                    <div class="settings-row-control">
+                                        <button id="disconnect-bc-btn" class="settings-disconnect-btn hidden"
+                                            data-i18n="disconnect">Disconnect</button>
+                                    </div>
+                                </div>
+
+                                <div id="bc-auth-container">
+                                    <div id="bc-login-form" class="hidden">
+                                        <div id="manual-auth-fields" class="hidden settings-manual-auth">
+                                            <input type="text" id="bc-account-id" placeholder="Account ID" class="settings-input">
+                                            <input type="email" id="bc-email" placeholder="Email Address (Optional)"
+                                                class="settings-input">
+                                            <input type="password" id="bc-access-token" placeholder="Access Token (OAuth)"
+                                                class="settings-input">
+                                            <input type="password" id="bc-refresh-token"
+                                                placeholder="Refresh Token (Optional - for auto-renewal)" class="settings-input">
+                                            <input type="text" id="bc-client-id"
+                                                placeholder="Client ID (Optional - for auto-renewal)" class="settings-input">
+                                            <input type="password" id="bc-client-secret"
+                                                placeholder="Client Secret (Optional - for auto-renewal)" class="settings-input">
+                                            <button id="connect-bc-btn" class="modal-btn connect-btn">Save Manual Credentials</button>
+                                            <p class="help-text">
+                                                You can get a token from the <a href="#" id="bc-help-link">Basecamp Developer
+                                                    Launchpad</a>.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
-                <div class="modal-buttons">
+                <div class="modal-buttons settings-modal-footer">
                     <button id="close-settings-btn" class="modal-btn cancel-btn" data-i18n="close">Close</button>
                 </div>
             </div>

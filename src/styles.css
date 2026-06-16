@@ -249,6 +249,7 @@ h2,
 h3,
 .modal-content h3,
 .settings-header h3,
+.settings-modal-header h3,
 .onboarding-content h1 {
     font-family: Georgia, 'Times New Roman', serif;
     letter-spacing: -0.01em;
@@ -1858,8 +1859,488 @@ body.is-reordering * {
 }
 
 #settings-modal .modal-content {
-    width: min(420px, calc(100vw - 40px));
-    max-width: 420px;
+    width: min(520px, calc(100vw - 40px));
+    max-width: 520px;
+    --settings-control-width: 140px;
+}
+
+.settings-modal-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+#settings-modal-title {
+    margin: 0;
+    font-weight: 400;
+}
+
+.settings-current-version {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+
+.settings-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 4px 0 8px;
+}
+
+#settings-modal .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0;
+    margin: 0;
+}
+
+.settings-section-heading {
+    margin: 0;
+    padding: 0 2px;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+
+.settings-panel {
+    border: 1px solid var(--border-color-medium);
+    border-radius: 12px;
+    background: var(--redd-cream);
+    overflow: visible;
+}
+
+[data-theme="dark"] .settings-panel {
+    background: var(--redd-warm-grey);
+}
+
+.settings-panel-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+}
+
+.settings-panel-rows > .settings-row:not(.hidden) + .settings-row:not(.hidden),
+.settings-panel-rows > .settings-panel-info:not(.hidden) + .settings-row:not(.hidden),
+.settings-panel-rows > .settings-row:not(.hidden) + .settings-panel-info:not(.hidden) {
+    border-top: 1px solid var(--border-color-medium);
+}
+
+.settings-panel-rows > .settings-row {
+    padding: 12px 14px;
+}
+
+.settings-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.settings-row-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.settings-row-label {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.3;
+    color: var(--text-primary);
+    min-width: 0;
+}
+
+.settings-row-hint {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-tertiary);
+}
+
+.settings-row-control {
+    justify-self: end;
+    min-width: 0;
+}
+
+#settings-modal .settings-row-control:has(#theme-select),
+#settings-modal .settings-row-control:has(#language-select) {
+    width: var(--settings-control-width);
+    flex-shrink: 0;
+}
+
+#settings-modal .settings-row-control #theme-select,
+#settings-modal .settings-row-control #language-select {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+#settings-modal .settings-row-control.settings-blocklists-io-btns {
+    width: auto;
+    max-width: 100%;
+    justify-self: end;
+}
+
+.settings-blocklists-io-btns {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 6px;
+    min-width: 0;
+    justify-content: flex-end;
+}
+
+#settings-modal .settings-blocklists-io-btn {
+    flex: 0 1 auto;
+    min-width: 0;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    box-sizing: border-box;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    background: var(--modal-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color-medium);
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+#settings-modal .settings-blocklists-io-btn:hover:not(:disabled) {
+    background: var(--hover-bg);
+    border-color: var(--border-color-strong);
+}
+
+#settings-modal .settings-blocklists-io-btn svg {
+    flex-shrink: 0;
+    width: 13px;
+    height: 13px;
+}
+
+#settings-modal .settings-select {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 38px 8px 12px;
+    border: 1px solid var(--border-color-medium);
+    border-radius: 8px;
+    background-color: var(--modal-bg);
+    color: var(--text-primary);
+    font-size: 15px;
+    font-family: inherit;
+    line-height: 1.25;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5-4.5 5 4.5'/%3E%3Cpath d='M7 14l5 4.5 5-4.5'/%3E%3C/svg%3E");
+}
+
+#settings-modal .settings-select:hover {
+    border-color: var(--border-color-strong);
+}
+
+[data-theme="dark"] #settings-modal .settings-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5-4.5 5 4.5'/%3E%3Cpath d='M7 14l5 4.5 5-4.5'/%3E%3C/svg%3E");
+}
+
+.settings-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.settings-info-btn {
+    margin: 0;
+}
+
+.settings-row-label-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.settings-row-label-line .settings-row-label {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.settings-info-hover-wrap {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+/* Invisible bridge so the cursor can reach the tooltip without losing hover */
+.settings-info-hover-wrap::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    bottom: 100%;
+    height: 14px;
+    background: transparent;
+}
+
+.settings-info-hover-wrap .settings-info-tooltip {
+    position: absolute;
+    left: 0;
+    right: auto;
+    bottom: calc(100% + 8px);
+    width: max(220px, 16rem);
+    max-width: min(280px, calc(100vw - 48px));
+    padding: 10px 12px;
+    border: 1px solid var(--border-color-medium);
+    border-radius: 8px;
+    background: var(--modal-bg);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.45;
+    text-align: left;
+    box-shadow: 0 8px 24px rgba(30, 45, 62, 0.12);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    user-select: text;
+    -webkit-user-select: text;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    z-index: 100;
+}
+
+.settings-info-hover-wrap .settings-info-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 10px;
+    background: transparent;
+}
+
+[data-theme="dark"] .settings-info-hover-wrap .settings-info-tooltip {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.settings-info-hover-wrap:hover .settings-info-tooltip,
+.settings-info-hover-wrap:focus-within .settings-info-tooltip {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+#settings-modal .settings-section:has(.settings-info-hover-wrap:hover),
+#settings-modal .settings-section:has(.settings-info-hover-wrap:focus-within) {
+    position: relative;
+    z-index: 10;
+}
+
+.settings-panel-info {
+    margin: 0;
+    padding: 0 14px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.settings-panel-info a {
+    color: var(--redd-blue);
+    text-decoration: none;
+}
+
+.settings-panel-info a:hover {
+    text-decoration: underline;
+}
+
+.settings-panel-info:not(.hidden) {
+    border-top: 1px solid var(--border-color-medium);
+    padding-top: 10px;
+}
+
+.settings-panel-rows > .settings-connection-row:not(.hidden) ~ .settings-connection-row:not(.hidden) {
+    border-top: 1px solid var(--border-color-medium);
+}
+
+.settings-connection-row .connection-status {
+    margin: 0;
+    font-size: 14px;
+}
+
+.settings-connection-row:has(.settings-account-info:not(:empty)) {
+    align-items: start;
+}
+
+.settings-connection-row:has(.settings-account-info:not(:empty)) .settings-row-control {
+    padding-top: 1px;
+}
+
+.settings-account-info {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    margin-left: 16px;
+    line-height: 1.4;
+}
+
+.settings-account-info:empty {
+    display: none;
+}
+
+.settings-connect-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+    border: none;
+    background: var(--accent-primary);
+    color: #ffffff;
+    transition: background 0.15s ease;
+}
+
+.settings-connect-btn:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.settings-connect-btn--basecamp {
+    background-color: #ffe004;
+    color: #1e2d3e;
+}
+
+.settings-connect-btn--basecamp:hover:not(:disabled) {
+    background-color: #e6c800;
+}
+
+.settings-connect-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.settings-disconnect-btn {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+}
+
+.settings-disconnect-btn:hover:not(:disabled) {
+    background: var(--redd-coral-soft);
+}
+
+.settings-manual-auth {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border-color-medium);
+}
+
+.enforcement-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.enforcement-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.enforcement-slider {
+    position: absolute;
+    inset: 0;
+    background: hsl(222, 15%, 82%);
+    border-radius: 24px;
+    transition: background 0.25s ease;
+}
+
+.enforcement-slider::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transition: transform 0.25s ease;
+}
+
+.enforcement-switch input:checked + .enforcement-slider {
+    background: #10b981;
+}
+
+.enforcement-switch input:checked + .enforcement-slider::before {
+    transform: translateX(20px);
+}
+
+[data-theme="dark"] .enforcement-slider {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .enforcement-slider::before {
+    background: var(--text-primary);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .enforcement-switch input:checked + .enforcement-slider {
+    background: #34d399;
+}
+
+[data-theme="dark"] .enforcement-switch input:checked + .enforcement-slider::before {
+    background: #0f172a;
+}
+
+#settings-modal .settings-modal-footer {
+    margin-top: 16px;
+}
+
+#settings-modal .settings-modal-footer .cancel-btn {
+    width: 100%;
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid var(--border-color-medium);
+    color: var(--text-tertiary);
+    font-weight: 500;
+}
+
+#settings-modal .settings-modal-footer .cancel-btn:hover {
+    background: var(--hover-bg);
 }
 
 .modal-content h3 {
@@ -1870,15 +2351,15 @@ body.is-reordering * {
     letter-spacing: -0.01em;
 }
 
+#settings-modal .modal-content h3 {
+    margin: 0;
+}
+
 .settings-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 16px;
-}
-
-.settings-header h3 {
-    margin: 0;
 }
 
 .settings-version {
@@ -1904,10 +2385,6 @@ body.is-reordering * {
 #tab-name-input:focus {
     border-color: var(--accent-primary);
     box-shadow: 0 0 0 3px var(--redd-teal-soft);
-}
-
-#export-buttons-container {
-    margin-top: -4px;
 }
 
 .modal-buttons {
@@ -2651,18 +3128,6 @@ body.focus-panel-window.is-fullscreen {
 }
 
 /* Basecamp Settings */
-.settings-section {
-    margin-bottom: 24px;
-}
-
-.settings-section h4 {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0;
-    /* Removed default margin, controlled by parent layout */
-}
-
 .settings-desc {
     font-size: 13px;
     color: var(--text-secondary);
@@ -2708,16 +3173,8 @@ body.focus-panel-window.is-fullscreen {
 
 /* Expandable Info Text */
 .info-expandable {
-    margin-top: 8px;
-    margin-bottom: 12px;
-    padding: 10px 12px;
-    background: var(--bg-subtle, var(--hover-bg));
-    border-radius: 8px;
     overflow: hidden;
     transition: all 0.2s ease;
-    color: var(--text-secondary);
-    font-size: 13px;
-    line-height: 1.5;
 }
 
 .info-expandable.hidden {
@@ -3031,15 +3488,6 @@ body.focus-panel-window.is-fullscreen {
 #reminders-connect-btn:hover {
     background: var(--hover-bg);
     border-color: var(--border-color-strong);
-}
-
-/* Integrations spacing: keep connected status and action on one row */
-#disconnect-reminders-btn,
-#disconnect-bc-btn {
-    margin: 0;
-    margin-left: auto;
-    white-space: nowrap;
-    flex-shrink: 0;
 }
 
 .manual-update-btn {
