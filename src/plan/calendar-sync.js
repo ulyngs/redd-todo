@@ -138,7 +138,14 @@ const CalendarSync = (function () {
             dateKey: dateKey,
             offsetX: 0,
             isCalendarEvent: true,
-            calendarEventUid: event.uid
+            calendarEventUid: event.uid,
+            isAllDay: event.isAllDay,
+            startMinutes: event.isAllDay
+                ? null
+                : startDate.getHours() * 60 + startDate.getMinutes(),
+            endMinutes: event.isAllDay || !event.endDate
+                ? null
+                : event.endDate.getHours() * 60 + event.endDate.getMinutes(),
         };
     }
 

@@ -17,6 +17,19 @@ const PlanModule = (function () {
     let startYear = currentYear;
     const MONTHS_TO_RENDER = 12; // Render 12 months at a time
     const COLUMN_WIDTH = 252; // 240px + 12px gap
+    const VIEW_MODE_KEY = STORAGE_PREFIX + 'calendar-view-mode';
+    const WEEK_GOALS_KEY = STORAGE_PREFIX + 'week-goals';
+    const GOAL_ASSIGNEES_KEY = STORAGE_PREFIX + 'goal-assignees';
+    const WEEK_VIEW_START_HOUR = 7;
+    const WEEK_VIEW_END_HOUR = 22;
+    const WEEK_VIEW_HOUR_HEIGHT = 44;
+    let calendarViewMode = 'months'; // 'months' | 'week'
+    let weekStartDate = getMondayOfWeek(new Date());
+    let weekGoalsByWeek = {};
+    let goalAssignees = [];
+    let editingGoalId = null;
+    let weekGoalDropHighlightEl = null;
+    let isWeekGoalDragInProgress = false;
     let currentLanguage = 'en';
     let freeformNotes = [];
     let freeformLines = [];
@@ -31,6 +44,9 @@ const PlanModule = (function () {
     // DOM references (will be set on init)
     let calendarContainer = null;
     let canvasLayer = null;
+    let resizeObserver = null;
+    let resizeTimer = null;
+    let onWindowResize = null;
 
     // Flag to prevent re-rendering during drag operations
     let isDragInProgress = false;
@@ -42,6 +58,356 @@ const PlanModule = (function () {
         'July', 'August', 'September', 'October', 'November', 'December'];
     const WEEKDAYS_DA = ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø'];
     const WEEKDAYS_EN = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+    const WEEKDAYS_FULL_DA = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag'];
+    const WEEKDAYS_FULL_EN = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const GOAL_ASSIGNEE_LEGACY = { ulrik: 'a', tiago: 'b' };
+    const DEFAULT_GOAL_ASSIGNEES = [
+        { id: 'a', label: 'Person 1', color: '#1e2d3e' },
+        { id: 'b', label: 'Person 2', color: '#2a9d8f' },
+    ];
+    const GOAL_ASSIGNEE_PALETTE = [
+        '#1e2d3e', '#2a9d8f', '#7da9c8', '#8eb5b0', '#8cb89c',
+        '#d4ba6a', '#d4a5a8', '#d99a6c', '#d4605a', '#a896c0',
+    ];
+    const GOAL_DRAG_THRESHOLD_PX = 6;
+
+    function getDefaultGoalAssigneeId() {
+        return goalAssignees[0]?.id || DEFAULT_GOAL_ASSIGNEES[0].id;
+    }
+
+    function getAssigneeShortLabel(label) {
+        const trimmed = (label || '').trim();
+        if (!trimmed) return '?';
+        const parts = trimmed.split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+        return trimmed.slice(0, 2).toUpperCase();
+    }
+
+    function hexToRgba(hex, alpha) {
+        const normalized = (hex || '#1e2d3e').replace('#', '');
+        if (normalized.length !== 6) return `rgba(30, 45, 62, ${alpha})`;
+        const r = parseInt(normalized.slice(0, 2), 16);
+        const g = parseInt(normalized.slice(2, 4), 16);
+        const b = parseInt(normalized.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function getContrastTextColor(hex) {
+        const normalized = (hex || '#1e2d3e').replace('#', '');
+        if (normalized.length !== 6) return '#fff';
+        const r = parseInt(normalized.slice(0, 2), 16);
+        const g = parseInt(normalized.slice(2, 4), 16);
+        const b = parseInt(normalized.slice(4, 6), 16);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.62 ? '#1e2d3e' : '#fff';
+    }
+
+    function getGoalAssignees() {
+        const map = {};
+        for (const assignee of goalAssignees) {
+            map[assignee.id] = {
+                label: assignee.label,
+                short: getAssigneeShortLabel(assignee.label),
+                color: assignee.color,
+            };
+        }
+        return map;
+    }
+
+    function normalizeGoalAssignee(assignee) {
+        if (GOAL_ASSIGNEE_LEGACY[assignee]) assignee = GOAL_ASSIGNEE_LEGACY[assignee];
+        return getGoalAssignees()[assignee] ? assignee : getDefaultGoalAssigneeId();
+    }
+
+    function applyGoalAssigneeStyles(pill, badgeEl, assignee) {
+        const color = assignee?.color || '#1e2d3e';
+        pill.style.borderColor = hexToRgba(color, 0.28);
+        pill.style.background = hexToRgba(color, 0.1);
+        badgeEl.style.background = color;
+        badgeEl.style.color = getContrastTextColor(color);
+    }
+
+    function loadGoalAssignees() {
+        let seededDefaults = false;
+        try {
+            const stored = localStorage.getItem(GOAL_ASSIGNEES_KEY);
+            if (stored) {
+                goalAssignees = JSON.parse(stored);
+            } else {
+                goalAssignees = JSON.parse(JSON.stringify(DEFAULT_GOAL_ASSIGNEES));
+                seededDefaults = true;
+            }
+        } catch {
+            goalAssignees = JSON.parse(JSON.stringify(DEFAULT_GOAL_ASSIGNEES));
+            seededDefaults = true;
+        }
+
+        if (!Array.isArray(goalAssignees) || goalAssignees.length === 0) {
+            goalAssignees = JSON.parse(JSON.stringify(DEFAULT_GOAL_ASSIGNEES));
+            seededDefaults = true;
+        }
+
+        goalAssignees = goalAssignees
+            .filter((item) => item && item.id && item.label)
+            .map((item) => ({
+                id: String(item.id),
+                label: String(item.label).trim() || 'Person',
+                color: item.color || GOAL_ASSIGNEE_PALETTE[0],
+            }));
+
+        if (goalAssignees.length === 0) {
+            goalAssignees = JSON.parse(JSON.stringify(DEFAULT_GOAL_ASSIGNEES));
+            seededDefaults = true;
+        }
+
+        if (seededDefaults) saveGoalAssignees();
+    }
+
+    function saveGoalAssignees() {
+        try {
+            localStorage.setItem(GOAL_ASSIGNEES_KEY, JSON.stringify(goalAssignees));
+        } catch {
+            /* private mode */
+        }
+    }
+
+    function createGoalAssigneeId() {
+        return `person-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    }
+
+    function nextGoalAssigneeColor() {
+        const used = new Set(goalAssignees.map((item) => item.color));
+        return GOAL_ASSIGNEE_PALETTE.find((color) => !used.has(color))
+            || GOAL_ASSIGNEE_PALETTE[goalAssignees.length % GOAL_ASSIGNEE_PALETTE.length];
+    }
+
+    function reassignGoalsFromAssignee(fromId, toId) {
+        let changed = false;
+        for (const weekKey of Object.keys(weekGoalsByWeek)) {
+            for (const goal of weekGoalsByWeek[weekKey] || []) {
+                if (goal.assignee === fromId) {
+                    goal.assignee = toId;
+                    changed = true;
+                }
+            }
+        }
+        if (changed) saveWeekGoals();
+    }
+
+    function addGoalAssignee() {
+        const label = `Person ${goalAssignees.length + 1}`;
+        goalAssignees.push({
+            id: createGoalAssigneeId(),
+            label,
+            color: nextGoalAssigneeColor(),
+        });
+        saveGoalAssignees();
+        renderGoalAssigneesPopover();
+        updateGoalAssigneeSelectOptions();
+    }
+
+    function updateGoalAssigneeLabel(id, label) {
+        const assignee = goalAssignees.find((item) => item.id === id);
+        if (!assignee) return;
+        const trimmed = label.trim();
+        if (!trimmed) return;
+        assignee.label = trimmed.slice(0, 30);
+        saveGoalAssignees();
+        updateGoalAssigneeSelectOptions();
+        renderWeekGoals();
+    }
+
+    function updateGoalAssigneeColor(id, color) {
+        const assignee = goalAssignees.find((item) => item.id === id);
+        if (!assignee) return;
+        assignee.color = color;
+        saveGoalAssignees();
+        renderGoalAssigneesPopover();
+        renderWeekGoals();
+    }
+
+    function removeGoalAssignee(id) {
+        if (goalAssignees.length <= 1) return;
+        const fallbackId = goalAssignees.find((item) => item.id !== id)?.id;
+        if (!fallbackId) return;
+        reassignGoalsFromAssignee(id, fallbackId);
+        goalAssignees = goalAssignees.filter((item) => item.id !== id);
+        saveGoalAssignees();
+        renderGoalAssigneesPopover();
+        updateGoalAssigneeSelectOptions();
+        renderWeekGoals();
+    }
+
+    function updateGoalAssigneeSelectOptions() {
+        const select = container?.querySelector('.plan-week-goal-assignee-select');
+        if (!select) return;
+        const assignees = getGoalAssignees();
+        const current = select.value;
+        select.innerHTML = Object.entries(assignees).map(([key, { label }]) =>
+            `<option value="${key}">${label}</option>`
+        ).join('');
+        select.value = normalizeGoalAssignee(current);
+    }
+
+    function closeGoalAssigneesPopover() {
+        container?.querySelector('.plan-goal-assignees-popover')?.classList.add('hidden');
+        container?.querySelectorAll('.plan-goal-assignee-color-popover').forEach((el) => el.remove());
+    }
+
+    function renderGoalAssigneesPopover() {
+        const list = container?.querySelector('.plan-goal-assignees-list');
+        if (!list) return;
+
+        list.innerHTML = '';
+        goalAssignees.forEach((assignee) => {
+            const item = document.createElement('div');
+            item.className = 'plan-goal-assignee-item';
+            item.dataset.id = assignee.id;
+
+            const colorBtn = document.createElement('button');
+            colorBtn.type = 'button';
+            colorBtn.className = 'plan-goal-assignee-color';
+            colorBtn.style.background = assignee.color;
+            colorBtn.title = 'Change color';
+            colorBtn.setAttribute('aria-label', `Change color for ${assignee.label}`);
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'plan-goal-assignee-name';
+            nameInput.value = assignee.label;
+            nameInput.maxLength = 30;
+            nameInput.setAttribute('aria-label', 'Name');
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'plan-goal-assignee-delete';
+            deleteBtn.title = 'Remove person';
+            deleteBtn.setAttribute('aria-label', `Remove ${assignee.label}`);
+            deleteBtn.textContent = '×';
+            deleteBtn.disabled = goalAssignees.length <= 1;
+
+            nameInput.addEventListener('change', () => updateGoalAssigneeLabel(assignee.id, nameInput.value));
+            nameInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    nameInput.blur();
+                }
+            });
+
+            colorBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                container.querySelectorAll('.plan-goal-assignee-color-popover').forEach((el) => el.remove());
+
+                const popover = document.createElement('div');
+                popover.className = 'plan-goal-assignee-color-popover';
+                const currentColor = assignee.color || GOAL_ASSIGNEE_PALETTE[0];
+                popover.innerHTML = `
+                    <div class="calendar-color-swatches">
+                        ${GOAL_ASSIGNEE_PALETTE.map((color) =>
+                            `<button type="button" class="calendar-color-swatch${color === currentColor ? ' selected' : ''}" data-color="${color}" style="background-color: ${color}" title="${color}"></button>`
+                        ).join('')}
+                    </div>
+                `;
+                item.appendChild(popover);
+
+                popover.querySelectorAll('.calendar-color-swatch').forEach((swatch) => {
+                    swatch.addEventListener('click', (swatchEvent) => {
+                        swatchEvent.stopPropagation();
+                        updateGoalAssigneeColor(assignee.id, swatch.dataset.color);
+                        popover.remove();
+                    });
+                });
+            });
+
+            deleteBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                removeGoalAssignee(assignee.id);
+            });
+
+            item.appendChild(colorBtn);
+            item.appendChild(nameInput);
+            item.appendChild(deleteBtn);
+            list.appendChild(item);
+        });
+    }
+
+    function setupGoalAssigneesUI() {
+        const manageBtn = container.querySelector('.plan-week-goal-assignees-btn');
+        const popover = container.querySelector('.plan-goal-assignees-popover');
+        const addBtn = container.querySelector('.plan-goal-assignee-add-btn');
+        if (!manageBtn || !popover) return;
+
+        manageBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const isHidden = popover.classList.contains('hidden');
+            closeGoalAssigneesPopover();
+            if (!isHidden) return;
+
+            popover.classList.remove('hidden');
+            const goalsBar = container.querySelector('.plan-week-goals');
+            const btnRect = manageBtn.getBoundingClientRect();
+            const anchorRect = goalsBar?.getBoundingClientRect() || container.getBoundingClientRect();
+            popover.style.top = `${btnRect.bottom - anchorRect.top + 6}px`;
+            popover.style.left = `${Math.max(8, btnRect.left - anchorRect.left)}px`;
+            renderGoalAssigneesPopover();
+        });
+
+        addBtn?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            addGoalAssignee();
+        });
+
+        document.addEventListener('click', (event) => {
+            if (popover.classList.contains('hidden')) return;
+            const target = event.target;
+            if (manageBtn.contains(target) || popover.contains(target)) return;
+            closeGoalAssigneesPopover();
+        });
+    }
+
+    function getMondayOfWeek(date) {
+        const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const weekday = d.getDay() === 0 ? 6 : d.getDay() - 1;
+        d.setDate(d.getDate() - weekday);
+        return d;
+    }
+
+    function formatDateKey(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function addDays(date, days) {
+        const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        next.setDate(next.getDate() + days);
+        return next;
+    }
+
+    function formatMinutesAsTime(minutes) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        const date = new Date(2000, 0, 1, hours, mins);
+        return date.toLocaleTimeString([], {
+            hour: 'numeric',
+            minute: mins ? '2-digit' : undefined,
+        });
+    }
+
+    function isDateInVisibleWeek(dateKey) {
+        const weekStartKey = formatDateKey(weekStartDate);
+        const weekEndKey = formatDateKey(addDays(weekStartDate, 6));
+        return dateKey >= weekStartKey && dateKey <= weekEndKey;
+    }
+
+    function noteDisplayText(note) {
+        if (note.html) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = note.html;
+            return tmp.textContent || 'Note';
+        }
+        return note.text || 'Note';
+    }
 
     // Calculate Easter Sunday using the Anonymous Gregorian algorithm
     function getEasterSunday(year) {
@@ -161,20 +527,65 @@ const PlanModule = (function () {
         // Initialize
         loadData();
         loadLanguage();
+        updateGoalAssigneeSelectOptions();
         setupEventListeners();
+        setupGoalAssigneesUI();
         setupCanvasInteraction();
         renderCalendar();
         updatePeriodDisplay();
+        updateViewModeButtons();
 
         // Delay initial render of freeform elements to ensure DOM is fully laid out
-        setTimeout(() => renderFreeformElements(), 100);
+        setTimeout(() => {
+            renderFreeformElements();
+            if (calendarViewMode === 'week') scrollWeekViewToCurrentTime();
+        }, 100);
         setupToolbarListeners();
+        setupResizeObserver();
+        onWindowResize = () => scheduleLayoutRefresh();
+        window.addEventListener('resize', onWindowResize);
 
         isInitialized = true;
     }
 
+    function setupResizeObserver() {
+        const observeTarget = calendarContainer || container;
+        if (!observeTarget || typeof ResizeObserver === 'undefined') return;
+
+        let lastWidth = 0;
+        resizeObserver = new ResizeObserver((entries) => {
+            const width = entries[0]?.contentRect.width ?? 0;
+            if (width <= 0) return;
+
+            const widthDelta = lastWidth > 0 ? Math.abs(width - lastWidth) : 0;
+            lastWidth = width;
+
+            if (widthDelta > 200 && calendarViewMode === 'months') {
+                renderCalendar();
+            }
+            scheduleLayoutRefresh();
+        });
+        resizeObserver.observe(observeTarget);
+    }
+
+    function scheduleLayoutRefresh() {
+        if (!isInitialized || isDragInProgress) return;
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            renderFreeformElements();
+        }, 50);
+    }
+
     function destroy() {
         if (!isInitialized) return;
+        resizeObserver?.disconnect();
+        resizeObserver = null;
+        if (onWindowResize) {
+            window.removeEventListener('resize', onWindowResize);
+            onWindowResize = null;
+        }
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = null;
         container.innerHTML = '';
         isInitialized = false;
     }
@@ -196,6 +607,11 @@ const PlanModule = (function () {
                         </button>
                     </div>
 
+                    <div class="plan-view-switcher" role="group" aria-label="Calendar view">
+                        <button type="button" class="plan-view-mode-btn active" data-view="months">Months</button>
+                        <button type="button" class="plan-view-mode-btn" data-view="week">Week</button>
+                    </div>
+
                     <div class="plan-undo-redo-nav">
                         <button class="plan-nav-btn plan-undo-btn" title="Undo" disabled>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
@@ -210,8 +626,29 @@ const PlanModule = (function () {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
                         </button>
                         <button class="plan-nav-btn plan-calendar-add-btn" title="Add Calendar">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M10 14h4"/><path d="M12 12v4"/></svg>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 19h6"/><path d="M16 2v4"/><path d="M19 16v6"/><path d="M21 12.598V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8.5"/><path d="M3 10h18"/><path d="M8 2v4"/></svg>
                         </button>
+                    </div>
+                </div>
+                <div class="plan-week-goals hidden">
+                    <div class="plan-week-goals-row">
+                        <span class="plan-week-goals-label">Goals:</span>
+                        <button type="button" class="plan-week-goal-add-btn" title="Add goal" aria-label="Add goal">+</button>
+                        <button type="button" class="plan-week-goal-assignees-btn" title="Edit people" aria-label="Edit people">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </button>
+                        <div class="plan-week-goals-list"></div>
+                    </div>
+                    <div class="plan-week-goal-form hidden">
+                        <input type="text" class="plan-week-goal-text-input" placeholder="Goal..." maxlength="120">
+                        <select class="plan-week-goal-assignee-select" aria-label="Assign to"></select>
+                        <button type="button" class="plan-week-goal-save-btn">Add</button>
+                        <button type="button" class="plan-week-goal-cancel-btn">Cancel</button>
+                    </div>
+                    <div class="plan-goal-assignees-popover hidden">
+                        <div class="plan-goal-assignees-header">People</div>
+                        <div class="plan-goal-assignees-list"></div>
+                        <button type="button" class="plan-goal-assignee-add-btn">+ Add person</button>
                     </div>
                 </div>
                 <div class="plan-calendar-container">
@@ -291,11 +728,25 @@ const PlanModule = (function () {
                         <input type="text" class="plan-calendar-url-input" placeholder="ICS URL (https:// or webcal://)">
                         <button class="plan-calendar-add-save-btn">Add Calendar</button>
                     </div>
-                    <p class="plan-calendar-hint">Events with "ENKELT" in their description will be shown (legacy "REDD-DO" also works)</p>
+                    <p class="plan-calendar-hint">Events with "ENKELT" (or legacy "REDD-DO") in their description will be shown</p>
                     <div class="plan-calendar-status"></div>
                 </div>
             </div>
         `;
+    }
+
+    function cleanupPhantomLines() {
+        const before = freeformLines.length;
+        freeformLines = freeformLines.filter((line) => {
+            if (line.source === 'calendar') return true;
+            if (line.label?.trim()) return true;
+            // Unlabeled date-keyed lines were accidental canvas artifacts (e.g. goal drags).
+            if (line.startDate && line.endDate) return false;
+            return true;
+        });
+        if (freeformLines.length !== before) {
+            saveData();
+        }
     }
 
     // Data functions
@@ -305,6 +756,7 @@ const PlanModule = (function () {
             if (storedNotes) freeformNotes = JSON.parse(storedNotes);
             const storedLines = localStorage.getItem(LINES_KEY);
             if (storedLines) freeformLines = JSON.parse(storedLines);
+            cleanupPhantomLines();
             const storedGroups = localStorage.getItem(GROUPS_KEY);
             if (storedGroups) groups = JSON.parse(storedGroups);
             else groups = JSON.parse(JSON.stringify(DEFAULT_GROUPS));
@@ -322,7 +774,16 @@ const PlanModule = (function () {
             const storedLastSync = localStorage.getItem(CALENDAR_LAST_SYNC_KEY);
             if (storedLastSync) calendarLastSync = storedLastSync;
 
-            // Count calendar events in freeformNotes/Lines for logging
+            const storedViewMode = localStorage.getItem(VIEW_MODE_KEY);
+            if (storedViewMode === 'week' || storedViewMode === 'months') {
+                calendarViewMode = storedViewMode;
+            }
+            if (calendarViewMode === 'week') {
+                weekStartDate = getMondayOfWeek(new Date());
+            }
+
+            loadWeekGoals();
+            loadGoalAssignees();
             const calendarEventNotes = freeformNotes.filter(n => n.source === 'calendar').length;
             const calendarEventLines = freeformLines.filter(l => l.source === 'calendar').length;
             console.log('[Plan] Loaded data:', {
@@ -373,9 +834,509 @@ const PlanModule = (function () {
         if (redoBtn) redoBtn.disabled = redoStack.length === 0;
     }
 
+    function loadWeekGoals() {
+        try {
+            const stored = localStorage.getItem(WEEK_GOALS_KEY);
+            weekGoalsByWeek = stored ? JSON.parse(stored) : {};
+        } catch {
+            weekGoalsByWeek = {};
+        }
+
+        let migrated = false;
+        for (const weekKey of Object.keys(weekGoalsByWeek)) {
+            for (const goal of weekGoalsByWeek[weekKey] || []) {
+                const normalized = normalizeGoalAssignee(goal.assignee);
+                if (normalized !== goal.assignee) {
+                    goal.assignee = normalized;
+                    migrated = true;
+                }
+            }
+        }
+        if (migrated) saveWeekGoals();
+    }
+
+    function saveWeekGoals() {
+        try {
+            localStorage.setItem(WEEK_GOALS_KEY, JSON.stringify(weekGoalsByWeek));
+        } catch {
+            /* private mode */
+        }
+    }
+
+    function getCurrentWeekKey() {
+        return formatDateKey(weekStartDate);
+    }
+
+    function getGoalsForCurrentWeek() {
+        const key = getCurrentWeekKey();
+        if (!Array.isArray(weekGoalsByWeek[key])) {
+            weekGoalsByWeek[key] = [];
+        }
+        return weekGoalsByWeek[key];
+    }
+
+    function createGoalId() {
+        return `goal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function hideWeekGoalForm() {
+        editingGoalId = null;
+        const form = container.querySelector('.plan-week-goal-form');
+        const input = container.querySelector('.plan-week-goal-text-input');
+        const assigneeSelect = container.querySelector('.plan-week-goal-assignee-select');
+        if (form) form.classList.add('hidden');
+        if (input) input.value = '';
+        if (assigneeSelect) assigneeSelect.value = getDefaultGoalAssigneeId();
+        updateGoalFormUI();
+        renderWeekGoals();
+    }
+
+    function updateGoalFormUI() {
+        const saveBtn = container.querySelector('.plan-week-goal-save-btn');
+        if (saveBtn) {
+            saveBtn.textContent = editingGoalId ? 'Save' : 'Add';
+        }
+    }
+
+    function showWeekGoalForm(goal = null) {
+        const form = container.querySelector('.plan-week-goal-form');
+        const input = container.querySelector('.plan-week-goal-text-input');
+        const assigneeSelect = container.querySelector('.plan-week-goal-assignee-select');
+        if (!form || !input || !assigneeSelect) return;
+
+        editingGoalId = goal?.id ?? null;
+        input.value = goal?.text || '';
+        assigneeSelect.value = goal?.assignee
+            ? normalizeGoalAssignee(goal.assignee)
+            : getDefaultGoalAssigneeId();
+        updateGoalFormUI();
+        form.classList.remove('hidden');
+        input.focus();
+        if (goal) {
+            input.select();
+        }
+        renderWeekGoals();
+    }
+
+    function startEditingWeekGoal(goalId) {
+        const goal = getGoalsForCurrentWeek().find((item) => item.id === goalId);
+        if (goal) {
+            showWeekGoalForm(goal);
+        }
+    }
+
+    function saveWeekGoalFromForm() {
+        const input = container.querySelector('.plan-week-goal-text-input');
+        const assigneeSelect = container.querySelector('.plan-week-goal-assignee-select');
+        const text = input?.value || '';
+        const assignee = assigneeSelect?.value || getDefaultGoalAssigneeId();
+
+        if (editingGoalId) {
+            updateWeekGoal(editingGoalId, text, assignee);
+            return;
+        }
+
+        addWeekGoal(text, assignee);
+    }
+
+    function addWeekGoal(text, assignee) {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+
+        const assigneeKey = normalizeGoalAssignee(assignee);
+        getGoalsForCurrentWeek().push({
+            id: createGoalId(),
+            text: trimmed,
+            assignee: assigneeKey,
+            dateKey: null,
+        });
+        saveWeekGoals();
+        hideWeekGoalForm();
+        renderWeekGoals();
+    }
+
+    function updateWeekGoal(goalId, text, assignee) {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+
+        const goal = getGoalsForCurrentWeek().find((item) => item.id === goalId);
+        if (!goal) return;
+
+        goal.text = trimmed;
+        goal.assignee = normalizeGoalAssignee(assignee);
+        saveWeekGoals();
+        hideWeekGoalForm();
+    }
+
+    function removeWeekGoal(goalId) {
+        const key = getCurrentWeekKey();
+        weekGoalsByWeek[key] = getGoalsForCurrentWeek().filter((goal) => goal.id !== goalId);
+        saveWeekGoals();
+        if (editingGoalId === goalId) {
+            editingGoalId = null;
+            const form = container.querySelector('.plan-week-goal-form');
+            const input = container.querySelector('.plan-week-goal-text-input');
+            const assigneeSelect = container.querySelector('.plan-week-goal-assignee-select');
+            form?.classList.add('hidden');
+            if (input) input.value = '';
+            if (assigneeSelect) assigneeSelect.value = getDefaultGoalAssigneeId();
+            updateGoalFormUI();
+        }
+        renderWeekGoals();
+    }
+
+    function moveWeekGoal(goalId, dateKey) {
+        const goal = getGoalsForCurrentWeek().find((item) => item.id === goalId);
+        if (!goal) return;
+
+        const nextDateKey = dateKey || null;
+        if (goal.dateKey === nextDateKey) return;
+
+        goal.dateKey = nextDateKey;
+        saveWeekGoals();
+        renderWeekGoals();
+    }
+
+    function findWeekGoalDropTarget(clientX, clientY) {
+        const goalsBar = container.querySelector('.plan-week-goals');
+        if (goalsBar) {
+            const barRect = goalsBar.getBoundingClientRect();
+            if (
+                clientX >= barRect.left &&
+                clientX <= barRect.right &&
+                clientY >= barRect.top &&
+                clientY <= barRect.bottom
+            ) {
+                return { dateKey: null, element: goalsBar.querySelector('.plan-week-goals-list') };
+            }
+        }
+
+        const columns = container.querySelectorAll('.plan-week-day-column');
+        let bestMatch = null;
+        let bestDistance = Infinity;
+
+        columns.forEach((col) => {
+            const header = col.querySelector('.plan-week-day-header');
+            const goalsRow = col.querySelector('.plan-week-day-goals');
+            if (!header || !goalsRow) return;
+
+            const colRect = col.getBoundingClientRect();
+            const headerRect = header.getBoundingClientRect();
+            const snapLineY = headerRect.bottom;
+            const zoneTop = headerRect.top;
+            const zoneBottom = snapLineY + 56;
+
+            if (
+                clientX < colRect.left ||
+                clientX > colRect.right ||
+                clientY < zoneTop ||
+                clientY > zoneBottom
+            ) {
+                return;
+            }
+
+            const distance = Math.abs(clientY - snapLineY);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestMatch = {
+                    dateKey: col.dataset.dateKey,
+                    element: goalsRow,
+                };
+            }
+        });
+
+        return bestMatch;
+    }
+
+    function setWeekGoalDropHighlight(element) {
+        if (weekGoalDropHighlightEl === element) return;
+        weekGoalDropHighlightEl?.classList.remove('plan-week-goal-drop-highlight');
+        weekGoalDropHighlightEl = element || null;
+        weekGoalDropHighlightEl?.classList.add('plan-week-goal-drop-highlight');
+    }
+
+    function weekHasPlacedGoals() {
+        return getGoalsForCurrentWeek().some((goal) => goal.dateKey);
+    }
+
+    function syncWeekGoalGutterSpacer() {
+        const dayGoalRows = container.querySelectorAll('.plan-week-day-goals');
+        const spacer = container.querySelector('.plan-week-day-goals-spacer');
+        if (!spacer) return;
+
+        dayGoalRows.forEach((row) => {
+            row.style.minHeight = '';
+            row.classList.remove('plan-week-day-goals--synced');
+        });
+
+        if (!weekHasPlacedGoals()) {
+            spacer.style.display = 'none';
+            spacer.style.minHeight = '';
+            return;
+        }
+
+        let maxHeight = 0;
+        dayGoalRows.forEach((row) => {
+            if (row.childElementCount > 0) {
+                maxHeight = Math.max(maxHeight, row.offsetHeight);
+            }
+        });
+
+        if (maxHeight <= 0) return;
+
+        spacer.style.display = 'block';
+        spacer.style.minHeight = `${maxHeight}px`;
+
+        dayGoalRows.forEach((row) => {
+            row.classList.add('plan-week-day-goals--synced');
+            row.style.minHeight = `${maxHeight}px`;
+        });
+    }
+
+    function clearWeekGoalDropHighlight() {
+        setWeekGoalDropHighlight(null);
+    }
+
+    function setupWeekGoalPointerDrag(pill, goal) {
+        pill.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0) return;
+            if (event.target.closest('.plan-week-goal-remove')) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const startX = event.clientX;
+            const startY = event.clientY;
+            let dragging = false;
+            let dragClone = null;
+
+            const cleanup = () => {
+                isWeekGoalDragInProgress = false;
+                document.removeEventListener('pointermove', onPointerMove);
+                document.removeEventListener('pointerup', onPointerUp);
+                document.removeEventListener('pointercancel', onPointerUp);
+                dragClone?.remove();
+                pill.classList.remove('plan-week-goal-pill--source-hidden');
+                container.querySelectorAll('.plan-week-day-goals').forEach((row) => {
+                    row.classList.remove('plan-week-goal-drop-active');
+                });
+                clearWeekGoalDropHighlight();
+            };
+
+            const onPointerMove = (moveEvent) => {
+                const deltaX = moveEvent.clientX - startX;
+                const deltaY = moveEvent.clientY - startY;
+
+                if (!dragging) {
+                    if (Math.hypot(deltaX, deltaY) < GOAL_DRAG_THRESHOLD_PX) return;
+
+                    dragging = true;
+                    isWeekGoalDragInProgress = true;
+                    moveEvent.preventDefault();
+                    moveEvent.stopPropagation();
+                    pill.setPointerCapture(event.pointerId);
+
+                    dragClone = pill.cloneNode(true);
+                    dragClone.classList.add('plan-week-goal-pill--dragging');
+                    dragClone.style.width = `${pill.offsetWidth}px`;
+                    document.body.appendChild(dragClone);
+                    pill.classList.add('plan-week-goal-pill--source-hidden');
+                    container.querySelectorAll('.plan-week-day-goals').forEach((row) => {
+                        row.classList.add('plan-week-goal-drop-active');
+                    });
+                }
+
+                dragClone.style.left = `${moveEvent.clientX - dragClone.offsetWidth / 2}px`;
+                dragClone.style.top = `${moveEvent.clientY - dragClone.offsetHeight / 2}px`;
+
+                const dropTarget = findWeekGoalDropTarget(moveEvent.clientX, moveEvent.clientY);
+                setWeekGoalDropHighlight(dropTarget?.element || null);
+            };
+
+            const onPointerUp = (upEvent) => {
+                if (dragging) {
+                    upEvent.preventDefault();
+                    if (pill.hasPointerCapture?.(event.pointerId)) {
+                        pill.releasePointerCapture(event.pointerId);
+                    }
+                    const dropTarget = findWeekGoalDropTarget(upEvent.clientX, upEvent.clientY);
+                    if (dropTarget) {
+                        moveWeekGoal(goal.id, dropTarget.dateKey);
+                    } else {
+                        renderWeekGoals();
+                    }
+                } else if (!event.target.closest('.plan-week-goal-remove')) {
+                    startEditingWeekGoal(goal.id);
+                }
+
+                cleanup();
+            };
+
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerup', onPointerUp);
+            document.addEventListener('pointercancel', onPointerUp);
+        });
+
+        pill.addEventListener('mousedown', (event) => {
+            event.stopPropagation();
+        });
+    }
+
+    function createWeekGoalPill(goal) {
+        const assigneeKey = normalizeGoalAssignee(goal.assignee);
+        const assignee = getGoalAssignees()[assigneeKey];
+        const pill = document.createElement('div');
+        pill.className = 'plan-week-goal-pill';
+        if (goal.id === editingGoalId) {
+            pill.classList.add('plan-week-goal-pill--editing');
+        }
+        pill.dataset.goalId = goal.id;
+        pill.setAttribute('role', 'button');
+        pill.tabIndex = 0;
+        pill.title = 'Drag to a day or click to edit';
+
+        const textEl = document.createElement('span');
+        textEl.className = 'plan-week-goal-pill-text';
+        textEl.textContent = goal.text;
+
+        const assigneeEl = document.createElement('span');
+        assigneeEl.className = 'plan-week-goal-pill-assignee';
+        assigneeEl.textContent = assignee?.short || '?';
+        assigneeEl.title = assignee?.label || 'Person';
+        applyGoalAssigneeStyles(pill, assigneeEl, assignee);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'plan-week-goal-remove';
+        removeBtn.setAttribute('aria-label', 'Remove goal');
+        removeBtn.textContent = '×';
+
+        removeBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            removeWeekGoal(goal.id);
+        });
+        removeBtn.addEventListener('pointerdown', (event) => {
+            event.stopPropagation();
+        });
+
+        setupWeekGoalPointerDrag(pill, goal);
+
+        pill.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                startEditingWeekGoal(goal.id);
+            }
+        });
+
+        pill.appendChild(textEl);
+        pill.appendChild(assigneeEl);
+        pill.appendChild(removeBtn);
+        return pill;
+    }
+
+    function renderWeekGoals() {
+        if (calendarViewMode !== 'week') return;
+
+        const goalsBar = container.querySelector('.plan-week-goals');
+        const list = container.querySelector('.plan-week-goals-list');
+        if (!goalsBar || !list) return;
+
+        list.innerHTML = '';
+        container.querySelectorAll('.plan-week-day-goals').forEach((row) => {
+            row.innerHTML = '';
+        });
+
+        getGoalsForCurrentWeek().forEach((goal) => {
+            const pill = createWeekGoalPill(goal);
+            if (goal.dateKey) {
+                const dayGoals = container.querySelector(
+                    `.plan-week-day-goals[data-date-key="${goal.dateKey}"]`
+                );
+                if (dayGoals) {
+                    dayGoals.appendChild(pill);
+                    return;
+                }
+                goal.dateKey = null;
+            }
+            list.appendChild(pill);
+        });
+
+        requestAnimationFrame(() => syncWeekGoalGutterSpacer());
+    }
+
+    function updateWeekGoalsVisibility() {
+        const goalsBar = container.querySelector('.plan-week-goals');
+        if (!goalsBar) return;
+
+        const showGoals = calendarViewMode === 'week';
+        goalsBar.classList.toggle('hidden', !showGoals);
+        if (showGoals) {
+            renderWeekGoals();
+        } else {
+            hideWeekGoalForm();
+        }
+    }
+
+    function updateViewModeButtons() {
+        container.querySelectorAll('.plan-view-mode-btn').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.view === calendarViewMode);
+        });
+        calendarContainer?.classList.toggle('plan-week-mode', calendarViewMode === 'week');
+        updateWeekGoalsVisibility();
+    }
+
+    function setCalendarViewMode(mode) {
+        if (mode !== 'months' && mode !== 'week') return;
+        if (calendarViewMode === mode) return;
+
+        calendarViewMode = mode;
+        if (mode === 'week') {
+            weekStartDate = getMondayOfWeek(new Date());
+        }
+        try {
+            localStorage.setItem(VIEW_MODE_KEY, mode);
+        } catch {
+            /* private mode */
+        }
+
+        updateViewModeButtons();
+        renderCalendar();
+        renderFreeformElements();
+        updatePeriodDisplay();
+        if (calendarContainer) {
+            calendarContainer.scrollLeft = 0;
+        }
+        if (mode === 'week') {
+            requestAnimationFrame(() => scrollWeekViewToCurrentTime());
+        }
+    }
+
     // Calendar functions
     function updatePeriodDisplay() {
         const display = container.querySelector('.plan-period-display');
+        const todayBtn = container.querySelector('.plan-today-btn');
+
+        if (calendarViewMode === 'week') {
+            const weekEnd = addDays(weekStartDate, 6);
+            const months = currentLanguage === 'da' ? MONTHS_DA : MONTHS_EN;
+            const startLabel = `${weekStartDate.getDate()} ${months[weekStartDate.getMonth()].slice(0, 3)}`;
+            const endLabel = `${weekEnd.getDate()} ${months[weekEnd.getMonth()].slice(0, 3)}`;
+
+            if (weekStartDate.getFullYear() === weekEnd.getFullYear()) {
+                display.textContent = `${startLabel} – ${endLabel} ${weekStartDate.getFullYear()}`;
+            } else {
+                display.textContent = `${startLabel} ${weekStartDate.getFullYear()} – ${endLabel} ${weekEnd.getFullYear()}`;
+            }
+
+            if (todayBtn) {
+                const todayMonday = getMondayOfWeek(new Date());
+                const isCurrentWeek =
+                    formatDateKey(todayMonday) === formatDateKey(weekStartDate);
+                todayBtn.classList.toggle('hidden', isCurrentWeek);
+            }
+            return;
+        }
+
         const grid = container.querySelector('.plan-calendar-grid');
         const columns = grid.querySelectorAll('.plan-month-column');
 
@@ -418,14 +1379,17 @@ const PlanModule = (function () {
         const lastMonthShort = months[lastMonth].slice(0, 3);
 
         // Format: "Jan - Jun 2026" or "Dec 2025 - Jan 2026" if spanning years
+        // On mobile, drop the year when same year to save space
+        const isMobile = window.innerWidth <= 768;
         if (firstYear === lastYear) {
-            display.textContent = `${firstMonthShort} – ${lastMonthShort} ${firstYear}`;
+            display.textContent = isMobile
+                ? `${firstMonthShort} – ${lastMonthShort}`
+                : `${firstMonthShort} – ${lastMonthShort} ${firstYear}`;
         } else {
             display.textContent = `${firstMonthShort} ${firstYear} – ${lastMonthShort} ${lastYear}`;
         }
 
         // Show/hide "Go to Today" button based on whether today's month is visible
-        const todayBtn = container.querySelector('.plan-today-btn');
         if (todayBtn) {
             const today = new Date();
             const todayMonth = today.getMonth();
@@ -455,6 +1419,13 @@ const PlanModule = (function () {
     function renderCalendar() {
         const grid = container.querySelector('.plan-calendar-grid');
         grid.innerHTML = '';
+        grid.classList.toggle('plan-week-grid', calendarViewMode === 'week');
+
+        if (calendarViewMode === 'week') {
+            renderWeekView(grid);
+            renderWeekGoals();
+            return;
+        }
 
         // Render MONTHS_TO_RENDER months starting from startMonth/startYear
         let month = startMonth;
@@ -471,6 +1442,261 @@ const PlanModule = (function () {
 
         // Update the grid template for the number of months
         grid.style.gridTemplateColumns = `repeat(${MONTHS_TO_RENDER}, 240px)`;
+    }
+
+    function renderWeekView(grid) {
+        grid.style.gridTemplateColumns = `36px repeat(7, minmax(0, 1fr))`;
+        grid.appendChild(createWeekTimeGutter());
+
+        for (let i = 0; i < 7; i++) {
+            grid.appendChild(createWeekDayColumn(addDays(weekStartDate, i)));
+        }
+    }
+
+    function createWeekTimeGutter() {
+        const gutter = document.createElement('div');
+        gutter.className = 'plan-week-time-gutter';
+
+        const headerSpacer = document.createElement('div');
+        headerSpacer.className = 'plan-week-time-gutter-header';
+        gutter.appendChild(headerSpacer);
+
+        const dayGoalsSpacer = document.createElement('div');
+        dayGoalsSpacer.className = 'plan-week-day-goals-spacer';
+        gutter.appendChild(dayGoalsSpacer);
+
+        const alldaySpacer = document.createElement('div');
+        alldaySpacer.className = 'plan-week-allday-spacer';
+        gutter.appendChild(alldaySpacer);
+
+        const hours = document.createElement('div');
+        hours.className = 'plan-week-time-hours';
+        for (let hour = WEEK_VIEW_START_HOUR; hour <= WEEK_VIEW_END_HOUR; hour++) {
+            const label = document.createElement('div');
+            label.className = 'plan-week-hour-label';
+            label.style.height = `${WEEK_VIEW_HOUR_HEIGHT}px`;
+            label.textContent = formatMinutesAsTime(hour * 60);
+            hours.appendChild(label);
+        }
+        gutter.appendChild(hours);
+        return gutter;
+    }
+
+    function createWeekDayColumn(date) {
+        const weekday = date.getDay() === 0 ? 6 : date.getDay() - 1;
+        const isWeekend = weekday >= 5;
+        const isToday = date.toDateString() === new Date().toDateString();
+
+        const col = document.createElement('div');
+        col.className =
+            'plan-week-day-column' + (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '');
+        col.dataset.dateKey = formatDateKey(date);
+        const weekdayLabels =
+            currentLanguage === 'da' ? WEEKDAYS_FULL_DA : WEEKDAYS_FULL_EN;
+        const dateKey = formatDateKey(date);
+
+        const header = document.createElement('div');
+        header.className = 'plan-week-day-header';
+        header.innerHTML = `
+            <span class="plan-week-day-name">${weekdayLabels[weekday]} ${date.getDate()}</span>
+        `;
+        col.appendChild(header);
+
+        const dayGoals = document.createElement('div');
+        dayGoals.className = 'plan-week-day-goals';
+        dayGoals.dataset.dateKey = dateKey;
+        col.appendChild(dayGoals);
+
+        const body = document.createElement('div');
+        body.className = 'plan-week-day-body';
+
+        const alldayRow = document.createElement('div');
+        alldayRow.className =
+            'plan-week-allday-row' + (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '');
+        alldayRow.dataset.dateKey = dateKey;
+
+        const holidays = getHolidays(date.getFullYear());
+        if (holidays[dateKey]) {
+            const holidayEl = document.createElement('span');
+            holidayEl.className = 'plan-week-allday-item holiday';
+            holidayEl.textContent = holidays[dateKey];
+            alldayRow.appendChild(holidayEl);
+        }
+        body.appendChild(alldayRow);
+
+        const timeGrid = document.createElement('div');
+        timeGrid.className = 'plan-week-time-grid';
+        timeGrid.dataset.dateKey = dateKey;
+        const gridHeight =
+            (WEEK_VIEW_END_HOUR - WEEK_VIEW_START_HOUR + 1) * WEEK_VIEW_HOUR_HEIGHT;
+        timeGrid.style.height = `${gridHeight}px`;
+
+        for (let hour = WEEK_VIEW_START_HOUR; hour <= WEEK_VIEW_END_HOUR; hour++) {
+            const slot = document.createElement('div');
+            slot.className =
+                'plan-week-hour-slot' + (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '');
+            slot.dataset.hour = String(hour);
+            slot.dataset.dateKey = dateKey;
+            slot.style.height = `${WEEK_VIEW_HOUR_HEIGHT}px`;
+            timeGrid.appendChild(slot);
+        }
+        body.appendChild(timeGrid);
+        col.appendChild(body);
+
+        // Legacy hook for month-style note queries (hidden, unused in week layout)
+        const legacyRow = document.createElement('div');
+        legacyRow.className = 'plan-day-row plan-week-day-row hidden';
+        legacyRow.dataset.dateKey = dateKey;
+        const legacyNoteArea = document.createElement('div');
+        legacyNoteArea.className = 'plan-note-area';
+        legacyRow.appendChild(legacyNoteArea);
+        col.appendChild(legacyRow);
+
+        return col;
+    }
+
+    function createWeekAllDayEvent(note) {
+        const el = document.createElement('div');
+        el.className =
+            'plan-week-allday-item' +
+            (note.source === 'calendar' ? ' calendar-event' : ' user-event');
+        el.textContent = noteDisplayText(note);
+        if (note.source === 'calendar') {
+            el.title = `From calendar: ${note.calendarName || 'Unknown'}`;
+        }
+        return el;
+    }
+
+    function createWeekTimedEvent(note) {
+        const el = document.createElement('div');
+        el.className =
+            'plan-week-event' +
+            (note.source === 'calendar' ? ' calendar-event' : ' user-event');
+
+        const startMin = note.startMinutes ?? 9 * 60;
+        let endMin = note.endMinutes ?? startMin + 60;
+        if (endMin <= startMin) endMin = startMin + 60;
+
+        const rangeStart = WEEK_VIEW_START_HOUR * 60;
+        const rangeEnd = (WEEK_VIEW_END_HOUR + 1) * 60;
+        const clampedStart = Math.max(startMin, rangeStart);
+        const clampedEnd = Math.min(endMin, rangeEnd);
+        if (clampedEnd <= rangeStart || clampedStart >= rangeEnd) {
+            el.classList.add('hidden');
+            return el;
+        }
+
+        const top = ((clampedStart - rangeStart) / 60) * WEEK_VIEW_HOUR_HEIGHT;
+        const height = Math.max(
+            ((clampedEnd - clampedStart) / 60) * WEEK_VIEW_HOUR_HEIGHT,
+            22
+        );
+        el.style.top = `${top}px`;
+        el.style.height = `${height}px`;
+
+        const timeEl = document.createElement('span');
+        timeEl.className = 'plan-week-event-time';
+        timeEl.textContent =
+            endMin > startMin
+                ? `${formatMinutesAsTime(startMin)} – ${formatMinutesAsTime(endMin)}`
+                : formatMinutesAsTime(startMin);
+
+        const titleEl = document.createElement('span');
+        titleEl.className = 'plan-week-event-title';
+        titleEl.textContent = noteDisplayText(note);
+
+        el.appendChild(timeEl);
+        el.appendChild(titleEl);
+
+        if (note.source === 'calendar') {
+            el.title = `From calendar: ${note.calendarName || 'Unknown'}`;
+        }
+
+        return el;
+    }
+
+    function renderWeekFreeformElements(isVisible) {
+        freeformNotes.filter(isVisible).forEach((note) => {
+            if (!note.dateKey || !isDateInVisibleWeek(note.dateKey)) return;
+
+            if (note.isAllDay || note.startMinutes == null) {
+                const allday = container.querySelector(
+                    `.plan-week-allday-row[data-date-key="${note.dateKey}"]`
+                );
+                if (allday) allday.appendChild(createWeekAllDayEvent(note));
+                return;
+            }
+
+            const grid = container.querySelector(
+                `.plan-week-time-grid[data-date-key="${note.dateKey}"]`
+            );
+            if (grid) grid.appendChild(createWeekTimedEvent(note));
+        });
+
+        freeformLines.filter(isVisible).forEach((line) => {
+            if (!line.startDate || !line.endDate) return;
+
+            const label = line.label?.trim();
+            if (!label) return;
+
+            for (let i = 0; i < 7; i++) {
+                const dayKey = formatDateKey(addDays(weekStartDate, i));
+                if (dayKey < line.startDate || dayKey > line.endDate) continue;
+
+                const allday = container.querySelector(
+                    `.plan-week-allday-row[data-date-key="${dayKey}"]`
+                );
+                if (!allday) continue;
+
+                const el = document.createElement('div');
+                el.className =
+                    'plan-week-allday-item line-event' +
+                    (line.source === 'calendar' ? ' calendar-event' : ' user-event');
+                el.textContent = label;
+                allday.appendChild(el);
+            }
+        });
+
+        markWeekCurrentTimeIndicator();
+    }
+
+    function markWeekCurrentTimeIndicator() {
+        container.querySelectorAll('.plan-week-now-marker').forEach((el) => el.remove());
+
+        const now = new Date();
+        const todayKey = formatDateKey(now);
+        if (!isDateInVisibleWeek(todayKey)) return;
+
+        const minutes = now.getHours() * 60 + now.getMinutes();
+        const rangeStart = WEEK_VIEW_START_HOUR * 60;
+        const rangeEnd = (WEEK_VIEW_END_HOUR + 1) * 60;
+        if (minutes < rangeStart || minutes > rangeEnd) return;
+
+        const grid = container.querySelector(
+            `.plan-week-time-grid[data-date-key="${todayKey}"]`
+        );
+        if (!grid) return;
+
+        const marker = document.createElement('div');
+        marker.className = 'plan-week-now-marker';
+        marker.style.top = `${((minutes - rangeStart) / 60) * WEEK_VIEW_HOUR_HEIGHT}px`;
+        grid.appendChild(marker);
+    }
+
+    function scrollWeekViewToCurrentTime() {
+        if (calendarViewMode !== 'week' || !calendarContainer) return;
+
+        const todayKey = formatDateKey(new Date());
+        if (!isDateInVisibleWeek(todayKey)) {
+            calendarContainer.scrollTop = 0;
+            return;
+        }
+
+        const now = new Date();
+        const minutes = now.getHours() * 60 + now.getMinutes();
+        const rangeStart = WEEK_VIEW_START_HOUR * 60;
+        const targetTop = Math.max(0, ((minutes - rangeStart) / 60) * WEEK_VIEW_HOUR_HEIGHT - 120);
+        calendarContainer.scrollTop = targetTop;
     }
 
     function createMonthColumn(month, year) {
@@ -557,27 +1783,36 @@ const PlanModule = (function () {
         // Clear canvas layer (for lines)
         canvasLayer.innerHTML = '';
 
-        // Clear all note-areas
-        container.querySelectorAll('.plan-note-area').forEach(area => area.innerHTML = '');
+        if (calendarViewMode === 'week') {
+            container.querySelectorAll('.plan-week-allday-row').forEach((row) => {
+                row.querySelectorAll('.plan-week-allday-item:not(.holiday)').forEach((el) => el.remove());
+            });
+            container.querySelectorAll('.plan-week-time-grid').forEach((grid) => {
+                grid.querySelectorAll('.plan-week-event, .plan-week-now-marker').forEach((el) => el.remove());
+            });
+        } else {
+            // Clear all note-areas
+            container.querySelectorAll('.plan-note-area').forEach(area => area.innerHTML = '');
 
-        // Re-add holidays to note-areas
-        container.querySelectorAll('.plan-day-row').forEach(row => {
-            const dateKey = row.dataset.dateKey;
-            if (!dateKey) return;
+            // Re-add holidays to note-areas
+            container.querySelectorAll('.plan-day-row').forEach(row => {
+                const dateKey = row.dataset.dateKey;
+                if (!dateKey) return;
 
-            const year = parseInt(dateKey.split('-')[0]);
-            const holidays = getHolidays(year);
+                const year = parseInt(dateKey.split('-')[0]);
+                const holidays = getHolidays(year);
 
-            if (holidays[dateKey]) {
-                const noteArea = row.querySelector('.plan-note-area');
-                if (noteArea) {
-                    const holidayEl = document.createElement('span');
-                    holidayEl.className = 'plan-note-text holiday';
-                    holidayEl.textContent = holidays[dateKey];
-                    noteArea.appendChild(holidayEl);
+                if (holidays[dateKey]) {
+                    const noteArea = row.querySelector('.plan-note-area');
+                    if (noteArea) {
+                        const holidayEl = document.createElement('span');
+                        holidayEl.className = 'plan-note-text holiday';
+                        holidayEl.textContent = holidays[dateKey];
+                        noteArea.appendChild(holidayEl);
+                    }
                 }
-            }
-        });
+            });
+        }
 
         // Use requestAnimationFrame to ensure DOM is laid out before measuring positions
         requestAnimationFrame(() => {
@@ -592,6 +1827,11 @@ const PlanModule = (function () {
                 const visible = visibleCalendarIds.includes(item.calendarId);
                 return visible;
             };
+
+            if (calendarViewMode === 'week') {
+                renderWeekFreeformElements(isVisible);
+                return;
+            }
 
             // Render all lines (user-drawn AND calendar-synced)
             freeformLines.filter(isVisible).forEach(l => {
@@ -640,6 +1880,8 @@ const PlanModule = (function () {
                     segment.id = line.id + `-seg-${currentYear}-${currentMonth}`;
                     segment.startDate = segmentStart;
                     segment.endDate = segmentEnd;
+                    // Tag so createLine still renders single-day tail segments as vertical bars
+                    segment.isMultiDaySegment = true;
 
                     // Render this segment
                     container.appendChild(createLine(segment));
@@ -814,7 +2056,7 @@ const PlanModule = (function () {
 
         // Check if this is a calendar multi-day event (vertical line)
         const isCalendarLine = line.source === 'calendar' || line.isCalendarEvent;
-        const isCalendarMultiDay = isCalendarLine && line.startDate && line.endDate && line.startDate !== line.endDate;
+        const isCalendarMultiDay = isCalendarLine && line.startDate && line.endDate && (line.startDate !== line.endDate || line.isMultiDaySegment);
 
         if (isCalendarMultiDay) {
             // Render as VERTICAL line spanning multiple dates
@@ -1395,6 +2637,7 @@ const PlanModule = (function () {
         // Find the row that contains this point
         // Use center-based matching for more intuitive snapping behavior
         for (const row of dayRows) {
+            if (row.classList.contains('hidden')) continue;
             const rect = row.getBoundingClientRect();
             // Convert row position to canvas-relative coordinates
             const rowLeft = rect.left - canvasRect.left;
@@ -1465,6 +2708,7 @@ const PlanModule = (function () {
         let columnLeft = 0;
 
         for (const row of dayRows) {
+            if (row.classList.contains('hidden')) continue;
             const rect = row.getBoundingClientRect();
             const rowTop = rect.top - canvasRect.top;
             const rowCenterY = rowTop + rect.height / 2;
@@ -1781,14 +3025,70 @@ const PlanModule = (function () {
     }
 
     function setupEventListeners() {
-        // Scroll 3 months to the left
+        container.querySelectorAll('.plan-view-mode-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                setCalendarViewMode(btn.dataset.view);
+            });
+        });
+
+        const goalAddBtn = container.querySelector('.plan-week-goal-add-btn');
+        const goalSaveBtn = container.querySelector('.plan-week-goal-save-btn');
+        const goalCancelBtn = container.querySelector('.plan-week-goal-cancel-btn');
+        const goalTextInput = container.querySelector('.plan-week-goal-text-input');
+        const goalAssigneeSelect = container.querySelector('.plan-week-goal-assignee-select');
+
+        goalAddBtn?.addEventListener('click', () => {
+            const form = container.querySelector('.plan-week-goal-form');
+            if (form?.classList.contains('hidden') || editingGoalId) {
+                showWeekGoalForm();
+            } else {
+                hideWeekGoalForm();
+            }
+        });
+
+        goalSaveBtn?.addEventListener('click', saveWeekGoalFromForm);
+
+        goalCancelBtn?.addEventListener('click', hideWeekGoalForm);
+
+        goalTextInput?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveWeekGoalFromForm();
+            } else if (event.key === 'Escape') {
+                hideWeekGoalForm();
+            }
+        });
+
+        // Scroll 3 months to the left / navigate previous week
         container.querySelector('.plan-prev-period-btn').addEventListener('click', () => {
+            if (calendarViewMode === 'week') {
+                hideWeekGoalForm();
+                weekStartDate = addDays(weekStartDate, -7);
+                renderCalendar();
+                renderFreeformElements();
+                updatePeriodDisplay();
+                renderWeekGoals();
+                requestAnimationFrame(() => scrollWeekViewToCurrentTime());
+                return;
+            }
+
             const scrollAmount = COLUMN_WIDTH * 3;
             calendarContainer.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
         });
 
-        // Scroll 3 months to the right
+        // Scroll 3 months to the right / navigate next week
         container.querySelector('.plan-next-period-btn').addEventListener('click', () => {
+            if (calendarViewMode === 'week') {
+                hideWeekGoalForm();
+                weekStartDate = addDays(weekStartDate, 7);
+                renderCalendar();
+                renderFreeformElements();
+                updatePeriodDisplay();
+                renderWeekGoals();
+                requestAnimationFrame(() => scrollWeekViewToCurrentTime());
+                return;
+            }
+
             const scrollAmount = COLUMN_WIDTH * 3;
             calendarContainer.scrollBy({ left: scrollAmount, behavior: 'smooth' });
         });
@@ -1796,6 +3096,18 @@ const PlanModule = (function () {
         // Go to today button
         container.querySelector('.plan-today-btn')?.addEventListener('click', () => {
             const today = new Date();
+
+            if (calendarViewMode === 'week') {
+                hideWeekGoalForm();
+                weekStartDate = getMondayOfWeek(today);
+                renderCalendar();
+                renderFreeformElements();
+                updatePeriodDisplay();
+                renderWeekGoals();
+                requestAnimationFrame(() => scrollWeekViewToCurrentTime());
+                return;
+            }
+
             const todayMonth = today.getMonth();
             const todayYear = today.getFullYear();
 
@@ -1826,6 +3138,8 @@ const PlanModule = (function () {
 
             scrollTimeout = setTimeout(() => {
                 updatePeriodDisplay();
+
+                if (calendarViewMode === 'week') return;
 
                 // Only check for loading more months if horizontal scroll changed
                 const currentScrollLeft = calendarContainer.scrollLeft;
@@ -1921,7 +3235,20 @@ const PlanModule = (function () {
 
     function setupCanvasInteraction() {
         calendarContainer.addEventListener('mousedown', e => {
-            if (e.target.closest('.plan-note-text') || e.target.closest('.plan-note-line') || e.target.closest('.plan-line-handle') || e.target.closest('.plan-line-label')) return;
+            if (
+                e.target.closest('.plan-note-text') ||
+                e.target.closest('.plan-note-line') ||
+                e.target.closest('.plan-line-handle') ||
+                e.target.closest('.plan-line-label') ||
+                e.target.closest('.plan-week-goal-pill') ||
+                e.target.closest('.plan-week-goals') ||
+                e.target.closest('.plan-week-day-goals') ||
+                e.target.closest('.plan-week-day-header')
+            ) {
+                return;
+            }
+
+            if (isWeekGoalDragInProgress) return;
 
             // If something is selected, deselect it and don't create new content
             if (selectedElements.length > 0) {
@@ -2266,31 +3593,152 @@ const PlanModule = (function () {
             }
         }
 
-        // Render calendar visibility toggles in the navbar
+        // Render calendar visibility toggles in the navbar as chips with eye icons
         function renderCalendarToggles() {
             const togglesContainer = container.querySelector('.plan-calendar-toggles');
             if (!togglesContainer) return;
             togglesContainer.innerHTML = '';
 
+            // SVG paths for eye icons
+            const eyeOpenSVG = `<svg class="calendar-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`;
+            const eyeClosedSVG = `<svg class="calendar-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`;
+
             calendars.forEach(cal => {
                 // Default to visible if not set
                 if (cal.visible === undefined) cal.visible = true;
 
-                const toggle = document.createElement('label');
-                toggle.className = 'plan-calendar-toggle';
-                toggle.title = 'Click name to rename';
-                toggle.innerHTML = `
-                    <input type="checkbox" ${cal.visible ? 'checked' : ''}>
-                    <span class="calendar-name" style="color: ${cal.fontColor || '#4a90e2'}">${cal.name || 'Calendar'}</span>
+                const chip = document.createElement('div');
+                chip.className = 'plan-calendar-toggle' + (cal.visible ? '' : ' hidden-cal');
+                chip.title = 'Toggle visibility • Click name to rename';
+
+                // Build chip inner HTML
+                const calColor = cal.fontColor || '#4a90e2';
+                const emoji = cal.emoji || '';
+                chip.innerHTML = `
+                    <span class="calendar-toggle-eye">${cal.visible ? eyeOpenSVG : eyeClosedSVG}</span>
+                    ${emoji ? `<span class="calendar-toggle-emoji">${emoji}</span>` : ''}
+                    <span class="calendar-name">${cal.name || 'Calendar'}</span>
+                    <span class="calendar-toggle-color" title="Change calendar color">
+                        <span class="calendar-color-dot" style="background: ${calColor}"></span>
+                    </span>
                 `;
-                toggle.querySelector('input').addEventListener('change', e => {
-                    cal.visible = e.target.checked;
+
+                // Toggle visibility when clicking the eye icon
+                const eyeSpan = chip.querySelector('.calendar-toggle-eye');
+                eyeSpan.addEventListener('click', e => {
+                    e.stopPropagation();
+                    cal.visible = !cal.visible;
                     localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
                     renderFreeformElements();
+                    eyeSpan.innerHTML = cal.visible ? eyeOpenSVG : eyeClosedSVG;
+                    chip.classList.toggle('hidden-cal', !cal.visible);
+                });
+
+                // Color palette popover
+                const colorWrapper = chip.querySelector('.calendar-toggle-color');
+                const colorDot = chip.querySelector('.calendar-color-dot');
+                // redd-do editorial palette: Sky, Ice, Mint, Buttercup, Blush, Apricot, Sunset, Lavender
+                // Keep in sync with PLAN_CALENDAR_COLOR_PRESETS in redd-plan/lib/canvasBackground.ts
+                const PALETTE = ['#7da9c8', '#8eb5b0', '#8cb89c', '#d4ba6a', '#d4a5a8', '#d99a6c', '#d4605a', '#a896c0'];
+
+                function applyColor(newColor) {
+                    cal.fontColor = newColor;
+                    cal.lineColor = newColor;
+                    colorDot.style.background = newColor;
+                    localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+                    freeformNotes.filter(n => n.calendarId === cal.id).forEach(n => {
+                        n.fontColor = newColor;
+                    });
+                    freeformLines.filter(l => l.calendarId === cal.id).forEach(l => {
+                        l.color = newColor;
+                        l.fontColor = newColor;
+                    });
+                    saveData();
+                    renderFreeformElements();
+                }
+
+                colorDot.addEventListener('click', e => {
+                    e.stopPropagation();
+
+                    // Close any other open palette popovers
+                    container.querySelectorAll('.calendar-color-popover').forEach(p => p.remove());
+
+                    const popover = document.createElement('div');
+                    popover.className = 'calendar-color-popover';
+                    const currentColor = cal.fontColor || '#7da9c8';
+                    // Build palette swatches
+                    const swatchesHTML = PALETTE.map(c =>
+                        `<button type="button" class="calendar-color-swatch${c === currentColor ? ' selected' : ''}" data-color="${c}" style="background-color: ${c}" title="${c}"></button>`
+                    ).join('');
+                    popover.innerHTML = `
+                        <div class="calendar-color-swatches">
+                            ${swatchesHTML}
+                            <label class="calendar-color-swatch calendar-color-swatch-custom" title="More colors…">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/></svg>
+                                <input type="color" class="calendar-color-custom-input" value="${currentColor}">
+                            </label>
+                        </div>
+                        <div class="calendar-color-hex-row">
+                            <span class="calendar-color-hex-preview" style="background: ${currentColor}"></span>
+                            <input type="text" class="calendar-color-hex-input" value="${currentColor}" maxlength="7" spellcheck="false" placeholder="#000000">
+                        </div>
+                    `;
+
+                    // Position below the dot
+                    colorWrapper.appendChild(popover);
+
+                    // Swatch click handlers
+                    popover.querySelectorAll('.calendar-color-swatch:not(.calendar-color-swatch-custom)').forEach(swatch => {
+                        swatch.addEventListener('click', ev => {
+                            ev.stopPropagation();
+                            applyColor(swatch.dataset.color);
+                            popover.remove();
+                        });
+                    });
+
+                    // Custom color picker
+                    const customInput = popover.querySelector('.calendar-color-custom-input');
+                    const hexInput = popover.querySelector('.calendar-color-hex-input');
+                    const hexPreview = popover.querySelector('.calendar-color-hex-preview');
+
+                    customInput.addEventListener('input', ev => {
+                        const c = ev.target.value;
+                        applyColor(c);
+                        hexInput.value = c;
+                        hexPreview.style.background = c;
+                    });
+
+                    // Hex input: apply on Enter or blur
+                    const applyHex = () => {
+                        let val = hexInput.value.trim();
+                        if (!val.startsWith('#')) val = '#' + val;
+                        if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+                            applyColor(val);
+                            hexPreview.style.background = val;
+                            customInput.value = val;
+                        } else {
+                            // Reset to current
+                            hexInput.value = cal.fontColor || '#7da9c8';
+                        }
+                    };
+                    hexInput.addEventListener('keydown', ev => {
+                        if (ev.key === 'Enter') { ev.preventDefault(); applyHex(); }
+                    });
+                    hexInput.addEventListener('blur', applyHex);
+
+                    // Close on outside click
+                    const closePopover = ev => {
+                        if (!popover.contains(ev.target) && ev.target !== colorDot) {
+                            popover.remove();
+                            document.removeEventListener('click', closePopover, true);
+                        }
+                    };
+                    // Use setTimeout so the current click doesn't immediately close it
+                    setTimeout(() => document.addEventListener('click', closePopover, true), 0);
                 });
 
                 // Click to rename calendar
-                const nameSpan = toggle.querySelector('.calendar-name');
+                const nameSpan = chip.querySelector('.calendar-name');
                 nameSpan.addEventListener('click', e => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -2328,7 +3776,7 @@ const PlanModule = (function () {
                     });
                 });
 
-                togglesContainer.appendChild(toggle);
+                togglesContainer.appendChild(chip);
             });
         }
 
@@ -2523,11 +3971,22 @@ const PlanModule = (function () {
     function refresh() {
         // Re-read language setting and re-render
         loadLanguage();
+        loadWeekGoals();
+        loadGoalAssignees();
+        updateGoalAssigneeSelectOptions();
+        updateViewModeButtons();
         renderCalendar();
+        renderWeekGoals();
+        scheduleLayoutRefresh();
     }
 
     return { init, destroy, refresh };
 })();
+
+// Expose globally so React (or other host code) can call init/destroy.
+if (typeof window !== 'undefined') {
+    window.PlanModule = PlanModule;
+}
 
 // Export for Node/Electron
 if (typeof module !== 'undefined' && module.exports) {
