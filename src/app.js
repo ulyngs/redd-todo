@@ -279,6 +279,8 @@ const translations = {
         importLabel: 'Import',
         connect: 'Connect',
         language: 'Language',
+        languagePickerCurrent: 'Current language',
+        languagePickerSwitch: 'Switch to',
         themeMode: 'Light/dark mode',
         themeLight: 'Light',
         themeDark: 'Dark',
@@ -365,6 +367,8 @@ const translations = {
         importLabel: 'Importer',
         connect: 'Forbind',
         language: 'Sprog',
+        languagePickerCurrent: 'Nuværende sprog',
+        languagePickerSwitch: 'Skift til',
         themeMode: 'Lys/mørk tilstand',
         themeLight: 'Lys',
         themeDark: 'Mørk',
@@ -666,7 +670,110 @@ if (themeSelect) {
 }
 
 // Language Management
-const languageSelect = document.getElementById('language-select');
+const LANGUAGE_FLAG_SVG = {
+    en: '<svg class="language-flag-svg" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#012169" d="M0 0h60v40H0z"/><path stroke="#FFF" stroke-width="8" d="M0 0l60 40M60 0L0 40"/><path stroke="#C8102E" stroke-width="5" d="M0 0l60 40M60 0L0 40"/><path stroke="#FFF" stroke-width="12" d="M30 0v40M0 20h60"/><path stroke="#C8102E" stroke-width="7" d="M30 0v40M0 20h60"/></svg>',
+    da: '<svg class="language-flag-svg" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="60" height="40" fill="#C8102E"/><rect x="21" y="0" width="6.5" height="40" fill="#fff"/><rect x="0" y="17" width="60" height="6" fill="#fff"/></svg>',
+};
+
+const LANGUAGE_NATIVE_LABELS = {
+    en: 'English',
+    da: 'Dansk',
+};
+
+function languageNativeLabel(code) {
+    return LANGUAGE_NATIVE_LABELS[code] || LANGUAGE_NATIVE_LABELS.en;
+}
+
+function languagePickerElements() {
+    return {
+        picker: document.getElementById('language-picker'),
+        trigger: document.getElementById('language-picker-trigger'),
+        dropdown: document.getElementById('language-picker-dropdown'),
+        triggerFlag: document.getElementById('language-picker-trigger-flag'),
+        triggerCode: document.getElementById('language-picker-trigger-code'),
+        currentName: document.getElementById('language-picker-current-name'),
+        currentFlag: document.getElementById('language-picker-current-flag'),
+        switchName: document.getElementById('language-picker-switch-name'),
+        switchFlag: document.getElementById('language-picker-switch-flag'),
+        curLabel: document.getElementById('language-picker-current-label'),
+        swLabel: document.getElementById('language-picker-switch-label'),
+        switchBtn: document.getElementById('language-picker-switch-btn'),
+    };
+}
+
+function setLanguagePickerOpen(open) {
+    const { dropdown, trigger } = languagePickerElements();
+    if (!dropdown || !trigger) return;
+    dropdown.classList.toggle('hidden', !open);
+    trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function syncLanguagePickerUI() {
+    const lang = currentLang === 'da' ? 'da' : 'en';
+    const other = lang === 'da' ? 'en' : 'da';
+    const {
+        picker,
+        trigger,
+        triggerFlag,
+        triggerCode,
+        currentName,
+        currentFlag,
+        switchName,
+        switchFlag,
+        curLabel,
+        swLabel,
+    } = languagePickerElements();
+    if (!picker) return;
+
+    if (triggerCode) triggerCode.textContent = languageNativeLabel(lang);
+    if (triggerFlag) triggerFlag.innerHTML = LANGUAGE_FLAG_SVG[lang] || '';
+    if (currentFlag) currentFlag.innerHTML = LANGUAGE_FLAG_SVG[lang] || '';
+    if (switchFlag) switchFlag.innerHTML = LANGUAGE_FLAG_SVG[other] || '';
+    if (currentName) currentName.textContent = languageNativeLabel(lang);
+    if (switchName) switchName.textContent = languageNativeLabel(other);
+    if (curLabel) curLabel.textContent = t('languagePickerCurrent');
+    if (swLabel) swLabel.textContent = t('languagePickerSwitch');
+    if (trigger) trigger.setAttribute('aria-label', t('language'));
+}
+
+function switchLanguageSetting() {
+    currentLang = currentLang === 'da' ? 'en' : 'da';
+    localStorage.setItem('language', currentLang);
+    applyTranslations();
+    setLanguagePickerOpen(false);
+}
+
+let languagePickerDocClickBound = false;
+
+function setupLanguagePicker() {
+    const { picker, trigger, dropdown, switchBtn } = languagePickerElements();
+    if (!picker || !trigger || !dropdown || !switchBtn) return;
+    if (picker.dataset.bound === '1') return;
+    picker.dataset.bound = '1';
+
+    trigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+        setLanguagePickerOpen(!isOpen);
+    });
+
+    dropdown.addEventListener('click', (e) => e.stopPropagation());
+
+    switchBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        switchLanguageSetting();
+    });
+
+    if (!languagePickerDocClickBound) {
+        languagePickerDocClickBound = true;
+        document.addEventListener('click', () => setLanguagePickerOpen(false));
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') setLanguagePickerOpen(false);
+        });
+    }
+}
 
 function applyTranslations() {
     // Update all elements with data-i18n attribute
@@ -718,58 +825,19 @@ function applyTranslations() {
 
     if (viewPlanBtn) viewPlanBtn.title = t('enablePlanMode');
 
+    syncLanguagePickerUI();
+
     // Plan module - update labels if loaded
     if (planModuleLoaded && typeof PlanModule !== 'undefined' && PlanModule.refresh) {
         PlanModule.refresh();
     }
-
-    syncSettingsSelectWidths();
-}
-
-function syncSettingsSelectWidths() {
-    const languageSelectEl = document.getElementById('language-select');
-    const themeSelectEl = document.getElementById('theme-select');
-    if (!languageSelectEl || !themeSelectEl) return;
-
-    const measureSelectContentWidth = (select) => {
-        const selectedIndex = select.selectedIndex;
-        let maxWidth = 0;
-        for (let i = 0; i < select.options.length; i++) {
-            select.selectedIndex = i;
-            select.style.width = 'auto';
-            maxWidth = Math.max(maxWidth, select.offsetWidth);
-        }
-        select.selectedIndex = selectedIndex;
-        return maxWidth;
-    };
-
-    languageSelectEl.style.width = '';
-    themeSelectEl.style.width = '';
-
-    const width = Math.max(
-        measureSelectContentWidth(languageSelectEl),
-        measureSelectContentWidth(themeSelectEl)
-    );
-    if (width <= 0) return;
-
-    const px = `${width}px`;
-    languageSelectEl.style.width = px;
-    themeSelectEl.style.width = px;
 }
 
 function initLanguage() {
     const savedLanguage = localStorage.getItem('language') || 'en';
     currentLang = savedLanguage;
-    if (languageSelect) languageSelect.value = savedLanguage;
+    syncLanguagePickerUI();
     applyTranslations();
-}
-
-if (languageSelect) {
-    languageSelect.addEventListener('change', (e) => {
-        currentLang = e.target.value;
-        localStorage.setItem('language', e.target.value);
-        applyTranslations();
-    });
 }
 
 function isLocalDevRun() {
@@ -4022,6 +4090,8 @@ function setupWindowControls() {
 
 // Event listeners
 function setupEventListeners() {
+    setupLanguagePicker();
+
     // Focus window dragging in Tauri:
     // - non-interactive areas drag immediately
     // - interactive controls (buttons/inputs/editors) still click normally,
@@ -4332,7 +4402,7 @@ function setupEventListeners() {
             }
         }
 
-        requestAnimationFrame(() => syncSettingsSelectWidths());
+        syncLanguagePickerUI();
     });
 
     // Groups toggle listener

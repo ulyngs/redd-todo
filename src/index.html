@@ -406,25 +406,56 @@
                         <h4 class="settings-section-heading" data-i18n="settingsGeneral">General</h4>
                         <div class="settings-panel">
                             <div class="settings-panel-rows">
-                                <div class="settings-select-pair">
-                                    <div class="settings-row">
-                                        <label class="settings-row-label" for="language-select" data-i18n="language">Language</label>
-                                        <div class="settings-row-control">
-                                            <select id="language-select" class="settings-select">
-                                                <option value="en">English</option>
-                                                <option value="da">Dansk</option>
-                                            </select>
+                                <div class="settings-row">
+                                    <label class="settings-row-label" for="language-picker-trigger" data-i18n="language">Language</label>
+                                    <div class="settings-row-control">
+                                        <div class="language-picker" id="language-picker">
+                                            <button type="button" class="language-picker-trigger" id="language-picker-trigger"
+                                                aria-expanded="false" aria-haspopup="listbox"
+                                                aria-controls="language-picker-dropdown">
+                                                <span class="language-picker-flag-wrap" id="language-picker-trigger-flag"
+                                                    aria-hidden="true"></span>
+                                                <span class="language-picker-code" id="language-picker-trigger-code">English</span>
+                                                <svg class="language-picker-chevron" width="16" height="16" viewBox="0 0 24 24"
+                                                    fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                                    stroke-linejoin="round" aria-hidden="true">
+                                                    <path d="M7 10l5-4.5 5 4.5"></path>
+                                                    <path d="M7 14l5 4.5 5-4.5"></path>
+                                                </svg>
+                                            </button>
+                                            <div class="language-picker-dropdown hidden" id="language-picker-dropdown" role="listbox"
+                                                aria-labelledby="language-picker-trigger">
+                                                <div class="language-picker-section">
+                                                    <div class="language-picker-section-label" id="language-picker-current-label">Current language</div>
+                                                    <div class="language-picker-option language-picker-option--current"
+                                                        id="language-picker-current" role="presentation">
+                                                        <span class="language-picker-flag-wrap" id="language-picker-current-flag"
+                                                            aria-hidden="true"></span>
+                                                        <span class="language-picker-name" id="language-picker-current-name">English</span>
+                                                    </div>
+                                                </div>
+                                                <div class="language-picker-divider"></div>
+                                                <div class="language-picker-section">
+                                                    <div class="language-picker-section-label" id="language-picker-switch-label">Switch to</div>
+                                                    <button type="button" class="language-picker-option language-picker-option--switch"
+                                                        id="language-picker-switch-btn" role="option">
+                                                        <span class="language-picker-flag-wrap" id="language-picker-switch-flag"
+                                                            aria-hidden="true"></span>
+                                                        <span class="language-picker-name" id="language-picker-switch-name">Dansk</span>
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="settings-row">
-                                        <label class="settings-row-label" for="theme-select" data-i18n="settingsAppearance">Theme</label>
-                                        <div class="settings-row-control">
-                                            <select id="theme-select" class="settings-select">
-                                                <option value="system" data-i18n="themeSystem">Auto</option>
-                                                <option value="light" data-i18n="themeLight">Light</option>
-                                                <option value="dark" data-i18n="themeDark">Dark</option>
-                                            </select>
-                                        </div>
+                                </div>
+                                <div class="settings-row">
+                                    <label class="settings-row-label" for="theme-select" data-i18n="settingsAppearance">Theme</label>
+                                    <div class="settings-row-control">
+                                        <select id="theme-select" class="settings-select">
+                                            <option value="system" data-i18n="themeSystem">Auto</option>
+                                            <option value="light" data-i18n="themeLight">Light</option>
+                                            <option value="dark" data-i18n="themeDark">Dark</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="settings-row">
