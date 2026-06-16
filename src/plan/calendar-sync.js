@@ -1,19 +1,24 @@
 // Calendar Sync Module for Plan Mode
-// Fetches and parses ICS calendar feeds, filtering events by "ENKELT" or legacy "REDD-DO" prefix
+// Fetches and parses ICS calendar feeds, filtering events whose description starts with ENKELT or REDD-DO as the first word
 
 const CalendarSync = (function () {
     'use strict';
 
     const CALENDAR_MARKERS = ['enkelt', 'redd-do'];
 
+    function getDescriptionMarkerWord(text) {
+        const desc = (text || '').trim().toLowerCase();
+        const match = desc.match(/^([a-z0-9-]+)/);
+        const firstWord = match ? match[1] : '';
+        return CALENDAR_MARKERS.includes(firstWord) ? firstWord : null;
+    }
+
     function containsCalendarMarker(text) {
-        const desc = (text || '').toLowerCase();
-        return CALENDAR_MARKERS.some(marker => desc.includes(marker));
+        return !!getDescriptionMarkerWord(text);
     }
 
     function startsWithCalendarMarker(text) {
-        const desc = (text || '').trim().toLowerCase();
-        return CALENDAR_MARKERS.find(marker => desc.startsWith(marker)) || null;
+        return getDescriptionMarkerWord(text);
     }
 
     // Parse ICS data and return events
@@ -93,7 +98,7 @@ const CalendarSync = (function () {
         }
     }
 
-    // Filter events whose description starts with "ENKELT" or legacy "REDD-DO" (case-insensitive)
+    // Filter events whose description begins with ENKELT or legacy REDD-DO as the first word
     // AND within date range: 2 months ago to 1 year in the future
     function filterReddDoEvents(events) {
         const now = new Date();

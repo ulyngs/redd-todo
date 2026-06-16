@@ -50,6 +50,8 @@ const PlanModule = (function () {
 
     // Flag to prevent re-rendering during drag operations
     let isDragInProgress = false;
+    let freeformRenderGeneration = 0;
+    let calendarSyncInProgress = null;
 
     // Constants
     const MONTHS_DA = ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
@@ -506,12 +508,202 @@ const PlanModule = (function () {
     // Calendar sync keys
     const CALENDARS_KEY = STORAGE_PREFIX + 'calendars'; // Array of {id, name, url, fontFamily, fontColor, lineColor}
     const CALENDAR_LAST_SYNC_KEY = STORAGE_PREFIX + 'calendar-last-sync';
+    const TASK_CHIP_KEY = STORAGE_PREFIX + 'task-chip';
+    const PLAN_CHIP_PALETTE = [
+        '#7da9c8', '#8eb5b0', '#8cb89c', '#d4ba6a', '#d4a5a8', '#d99a6c', '#d4605a', '#a896c0',
+    ];
     // Use shared keys for theme and language (no prefix) so they sync with main app
     const SHARED_LANGUAGE_KEY = 'language';
 
     // Calendar sync state - supports multiple calendars with per-calendar styling
     let calendars = []; // [{id, name, url, fontFamily, fontColor, lineColor}, ...]
     let calendarLastSync = null;
+    let taskChipSettings = { visible: true, fontColor: null };
+    let refreshCalendarToggles = () => {};
+    let syncAllCalendarsFn = async () => {};
+    let renderCalendarListFn = () => {};
+
+    function loadTaskChipSettings() {
+        try {
+            const stored = localStorage.getItem(TASK_CHIP_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                taskChipSettings = {
+                    visible: parsed.visible !== false,
+                    fontColor: parsed.fontColor || null,
+                };
+            }
+        } catch {
+            taskChipSettings = { visible: true, fontColor: null };
+        }
+    }
+
+    function saveTaskChipSettings() {
+        try {
+            localStorage.setItem(TASK_CHIP_KEY, JSON.stringify(taskChipSettings));
+        } catch {
+            /* private mode */
+        }
+    }
+
+    function hasTaskPlannerEntries() {
+        return freeformNotes.some((note) => note.source === 'task')
+            || freeformLines.some((line) => line.source === 'task');
+    }
+
+    function getUsedChipColors() {
+        const used = new Set();
+        calendars.forEach((cal) => {
+            if (cal.fontColor) used.add(cal.fontColor.toLowerCase());
+        });
+        return used;
+    }
+
+    function getFirstUnusedChipColor() {
+        const used = getUsedChipColors();
+        return PLAN_CHIP_PALETTE.find((color) => !used.has(color.toLowerCase()))
+            || PLAN_CHIP_PALETTE[0];
+    }
+
+    function getTaskChipColor() {
+        return taskChipSettings.fontColor || getFirstUnusedChipColor();
+    }
+
+    function applyTaskColorToAllNotes(color) {
+        freeformNotes.forEach((note) => {
+            if (note.source === 'task') note.fontColor = color;
+        });
+        freeformLines.forEach((line) => {
+            if (line.source === 'task') {
+                line.color = color;
+                line.fontColor = color;
+            }
+        });
+    }
+
+    function ensureTaskChipColor() {
+        if (!taskChipSettings.fontColor) {
+            taskChipSettings.fontColor = getFirstUnusedChipColor();
+            saveTaskChipSettings();
+        }
+    }
+
+    function migrateTaskChipColorIfNeeded() {
+        if (!hasTaskPlannerEntries() || taskChipSettings.fontColor) return;
+        ensureTaskChipColor();
+        applyTaskColorToAllNotes(taskChipSettings.fontColor);
+        saveData();
+    }
+
+    function getEnkeltTasksChipLabel() {
+        return currentLanguage === 'da' ? 'Enkelt-opgaver' : 'Enkelt tasks';
+    }
+
+    function appendChipColorPopover(colorWrapper, colorDot, currentColor, applyColor) {
+        container.querySelectorAll('.calendar-color-popover').forEach((p) => p.remove());
+
+        const popover = document.createElement('div');
+        popover.className = 'calendar-color-popover';
+        const swatchesHTML = PLAN_CHIP_PALETTE.map((c) =>
+            `<button type="button" class="calendar-color-swatch${c === currentColor ? ' selected' : ''}" data-color="${c}" style="background-color: ${c}" title="${c}"></button>`
+        ).join('');
+        popover.innerHTML = `
+            <div class="calendar-color-swatches">
+                ${swatchesHTML}
+                <label class="calendar-color-swatch calendar-color-swatch-custom" title="More colors…">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/></svg>
+                    <input type="color" class="calendar-color-custom-input" value="${currentColor}">
+                </label>
+            </div>
+            <div class="calendar-color-hex-row">
+                <span class="calendar-color-hex-preview" style="background: ${currentColor}"></span>
+                <input type="text" class="calendar-color-hex-input" value="${currentColor}" maxlength="7" spellcheck="false" placeholder="#000000">
+            </div>
+        `;
+        colorWrapper.appendChild(popover);
+
+        popover.querySelectorAll('.calendar-color-swatch:not(.calendar-color-swatch-custom)').forEach((swatch) => {
+            swatch.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                applyColor(swatch.dataset.color);
+                popover.remove();
+            });
+        });
+
+        const customInput = popover.querySelector('.calendar-color-custom-input');
+        const hexInput = popover.querySelector('.calendar-color-hex-input');
+        const hexPreview = popover.querySelector('.calendar-color-hex-preview');
+
+        customInput?.addEventListener('input', (ev) => {
+            const c = ev.target.value;
+            hexInput.value = c;
+            hexPreview.style.background = c;
+        });
+
+        customInput?.addEventListener('change', (ev) => {
+            applyColor(ev.target.value);
+            popover.remove();
+        });
+
+        hexInput?.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                const c = hexInput.value.trim();
+                if (/^#[0-9a-fA-F]{6}$/.test(c)) {
+                    applyColor(c);
+                    popover.remove();
+                }
+            }
+        });
+    }
+
+    function renderEnkeltTasksChip(togglesContainer, eyeOpenSVG, eyeClosedSVG) {
+        if (!hasTaskPlannerEntries()) return;
+
+        if (taskChipSettings.visible === undefined) taskChipSettings.visible = true;
+        const chipColor = getTaskChipColor();
+
+        const chip = document.createElement('div');
+        chip.className = 'plan-calendar-toggle plan-task-chip' + (taskChipSettings.visible ? '' : ' hidden-cal');
+        chip.title = 'Toggle Enkelt tasks • Change color';
+
+        chip.innerHTML = `
+            <span class="calendar-toggle-eye">${taskChipSettings.visible ? eyeOpenSVG : eyeClosedSVG}</span>
+            <span class="calendar-name">${getEnkeltTasksChipLabel()}</span>
+            <span class="calendar-toggle-color" title="Change task color">
+                <span class="calendar-color-dot" style="background: ${chipColor}"></span>
+            </span>
+        `;
+
+        const eyeSpan = chip.querySelector('.calendar-toggle-eye');
+        eyeSpan.addEventListener('click', (e) => {
+            e.stopPropagation();
+            taskChipSettings.visible = !taskChipSettings.visible;
+            saveTaskChipSettings();
+            renderFreeformElements();
+            eyeSpan.innerHTML = taskChipSettings.visible ? eyeOpenSVG : eyeClosedSVG;
+            chip.classList.toggle('hidden-cal', !taskChipSettings.visible);
+        });
+
+        const colorWrapper = chip.querySelector('.calendar-toggle-color');
+        const colorDot = chip.querySelector('.calendar-color-dot');
+
+        function applyTaskChipColor(newColor) {
+            taskChipSettings.fontColor = newColor;
+            colorDot.style.background = newColor;
+            saveTaskChipSettings();
+            applyTaskColorToAllNotes(newColor);
+            saveData();
+            renderFreeformElements();
+        }
+
+        colorDot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            appendChipColorPopover(colorWrapper, colorDot, getTaskChipColor(), applyTaskChipColor);
+        });
+
+        togglesContainer.appendChild(chip);
+    }
 
     function init(containerElement) {
         if (isInitialized) return;
@@ -728,7 +920,7 @@ const PlanModule = (function () {
                         <input type="text" class="plan-calendar-url-input" placeholder="ICS URL (https:// or webcal://)">
                         <button class="plan-calendar-add-save-btn">Add Calendar</button>
                     </div>
-                    <p class="plan-calendar-hint">Events with "ENKELT" (or legacy "REDD-DO") in their description will be shown</p>
+                    <p class="plan-calendar-hint">Events whose description starts with ENKELT or REDD-DO as the first word will be shown</p>
                     <div class="plan-calendar-status"></div>
                 </div>
             </div>
@@ -738,7 +930,7 @@ const PlanModule = (function () {
     function cleanupPhantomLines() {
         const before = freeformLines.length;
         freeformLines = freeformLines.filter((line) => {
-            if (line.source === 'calendar') return true;
+            if (line.source === 'calendar' || line.source === 'task') return true;
             if (line.label?.trim()) return true;
             // Unlabeled date-keyed lines were accidental canvas artifacts (e.g. goal drags).
             if (line.startDate && line.endDate) return false;
@@ -749,7 +941,100 @@ const PlanModule = (function () {
         }
     }
 
-    // Data functions
+    function migrateMultiDayTaskNotes() {
+        const taskIds = [...new Set(
+            freeformNotes.filter((note) => note.source === 'task' && note.taskId).map((note) => note.taskId)
+        )];
+        let changed = false;
+
+        taskIds.forEach((taskId) => {
+            const notes = freeformNotes.filter((note) => note.taskId === taskId && note.dateKey);
+            if (notes.length <= 1) return;
+
+            const keys = notes.map((note) => note.dateKey).sort();
+            const { text, fontColor } = notes[0];
+            freeformNotes = freeformNotes.filter((note) => note.taskId !== taskId);
+            freeformLines = freeformLines.filter((line) => line.taskId !== taskId);
+            freeformLines.push({
+                id: `task-line-${taskId}`,
+                label: text,
+                startDate: keys[0],
+                endDate: keys[keys.length - 1],
+                source: 'task',
+                taskId,
+                color: fontColor || getTaskChipColor(),
+                fontColor: fontColor || getTaskChipColor(),
+                fontFamily: 'Inter',
+                width: 8,
+                isAllDay: true,
+            });
+            changed = true;
+        });
+
+        if (changed) saveData();
+    }
+
+    function isCalendarPlannerItem(item) {
+        return item?.source === 'calendar' || item?.isCalendarEvent;
+    }
+
+    function dedupeCalendars() {
+        const seenUrls = new Set();
+        const seenIds = new Set();
+        const deduped = [];
+
+        calendars.forEach((cal) => {
+            const urlKey = (cal.url || '').trim().toLowerCase();
+            if (urlKey && seenUrls.has(urlKey)) return;
+            if (cal.id && seenIds.has(cal.id)) return;
+            if (urlKey) seenUrls.add(urlKey);
+            if (cal.id) seenIds.add(cal.id);
+            deduped.push(cal);
+        });
+
+        if (deduped.length !== calendars.length) {
+            calendars = deduped;
+            localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+        }
+    }
+
+    function dedupeCalendarPlannerItems() {
+        let changed = false;
+
+        const seenNoteKeys = new Set();
+        freeformNotes = freeformNotes.filter((note) => {
+            if (!isCalendarPlannerItem(note)) return true;
+            if (!note.source) {
+                note.source = 'calendar';
+                changed = true;
+            }
+            const key = note.id || `${note.dateKey}|${note.text}|${note.calendarId || ''}`;
+            if (seenNoteKeys.has(key)) {
+                changed = true;
+                return false;
+            }
+            seenNoteKeys.add(key);
+            return true;
+        });
+
+        const seenLineKeys = new Set();
+        freeformLines = freeformLines.filter((line) => {
+            if (!isCalendarPlannerItem(line)) return true;
+            if (!line.source) {
+                line.source = 'calendar';
+                changed = true;
+            }
+            const key = line.id || `${line.startDate}|${line.endDate}|${line.label}|${line.calendarId || ''}`;
+            if (seenLineKeys.has(key)) {
+                changed = true;
+                return false;
+            }
+            seenLineKeys.add(key);
+            return true;
+        });
+
+        if (changed) saveData();
+    }
     function loadData() {
         try {
             const storedNotes = localStorage.getItem(NOTES_KEY);
@@ -771,6 +1056,8 @@ const PlanModule = (function () {
             // Load calendar metadata (multiple calendars with per-calendar styling)
             const storedCalendars = localStorage.getItem(CALENDARS_KEY);
             if (storedCalendars) calendars = JSON.parse(storedCalendars);
+            dedupeCalendars();
+            dedupeCalendarPlannerItems();
             const storedLastSync = localStorage.getItem(CALENDAR_LAST_SYNC_KEY);
             if (storedLastSync) calendarLastSync = storedLastSync;
 
@@ -784,6 +1071,9 @@ const PlanModule = (function () {
 
             loadWeekGoals();
             loadGoalAssignees();
+            loadTaskChipSettings();
+            migrateMultiDayTaskNotes();
+            migrateTaskChipColorIfNeeded();
             const calendarEventNotes = freeformNotes.filter(n => n.source === 'calendar').length;
             const calendarEventLines = freeformLines.filter(l => l.source === 'calendar').length;
             console.log('[Plan] Loaded data:', {
@@ -1557,12 +1847,19 @@ const PlanModule = (function () {
 
     function createWeekAllDayEvent(note) {
         const el = document.createElement('div');
-        el.className =
-            'plan-week-allday-item' +
-            (note.source === 'calendar' ? ' calendar-event' : ' user-event');
+        const isPlannerEvent = note.source === 'calendar' || note.source === 'task';
+        el.className = 'plan-week-allday-item' + (isPlannerEvent ? ' calendar-event' : ' user-event');
         el.textContent = noteDisplayText(note);
+        if (note.fontColor) {
+            el.style.color = note.fontColor;
+            if (isPlannerEvent) {
+                el.style.background = hexToRgba(note.fontColor, 0.14);
+            }
+        }
         if (note.source === 'calendar') {
             el.title = `From calendar: ${note.calendarName || 'Unknown'}`;
+        } else if (note.source === 'task') {
+            el.title = 'From to-do list';
         }
         return el;
     }
@@ -1649,10 +1946,22 @@ const PlanModule = (function () {
                 if (!allday) continue;
 
                 const el = document.createElement('div');
+                const isPlannerLine = line.source === 'calendar' || line.source === 'task';
                 el.className =
                     'plan-week-allday-item line-event' +
-                    (line.source === 'calendar' ? ' calendar-event' : ' user-event');
+                    (isPlannerLine ? ' calendar-event' : ' user-event');
                 el.textContent = label;
+                if (line.fontColor) {
+                    el.style.color = line.fontColor;
+                    if (isPlannerLine) {
+                        el.style.background = hexToRgba(line.fontColor, 0.14);
+                    }
+                }
+                if (line.source === 'calendar') {
+                    el.title = `From calendar: ${line.calendarName || 'Unknown'}`;
+                } else if (line.source === 'task') {
+                    el.title = 'From to-do list';
+                }
                 allday.appendChild(el);
             }
         });
@@ -1780,6 +2089,8 @@ const PlanModule = (function () {
             return;
         }
 
+        const generation = ++freeformRenderGeneration;
+
         // Clear canvas layer (for lines)
         canvasLayer.innerHTML = '';
 
@@ -1816,16 +2127,22 @@ const PlanModule = (function () {
 
         // Use requestAnimationFrame to ensure DOM is laid out before measuring positions
         requestAnimationFrame(() => {
+            if (generation !== freeformRenderGeneration) return;
+
             // Force reflow to ensure all layout calculations are complete
             // This is needed because getBoundingClientRect needs accurate positions
             // Get IDs of visible calendars
             const visibleCalendarIds = calendars.filter(c => c.visible !== false).map(c => c.id);
 
             // Filter function to check if item should be shown
-            const isVisible = item => {
-                if (item.source !== 'calendar') return true; // User items always visible
-                const visible = visibleCalendarIds.includes(item.calendarId);
-                return visible;
+            const isVisible = (item) => {
+                if (item.source === 'calendar') {
+                    return visibleCalendarIds.includes(item.calendarId);
+                }
+                if (item.source === 'task') {
+                    return taskChipSettings.visible !== false;
+                }
+                return true;
             };
 
             if (calendarViewMode === 'week') {
@@ -1896,13 +2213,34 @@ const PlanModule = (function () {
             }
 
             // Render all notes (user-created AND calendar-synced)
+            const noteAreaAutoLayout = new WeakMap();
+
+            const getNoteAreaLayoutStart = (noteArea) => {
+                if (!noteAreaAutoLayout.has(noteArea)) {
+                    const holiday = noteArea.querySelector('.plan-note-text.holiday');
+                    const startX = holiday ? holiday.offsetWidth + 8 : 0;
+                    noteAreaAutoLayout.set(noteArea, startX);
+                }
+                return noteAreaAutoLayout.get(noteArea);
+            };
+
             freeformNotes.filter(isVisible).forEach(note => {
                 if (!note.dateKey) return; // Skip legacy notes without dateKey
 
                 const row = container.querySelector(`.plan-day-row[data-date-key="${note.dateKey}"]`);
                 if (row) {
                     const noteArea = row.querySelector('.plan-note-area');
-                    if (noteArea) noteArea.appendChild(createNote(note));
+                    if (noteArea) {
+                        const usesAutoLayout = (note.source === 'calendar' || note.source === 'task') && !note.offsetX;
+                        const renderNote = usesAutoLayout
+                            ? { ...note, offsetX: getNoteAreaLayoutStart(noteArea) }
+                            : note;
+                        const el = createNote(renderNote);
+                        noteArea.appendChild(el);
+                        if (usesAutoLayout) {
+                            noteAreaAutoLayout.set(noteArea, renderNote.offsetX + el.offsetWidth + 8);
+                        }
+                    }
                 }
             });
         });
@@ -1912,8 +2250,8 @@ const PlanModule = (function () {
         const el = document.createElement('span');
         el.className = 'plan-note-text freeform';
 
-        // Add class for calendar-sourced notes
-        if (note.source === 'calendar') {
+        // Add class for synced planner events (calendars + Enkelt tasks)
+        if (note.source === 'calendar' || note.source === 'task') {
             el.classList.add('calendar-event');
         }
 
@@ -1923,7 +2261,7 @@ const PlanModule = (function () {
         // Note: top position is handled by CSS (.plan-note-text.freeform { top: -4px })
         el.style.position = 'absolute';
         el.style.left = (note.offsetX || 0) + 'px';
-        el.style.zIndex = note.source === 'calendar' ? '50' : '100'; // User notes on top of calendar events
+        el.style.zIndex = (note.source === 'calendar' || note.source === 'task') ? '50' : '100';
 
         // Apply styling
         if (note.fontFamily) el.style.fontFamily = note.fontFamily + ', sans-serif';
@@ -1933,12 +2271,15 @@ const PlanModule = (function () {
         el.dataset.noteId = note.id;
         if (note.source === 'calendar') {
             el.title = `From calendar: ${note.calendarName || 'Unknown'}`;
+        } else if (note.source === 'task') {
+            el.title = 'From to-do list';
         }
 
         // Track dragging to distinguish from click
         let hasDragged = false;
 
         el.addEventListener('mousedown', e => {
+            if (note.source === 'task') return;
             if (el.getAttribute('contenteditable') === 'true') return;
 
             e.preventDefault();
@@ -2054,9 +2395,9 @@ const PlanModule = (function () {
         const color = line.color || '#333333';
         const width = line.width || 8;
 
-        // Check if this is a calendar multi-day event (vertical line)
-        const isCalendarLine = line.source === 'calendar' || line.isCalendarEvent;
-        const isCalendarMultiDay = isCalendarLine && line.startDate && line.endDate && (line.startDate !== line.endDate || line.isMultiDaySegment);
+        // Check if this is a synced multi-day event (vertical line)
+        const isPlannerSyncedLine = line.source === 'calendar' || line.source === 'task' || line.isCalendarEvent;
+        const isCalendarMultiDay = isPlannerSyncedLine && line.startDate && line.endDate && (line.startDate !== line.endDate || line.isMultiDaySegment);
 
         if (isCalendarMultiDay) {
             // Render as VERTICAL line spanning multiple dates
@@ -2117,8 +2458,16 @@ const PlanModule = (function () {
             labelEl.style.cursor = 'pointer';
             if (line.fontFamily) labelEl.style.fontFamily = line.fontFamily + ', sans-serif';
             if (line.fontColor) labelEl.style.color = line.fontColor;
+            if (line.source === 'task') {
+                labelEl.style.fontStyle = 'italic';
+                labelEl.style.fontSize = '15px';
+            }
 
-            containerEl.title = `From calendar: ${line.calendarName || 'Unknown'}`;
+            if (line.source === 'calendar') {
+                containerEl.title = `From calendar: ${line.calendarName || 'Unknown'}`;
+            } else if (line.source === 'task') {
+                containerEl.title = 'From to-do list';
+            }
             containerEl.appendChild(lineEl);
             containerEl.appendChild(labelEl);
 
@@ -2127,13 +2476,13 @@ const PlanModule = (function () {
             let dragStartX = 0;
             let initialLeft = 0;
 
-            containerEl.style.cursor = 'ew-resize'; // Show horizontal resize cursor
-            labelEl.style.cursor = 'ew-resize'; // Also on label
+            containerEl.style.cursor = 'ew-resize';
+            labelEl.style.cursor = 'ew-resize';
 
             containerEl.addEventListener('mousedown', (e) => {
                 if (labelEl.getAttribute('contenteditable') === 'true') return;
 
-                isDragInProgress = true;  // Prevent render during drag
+                isDragInProgress = true;
                 isDragging = true;
                 dragStartX = e.clientX;
                 initialLeft = parseFloat(containerEl.style.left) || 0;
@@ -2143,17 +2492,14 @@ const PlanModule = (function () {
                 const onMouseMove = (moveEvent) => {
                     if (!isDragging) return;
                     const deltaX = moveEvent.clientX - dragStartX;
-                    const newLeft = initialLeft + deltaX;
-                    containerEl.style.left = newLeft + 'px';
+                    containerEl.style.left = (initialLeft + deltaX) + 'px';
                 };
 
                 const onMouseUp = () => {
-                    isDragInProgress = false;  // Re-enable render
+                    isDragInProgress = false;
                     if (isDragging) {
                         isDragging = false;
-                        // Save the new horizontal position as relative offset from row
                         const newLeft = parseFloat(containerEl.style.left) || 0;
-                        // Calculate relative offset: newLeft - rowLeftRelative = userOffset
                         line.verticalLineX = newLeft - rowLeftRelative;
                         saveData();
                     }
@@ -2165,50 +2511,50 @@ const PlanModule = (function () {
                 document.addEventListener('mouseup', onMouseUp);
             });
 
-            // Click to select and show line toolbar (same as user-drawn lines)
-            const selectLine = (e) => {
-                if (isDragging) return; // Don't select during drag
-                e.stopPropagation();
-                showLineEditor(line.id, containerEl);
-            };
+            if (line.source !== 'task') {
+                // Click to select and show line toolbar (same as user-drawn lines)
+                const selectLine = (e) => {
+                    if (isDragging) return;
+                    e.stopPropagation();
+                    showLineEditor(line.id, containerEl);
+                };
 
-            lineEl.addEventListener('click', selectLine);
-            labelEl.addEventListener('click', selectLine);
+                lineEl.addEventListener('click', selectLine);
+                labelEl.addEventListener('click', selectLine);
 
-            // Double-click to edit label in place
-            const editLabel = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                labelEl.setAttribute('contenteditable', 'true');
-                labelEl.focus();
-                // Select all text
-                const range = document.createRange();
-                range.selectNodeContents(labelEl);
-                const sel = window.getSelection();
-                sel.removeAllRanges();
-                sel.addRange(range);
-            };
-
-            lineEl.addEventListener('dblclick', editLabel);
-            labelEl.addEventListener('dblclick', editLabel);
-
-            // Save on blur/enter
-            labelEl.addEventListener('blur', () => {
-                labelEl.removeAttribute('contenteditable');
-                line.label = labelEl.textContent.trim();
-                saveData();
-            });
-
-            labelEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
+                // Double-click to edit label in place
+                const editLabel = (e) => {
                     e.preventDefault();
-                    labelEl.blur();
-                }
-                if (e.key === 'Escape') {
-                    labelEl.textContent = line.label || '';
-                    labelEl.blur();
-                }
-            });
+                    e.stopPropagation();
+                    labelEl.setAttribute('contenteditable', 'true');
+                    labelEl.focus();
+                    const range = document.createRange();
+                    range.selectNodeContents(labelEl);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                };
+
+                lineEl.addEventListener('dblclick', editLabel);
+                labelEl.addEventListener('dblclick', editLabel);
+
+                labelEl.addEventListener('blur', () => {
+                    labelEl.removeAttribute('contenteditable');
+                    line.label = labelEl.textContent.trim();
+                    saveData();
+                });
+
+                labelEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        labelEl.blur();
+                    }
+                    if (e.key === 'Escape') {
+                        labelEl.textContent = line.label || '';
+                        labelEl.blur();
+                    }
+                });
+            }
 
             return containerEl;
         }
@@ -3233,6 +3579,21 @@ const PlanModule = (function () {
         else startYear = year;
     }
 
+    function dismissFreeformInput() {
+        const existingInput = canvasLayer?.querySelector('.plan-note-input-inline');
+        if (existingInput) existingInput.blur();
+    }
+
+    function beginFreeformNoteAt(clientX, clientY) {
+        if (!canvasLayer) return;
+        const rect = canvasLayer.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const snapped = findClosestDateRowPosition(x, y);
+        if (!snapped.dateKey) return;
+        createFreeformInput(snapped.x, snapped.y, snapped.dateKey, snapped.offsetX);
+    }
+
     function setupCanvasInteraction() {
         calendarContainer.addEventListener('mousedown', e => {
             if (
@@ -3243,14 +3604,18 @@ const PlanModule = (function () {
                 e.target.closest('.plan-week-goal-pill') ||
                 e.target.closest('.plan-week-goals') ||
                 e.target.closest('.plan-week-day-goals') ||
-                e.target.closest('.plan-week-day-header')
+                e.target.closest('.plan-week-day-header') ||
+                e.target.closest('.plan-note-input-inline')
             ) {
                 return;
             }
 
             if (isWeekGoalDragInProgress) return;
 
-            // If something is selected, deselect it and don't create new content
+            // Single click elsewhere dismisses an active note input
+            dismissFreeformInput();
+
+            // If something is selected, deselect it and don't start a new interaction
             if (selectedElements.length > 0) {
                 deselectElement();
                 return;
@@ -3322,15 +3687,29 @@ const PlanModule = (function () {
                     freeformLines.push(line);
                     saveData();
                     canvasLayer.appendChild(createLine(line));
-                } else {
-                    // Show input for new note
-                    const snapped = findClosestDateRowPosition(startX, startY);
-                    createFreeformInput(snapped.x, snapped.y, snapped.dateKey, snapped.offsetX);
                 }
             };
 
             document.addEventListener('mousemove', move);
             document.addEventListener('mouseup', up);
+        });
+
+        calendarContainer.addEventListener('dblclick', e => {
+            if (
+                e.target.closest('.plan-note-text') ||
+                e.target.closest('.plan-note-line') ||
+                e.target.closest('.plan-line-handle') ||
+                e.target.closest('.plan-line-label') ||
+                e.target.closest('.plan-week-goal-pill') ||
+                e.target.closest('.plan-week-goals') ||
+                e.target.closest('.plan-week-day-goals') ||
+                e.target.closest('.plan-week-day-header')
+            ) {
+                return;
+            }
+
+            e.preventDefault();
+            beginFreeformNoteAt(e.clientX, e.clientY);
         });
     }
 
@@ -3354,6 +3733,15 @@ const PlanModule = (function () {
 
         // Calendar sync buttons
         const calendarSyncAllBtn = container.querySelector('.plan-calendar-sync-all-btn');
+        const calendarTogglesEl = container.querySelector('.plan-calendar-toggles');
+        if (calendarTogglesEl) {
+            calendarTogglesEl.addEventListener('wheel', (e) => {
+                if (calendarTogglesEl.scrollWidth <= calendarTogglesEl.clientWidth) return;
+                if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+                e.preventDefault();
+                calendarTogglesEl.scrollLeft += e.deltaY;
+            }, { passive: false });
+        }
         const calendarAddBtn = container.querySelector('.plan-calendar-add-btn');
         const calendarPopover = container.querySelector('.plan-calendar-popover');
         const calendarList = container.querySelector('.plan-calendar-list');
@@ -3361,6 +3749,25 @@ const PlanModule = (function () {
         const calendarUrlInput = container.querySelector('.plan-calendar-url-input');
         const calendarAddSaveBtn = container.querySelector('.plan-calendar-add-save-btn');
         const calendarStatus = container.querySelector('.plan-calendar-status');
+        let editingCalendarId = null;
+
+        const trashIconSVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+        const pencilIconSVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+
+        function resetCalendarEditForm() {
+            editingCalendarId = null;
+            if (calendarNameInput) calendarNameInput.value = '';
+            if (calendarUrlInput) calendarUrlInput.value = '';
+            if (calendarAddSaveBtn) calendarAddSaveBtn.textContent = 'Add Calendar';
+        }
+
+        function startCalendarEdit(cal) {
+            editingCalendarId = cal.id;
+            if (calendarNameInput) calendarNameInput.value = cal.name || '';
+            if (calendarUrlInput) calendarUrlInput.value = cal.url || '';
+            if (calendarAddSaveBtn) calendarAddSaveBtn.textContent = 'Save changes';
+            calendarNameInput?.focus();
+        }
 
         // Render calendar list in popover
         function renderCalendarList() {
@@ -3369,33 +3776,71 @@ const PlanModule = (function () {
                 calendarList.innerHTML = '<div class="plan-calendar-empty">No calendars added yet</div>';
                 return;
             }
-            calendarList.innerHTML = calendars.map(cal => `
-                <div class="plan-calendar-item" data-id="${cal.id}">
+            calendarList.innerHTML = calendars.map(cal => {
+                const urlPreview = cal.url.length > 40 ? `${cal.url.substring(0, 40)}...` : cal.url;
+                return `
+                <div class="plan-calendar-item${editingCalendarId === cal.id ? ' editing' : ''}" data-id="${cal.id}">
                     <div class="plan-calendar-item-info">
                         <span class="plan-calendar-item-name">${cal.name || 'Unnamed'}</span>
-                        <span class="plan-calendar-item-url">${cal.url.substring(0, 40)}...</span>
+                        <span class="plan-calendar-item-url">${urlPreview}</span>
                     </div>
-                    <button class="plan-calendar-item-delete" data-id="${cal.id}" title="Remove calendar">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                    </button>
+                    <div class="plan-calendar-item-actions">
+                        <button type="button" class="plan-calendar-item-edit" data-id="${cal.id}" title="Edit calendar">
+                            ${pencilIconSVG}
+                        </button>
+                        <button type="button" class="plan-calendar-item-delete" data-id="${cal.id}" title="Remove calendar">
+                            ${trashIconSVG}
+                        </button>
+                    </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
-            // Add delete handlers
-            calendarList.querySelectorAll('.plan-calendar-item-delete').forEach(btn => {
+            calendarList.querySelectorAll('.plan-calendar-item-edit').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    const cal = calendars.find(c => c.id === btn.dataset.id);
+                    if (cal) startCalendarEdit(cal);
+                    renderCalendarList();
+                });
+            });
+
+            calendarList.querySelectorAll('.plan-calendar-item-delete').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
                     const id = btn.dataset.id;
+                    const index = calendars.findIndex(c => c.id === id);
+                    if (index === -1) return;
+
+                    const deleted = JSON.parse(JSON.stringify(calendars[index]));
+                    const calName = deleted.name || 'Calendar';
+
                     calendars = calendars.filter(c => c.id !== id);
                     localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+                    if (editingCalendarId === id) resetCalendarEditForm();
                     renderCalendarList();
-                    syncAllCalendars(); // Re-sync to update events
+                    await syncAllCalendars();
+                    updateCalendarStatus();
+                    renderCalendarToggles();
+
+                    if (typeof window.showUndoForDeletion === 'function') {
+                        window.showUndoForDeletion({
+                            type: 'plan_calendar',
+                            data: deleted,
+                            index,
+                        }, `Calendar '${calName}' removed`);
+                    }
                 });
             });
         }
 
         // Sync all calendars - merges events into freeformNotes/freeformLines
         async function syncAllCalendars() {
+            if (calendarSyncInProgress) {
+                return calendarSyncInProgress;
+            }
+
+            calendarSyncInProgress = (async () => {
             // Start spinning animation
             if (calendarSyncAllBtn) calendarSyncAllBtn.classList.add('syncing');
             if (calendarStatus) calendarStatus.textContent = 'Syncing...';
@@ -3406,16 +3851,16 @@ const PlanModule = (function () {
                 const noteCustomizations = {};
                 const lineCustomizations = {};
 
-                freeformNotes.filter(n => n.source === 'calendar').forEach(n => {
+                freeformNotes.filter(n => isCalendarPlannerItem(n)).forEach(n => {
                     noteCustomizations[n.id] = { offsetX: n.offsetX, label: n.label };
                 });
-                freeformLines.filter(l => l.source === 'calendar').forEach(l => {
+                freeformLines.filter(l => isCalendarPlannerItem(l)).forEach(l => {
                     lineCustomizations[l.id] = { verticalLineX: l.verticalLineX, label: l.label };
                 });
 
                 // Remove all existing calendar-sourced items from freeform arrays
-                freeformNotes = freeformNotes.filter(n => n.source !== 'calendar');
-                freeformLines = freeformLines.filter(l => l.source !== 'calendar');
+                freeformNotes = freeformNotes.filter(n => !isCalendarPlannerItem(n));
+                freeformLines = freeformLines.filter(l => !isCalendarPlannerItem(l));
 
                 if (calendars.length === 0) {
                     calendarLastSync = null;
@@ -3501,7 +3946,11 @@ const PlanModule = (function () {
             } finally {
                 // Stop spinning animation
                 if (calendarSyncAllBtn) calendarSyncAllBtn.classList.remove('syncing');
+                calendarSyncInProgress = null;
             }
+            })();
+
+            return calendarSyncInProgress;
         }
 
         // Sync All button
@@ -3559,14 +4008,23 @@ const PlanModule = (function () {
                     return;
                 }
 
-                // Generate unique ID
+                if (editingCalendarId) {
+                    const cal = calendars.find(c => c.id === editingCalendarId);
+                    if (cal) {
+                        cal.name = name;
+                        cal.url = url;
+                        localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+                        resetCalendarEditForm();
+                        renderCalendarList();
+                        await syncAllCalendars();
+                    }
+                    return;
+                }
+
                 const id = 'cal-' + Date.now();
                 calendars.push({ id, name, url });
                 localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
-
-                // Clear inputs
-                if (calendarNameInput) calendarNameInput.value = '';
-                if (calendarUrlInput) calendarUrlInput.value = '';
+                resetCalendarEditForm();
 
                 renderCalendarList();
                 await syncAllCalendars();
@@ -3637,9 +4095,7 @@ const PlanModule = (function () {
                 // Color palette popover
                 const colorWrapper = chip.querySelector('.calendar-toggle-color');
                 const colorDot = chip.querySelector('.calendar-color-dot');
-                // redd-do editorial palette: Sky, Ice, Mint, Buttercup, Blush, Apricot, Sunset, Lavender
                 // Keep in sync with PLAN_CALENDAR_COLOR_PRESETS in redd-plan/lib/canvasBackground.ts
-                const PALETTE = ['#7da9c8', '#8eb5b0', '#8cb89c', '#d4ba6a', '#d4a5a8', '#d99a6c', '#d4605a', '#a896c0'];
 
                 function applyColor(newColor) {
                     cal.fontColor = newColor;
@@ -3659,82 +4115,7 @@ const PlanModule = (function () {
 
                 colorDot.addEventListener('click', e => {
                     e.stopPropagation();
-
-                    // Close any other open palette popovers
-                    container.querySelectorAll('.calendar-color-popover').forEach(p => p.remove());
-
-                    const popover = document.createElement('div');
-                    popover.className = 'calendar-color-popover';
-                    const currentColor = cal.fontColor || '#7da9c8';
-                    // Build palette swatches
-                    const swatchesHTML = PALETTE.map(c =>
-                        `<button type="button" class="calendar-color-swatch${c === currentColor ? ' selected' : ''}" data-color="${c}" style="background-color: ${c}" title="${c}"></button>`
-                    ).join('');
-                    popover.innerHTML = `
-                        <div class="calendar-color-swatches">
-                            ${swatchesHTML}
-                            <label class="calendar-color-swatch calendar-color-swatch-custom" title="More colors…">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/></svg>
-                                <input type="color" class="calendar-color-custom-input" value="${currentColor}">
-                            </label>
-                        </div>
-                        <div class="calendar-color-hex-row">
-                            <span class="calendar-color-hex-preview" style="background: ${currentColor}"></span>
-                            <input type="text" class="calendar-color-hex-input" value="${currentColor}" maxlength="7" spellcheck="false" placeholder="#000000">
-                        </div>
-                    `;
-
-                    // Position below the dot
-                    colorWrapper.appendChild(popover);
-
-                    // Swatch click handlers
-                    popover.querySelectorAll('.calendar-color-swatch:not(.calendar-color-swatch-custom)').forEach(swatch => {
-                        swatch.addEventListener('click', ev => {
-                            ev.stopPropagation();
-                            applyColor(swatch.dataset.color);
-                            popover.remove();
-                        });
-                    });
-
-                    // Custom color picker
-                    const customInput = popover.querySelector('.calendar-color-custom-input');
-                    const hexInput = popover.querySelector('.calendar-color-hex-input');
-                    const hexPreview = popover.querySelector('.calendar-color-hex-preview');
-
-                    customInput.addEventListener('input', ev => {
-                        const c = ev.target.value;
-                        applyColor(c);
-                        hexInput.value = c;
-                        hexPreview.style.background = c;
-                    });
-
-                    // Hex input: apply on Enter or blur
-                    const applyHex = () => {
-                        let val = hexInput.value.trim();
-                        if (!val.startsWith('#')) val = '#' + val;
-                        if (/^#[0-9a-fA-F]{6}$/.test(val)) {
-                            applyColor(val);
-                            hexPreview.style.background = val;
-                            customInput.value = val;
-                        } else {
-                            // Reset to current
-                            hexInput.value = cal.fontColor || '#7da9c8';
-                        }
-                    };
-                    hexInput.addEventListener('keydown', ev => {
-                        if (ev.key === 'Enter') { ev.preventDefault(); applyHex(); }
-                    });
-                    hexInput.addEventListener('blur', applyHex);
-
-                    // Close on outside click
-                    const closePopover = ev => {
-                        if (!popover.contains(ev.target) && ev.target !== colorDot) {
-                            popover.remove();
-                            document.removeEventListener('click', closePopover, true);
-                        }
-                    };
-                    // Use setTimeout so the current click doesn't immediately close it
-                    setTimeout(() => document.addEventListener('click', closePopover, true), 0);
+                    appendChipColorPopover(colorWrapper, colorDot, cal.fontColor || '#7da9c8', applyColor);
                 });
 
                 // Click to rename calendar
@@ -3778,7 +4159,12 @@ const PlanModule = (function () {
 
                 togglesContainer.appendChild(chip);
             });
+
+            renderEnkeltTasksChip(togglesContainer, eyeOpenSVG, eyeClosedSVG);
         }
+        refreshCalendarToggles = renderCalendarToggles;
+        syncAllCalendarsFn = syncAllCalendars;
+        renderCalendarListFn = renderCalendarList;
 
         // Formatting buttons (bold, italic, underline)
         container.querySelectorAll('.plan-note-toolbar .plan-toolbar-btn[data-command]').forEach(btn => {
@@ -3912,11 +4298,19 @@ const PlanModule = (function () {
             }
         });
 
-        // Click outside to deselect
+        // Click outside to deselect or dismiss note input
         document.addEventListener('click', e => {
+            if (!e.target.closest('.plan-note-input-inline') &&
+                !e.target.closest('.plan-inline-toolbar') &&
+                !e.target.closest('.plan-note-text') &&
+                !e.target.closest('.plan-note-line')) {
+                dismissFreeformInput();
+            }
+
             if (!e.target.closest('.plan-inline-toolbar') &&
                 !e.target.closest('.plan-note-text') &&
                 !e.target.closest('.plan-note-line') &&
+                !e.target.closest('.plan-note-input-inline') &&
                 selectedElements.length > 0) {
                 deselectElement();
             }
@@ -3968,19 +4362,169 @@ const PlanModule = (function () {
         renderCalendarToggles();
     }
 
+    function parseDateKeyLocal(dateKey) {
+        const [year, month, day] = dateKey.split('-').map(Number);
+        return new Date(year, month - 1, day);
+    }
+
+    function enumerateDateKeys(startDate, endDate) {
+        const keys = [];
+        let current = parseDateKeyLocal(startDate);
+        const end = parseDateKeyLocal(endDate);
+        while (current <= end) {
+            keys.push(formatDateKey(current));
+            current = addDays(current, 1);
+        }
+        return keys;
+    }
+
+    function stripTaskPlannerEntries(taskId) {
+        freeformNotes = freeformNotes.filter((note) => note.taskId !== taskId);
+        freeformLines = freeformLines.filter((line) => line.taskId !== taskId);
+    }
+
+    function refreshPlannerIfInitialized() {
+        if (!isInitialized) return;
+        refreshCalendarToggles();
+        renderFreeformElements();
+        scheduleLayoutRefresh();
+    }
+
+    function getTaskPlannerDates(taskId) {
+        const line = freeformLines.find((l) => l.taskId === taskId && l.startDate && l.endDate);
+        if (line) {
+            return { startDate: line.startDate, endDate: line.endDate };
+        }
+
+        const notes = freeformNotes.filter((note) => note.taskId === taskId && note.dateKey);
+        if (notes.length === 0) return null;
+        const keys = notes.map((note) => note.dateKey).sort();
+        return { startDate: keys[0], endDate: keys[keys.length - 1] };
+    }
+
+    function removeTaskFromPlanner(taskId) {
+        const hadEntries = freeformNotes.some((note) => note.taskId === taskId)
+            || freeformLines.some((line) => line.taskId === taskId);
+        stripTaskPlannerEntries(taskId);
+        if (hadEntries) {
+            saveData();
+            refreshPlannerIfInitialized();
+        }
+    }
+
+    function updateTaskPlannerText(taskId, text) {
+        const label = text.trim();
+        if (!label) return;
+
+        let changed = false;
+        freeformNotes.forEach((note) => {
+            if (note.taskId === taskId) {
+                note.text = label;
+                changed = true;
+            }
+        });
+        freeformLines.forEach((line) => {
+            if (line.taskId === taskId) {
+                line.label = label;
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            saveData();
+            refreshPlannerIfInitialized();
+        }
+    }
+
+    function upsertTaskPlannerEntry({ taskId, text, startDate, endDate }) {
+        if (!taskId || !text || !startDate) return false;
+
+        let rangeStart = startDate;
+        let rangeEnd = endDate || startDate;
+        if (rangeEnd < rangeStart) {
+            [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+        }
+
+        const label = text.trim();
+        if (!label) return false;
+
+        stripTaskPlannerEntries(taskId);
+
+        ensureTaskChipColor();
+        const taskColor = getTaskChipColor();
+
+        if (rangeStart === rangeEnd) {
+            freeformNotes.push({
+                id: `task-${taskId}-${rangeStart}`,
+                text: label,
+                dateKey: rangeStart,
+                offsetX: 0,
+                source: 'task',
+                taskId,
+                isAllDay: true,
+                fontColor: taskColor,
+            });
+        } else {
+            freeformLines.push({
+                id: `task-line-${taskId}`,
+                label,
+                startDate: rangeStart,
+                endDate: rangeEnd,
+                source: 'task',
+                taskId,
+                color: taskColor,
+                fontColor: taskColor,
+                fontFamily: 'Inter',
+                width: 8,
+                isAllDay: true,
+            });
+        }
+
+        saveData();
+        refreshPlannerIfInitialized();
+        return true;
+    }
+
+    async function restoreDeletedCalendar(calendar, index) {
+        if (!calendar?.id) return;
+
+        dedupeCalendars();
+        if (calendars.some((cal) => cal.id === calendar.id)) return;
+        const urlKey = (calendar.url || '').trim().toLowerCase();
+        if (urlKey && calendars.some((cal) => (cal.url || '').trim().toLowerCase() === urlKey)) return;
+
+        const insertAt = Math.min(Math.max(0, index ?? calendars.length), calendars.length);
+        calendars.splice(insertAt, 0, calendar);
+        localStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+        renderCalendarListFn();
+        await syncAllCalendarsFn();
+    }
+
     function refresh() {
         // Re-read language setting and re-render
         loadLanguage();
         loadWeekGoals();
         loadGoalAssignees();
+        loadTaskChipSettings();
+        migrateTaskChipColorIfNeeded();
         updateGoalAssigneeSelectOptions();
         updateViewModeButtons();
         renderCalendar();
+        refreshCalendarToggles();
         renderWeekGoals();
         scheduleLayoutRefresh();
     }
 
-    return { init, destroy, refresh };
+    return {
+        init,
+        destroy,
+        refresh,
+        upsertTaskPlannerEntry,
+        removeTaskFromPlanner,
+        getTaskPlannerDates,
+        updateTaskPlannerText,
+        restoreDeletedCalendar,
+    };
 })();
 
 // Expose globally so React (or other host code) can call init/destroy.

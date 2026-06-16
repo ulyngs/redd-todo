@@ -3468,7 +3468,8 @@ body.focus-panel-window.is-fullscreen {
     gap: 16px;
     box-shadow: 0 8px 24px rgba(30, 45, 62, 0.18);
     border: 1px solid rgba(255, 255, 255, 0.10);
-    z-index: 2000;
+    z-index: 10050;
+    pointer-events: auto;
     font-size: 14px;
     animation: slideUp 0.3s ease;
 }

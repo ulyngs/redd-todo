@@ -841,6 +841,9 @@
 
 #plan-mode .plan-week-allday-item.calendar-event {
     background: rgba(74, 144, 226, 0.14);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-style: italic;
+    font-weight: 500;
 }
 
 #plan-mode .plan-week-allday-item.line-event {
@@ -1605,13 +1608,34 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     align-items: center;
     gap: 8px;
     -webkit-app-region: no-drag;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
 }
 
 /* Calendar visibility toggles (chip style) */
 #plan-mode .plan-calendar-toggles {
     display: flex;
+    flex-wrap: nowrap;
     gap: 6px;
     margin-right: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    -webkit-app-region: no-drag;
+}
+
+#plan-mode .plan-calendar-toggles::-webkit-scrollbar {
+    height: 6px;
+}
+
+#plan-mode .plan-calendar-toggles::-webkit-scrollbar-thumb {
+    background: var(--plan-border-color);
+    border-radius: 999px;
 }
 
 #plan-mode .plan-calendar-toggle {
@@ -1626,6 +1650,12 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     border: 1px solid var(--plan-border-color);
     background: var(--plan-panel-bg);
     transition: opacity 0.2s ease, background 0.15s ease;
+    flex-shrink: 0;
+}
+
+#plan-mode .plan-calendar-sync-all-btn,
+#plan-mode .plan-calendar-add-btn {
+    flex-shrink: 0;
 }
 
 #plan-mode .plan-calendar-toggle:hover {
@@ -1891,12 +1921,10 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     }
 
     /* Sync/add buttons stay on row 1 alongside period-nav and undo/redo */
-    #plan-mode .plan-calendar-sync-all-btn {
-        order: 0;
-    }
-
+    #plan-mode .plan-calendar-sync-all-btn,
     #plan-mode .plan-calendar-add-btn {
         order: 0;
+        flex-shrink: 0;
     }
 
     /* Calendar toggle chips become a full-width scrollable row below */
@@ -2075,15 +2103,16 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     border-radius: 8px;
 }
 
-/* Calendar Event Styles (synced events are read-only) */
+/* Calendar Event Styles (synced events + Enkelt tasks — not handwriting notes) */
 #plan-mode .plan-note-text.calendar-event {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-style: italic;
     font-size: 15px;
+    font-weight: 400;
     color: var(--plan-event-color);
     opacity: 0.9;
     cursor: default;
     top: 0;
-    /* Adjust vertical position */
 }
 
 
@@ -2148,6 +2177,19 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     white-space: nowrap;
 }
 
+#plan-mode .plan-calendar-item.editing {
+    border-color: var(--plan-accent-color);
+    box-shadow: 0 0 0 1px var(--plan-accent-color);
+}
+
+#plan-mode .plan-calendar-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+#plan-mode .plan-calendar-item-edit,
 #plan-mode .plan-calendar-item-delete {
     background: none;
     border: none;
@@ -2156,6 +2198,14 @@ body.dark-mode #plan-mode .plan-modal-dialog {
     color: var(--plan-text-muted);
     border-radius: 4px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#plan-mode .plan-calendar-item-edit:hover {
+    color: var(--plan-accent-color);
+    background: rgba(74, 144, 226, 0.1);
 }
 
 #plan-mode .plan-calendar-item-delete:hover {

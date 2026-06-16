@@ -284,7 +284,15 @@ const translations = {
         themeDark: 'Dark',
         themeSystem: 'Auto',
         enableTabGroups: 'Tab Groups',
-        enablePlanMode: 'Bird\'s Eye Planner View',
+        enablePlanMode: 'Planner View',
+        addToPlanner: 'Add to Planner...',
+        addToPlannerTitle: 'Add to Planner',
+        removeFromPlanner: 'Remove from Planner',
+        removedFromPlanner: 'Removed from planner',
+        plannerStartDate: 'Start date',
+        plannerEndDate: 'End date',
+        plannerDateHint: 'Use the same date for a single day, or pick a range.',
+        addedToPlanner: 'Added to planner',
         tabGroupsInfo: 'Organize your to-do lists into groups (shown in a top bar).',
         planModeInfo: 'A Danish-style calendar you can sync with important tasks or events from any external calendar, for a bird\u2019s-eye view of the months or week ahead.',
         dataManagement: 'Data',
@@ -362,7 +370,15 @@ const translations = {
         themeDark: 'Mørk',
         themeSystem: 'Auto',
         enableTabGroups: 'Fanegrupper',
-        enablePlanMode: 'Fugleperspektiv-planlægger',
+        enablePlanMode: 'Planlægnervisning',
+        addToPlanner: 'Tilføj til planlægger...',
+        addToPlannerTitle: 'Tilføj til planlægger',
+        removeFromPlanner: 'Fjern fra planlægger',
+        removedFromPlanner: 'Fjernet fra planlægger',
+        plannerStartDate: 'Startdato',
+        plannerEndDate: 'Slutdato',
+        plannerDateHint: 'Brug samme dato for én dag, eller vælg et interval.',
+        addedToPlanner: 'Tilføjet til planlægger',
         tabGroupsInfo: 'Organiser dine to-do lister i grupper (vist i en topbar).',
         planModeInfo: 'En dansk-inspireret kalender, du kan synkronisere med vigtige opgaver eller begivenheder fra enhver ekstern kalender \u2014 et fugleperspektiv over m\u00e5nederne eller ugen forude.',
         dataManagement: 'Data',
@@ -1329,6 +1345,16 @@ function showUndoToast(message) {
     }, 5000);
 }
 
+function queueUndoAction(message, restoreFn) {
+    lastDeletedItem = { type: 'callback', restore: restoreFn };
+    showUndoToast(message);
+}
+
+function showUndoForDeletion(deletedItem, message) {
+    lastDeletedItem = deletedItem;
+    showUndoToast(message);
+}
+
 function hideUndoToast() {
     undoToast.classList.add('hidden');
     if (undoTimeout) clearTimeout(undoTimeout);
@@ -1407,96 +1433,88 @@ function performHistoryRedo() {
 async function performUndo() {
     if (!lastDeletedItem) return;
 
-    if (lastDeletedItem.type === 'tab') {
-        const tab = lastDeletedItem.data;
-        tabs[tab.id] = tab;
-
-        // Switch to restored tab
-        switchToTab(tab.id);
-
-    } else if (lastDeletedItem.type === 'group') {
-        const group = lastDeletedItem.data;
-        const groupTabs = lastDeletedItem.tabs;
-
-        // Restore group
-        groups[group.id] = group;
-
-        // Restore tabs
-        groupTabs.forEach(tab => {
-            tabs[tab.id] = tab;
-        });
-
-        // Switch to restored group
-        currentGroupId = group.id;
-        renderGroups();
-
-        if (groupTabs.length > 0) {
-            switchToTab(groupTabs[0].id);
-        }
-    } else if (lastDeletedItem.type === 'task') {
-        const task = lastDeletedItem.data;
-        const tab = tabs[lastDeletedItem.tabId];
-
-        if (tab) {
-            // Restore locally
-            if (lastDeletedItem.index !== undefined && lastDeletedItem.index >= 0) {
-                tab.tasks.splice(lastDeletedItem.index, 0, task);
-            } else {
-                tab.tasks.push(task);
-            }
-
-            // Restore to Basecamp
-            if (lastDeletedItem.basecampListId && basecampConfig.isConnected && task.basecampId) {
-                // Creating a NEW todo because we can't un-delete easily via API usually, 
-                // unless we archived it? Basecamp API uses "recording" buckets. 
-                // Actually Basecamp 3 API supports "unarchiving" but we sent a DELETE request.
-                // A DELETE request in BC3 usually trashes it. Recovering from trash is hard via API.
-                // So we recreate it.
-                // But wait, if we recreate it, it gets a NEW ID.
-                // So we need to update the local task with the new ID.
-                createBasecampTodo(tab.id, task);
-            }
-
-            // Restore to Reminders
-            if (lastDeletedItem.remindersListId && remindersConfig.isConnected && task.remindersId) {
-                // Reminders API also deletes. We must recreate.
-                const newId = await createRemindersTask(lastDeletedItem.remindersListId, task.text);
-                if (newId) {
-                    task.remindersId = newId;
-                }
-            }
-
-            // Switch to the tab if we aren't on it
-            if (currentTabId !== tab.id) {
-                switchToTab(tab.id);
-            }
-        }
-    } else if (lastDeletedItem.type === 'tasks_bulk') {
-        const tasks = lastDeletedItem.data || [];
-        const tab = tabs[lastDeletedItem.tabId];
-
-        if (tab && Array.isArray(tasks) && tasks.length > 0) {
-            // Restore locally (append is fine; completedAt sorting controls Done display order)
-            tab.tasks.push(...tasks);
-
-            // Restore to Basecamp (recreate, because the API delete is destructive)
-            if (lastDeletedItem.basecampListId && basecampConfig.isConnected) {
-                tasks.forEach(task => {
-                    if (task && task.basecampId) {
-                        createBasecampTodo(tab.id, task);
-                    }
-                });
-            }
-
-            // If user is on a different tab, switch so they see the restoration
-            if (currentTabId !== tab.id) {
-                switchToTab(tab.id);
-            }
-        }
-    }
-
+    const item = lastDeletedItem;
     lastDeletedItem = null;
     hideUndoToast();
+
+    try {
+        if (item.type === 'tab') {
+            const tab = item.data;
+            tabs[tab.id] = tab;
+            switchToTab(tab.id);
+
+        } else if (item.type === 'group') {
+            const group = item.data;
+            const groupTabs = item.tabs;
+
+            groups[group.id] = group;
+
+            groupTabs.forEach(tab => {
+                tabs[tab.id] = tab;
+            });
+
+            currentGroupId = group.id;
+            renderGroups();
+
+            if (groupTabs.length > 0) {
+                switchToTab(groupTabs[0].id);
+            }
+        } else if (item.type === 'task') {
+            const task = item.data;
+            const tab = tabs[item.tabId];
+
+            if (tab) {
+                if (item.index !== undefined && item.index >= 0) {
+                    tab.tasks.splice(item.index, 0, task);
+                } else {
+                    tab.tasks.push(task);
+                }
+
+                if (item.basecampListId && basecampConfig.isConnected && task.basecampId) {
+                    createBasecampTodo(tab.id, task);
+                }
+
+                if (item.remindersListId && remindersConfig.isConnected && task.remindersId) {
+                    const newId = await createRemindersTask(item.remindersListId, task.text);
+                    if (newId) {
+                        task.remindersId = newId;
+                    }
+                }
+
+                if (currentTabId !== tab.id) {
+                    switchToTab(tab.id);
+                }
+            }
+        } else if (item.type === 'tasks_bulk') {
+            const tasks = item.data || [];
+            const tab = tabs[item.tabId];
+
+            if (tab && Array.isArray(tasks) && tasks.length > 0) {
+                tab.tasks.push(...tasks);
+
+                if (item.basecampListId && basecampConfig.isConnected) {
+                    tasks.forEach(task => {
+                        if (task && task.basecampId) {
+                            createBasecampTodo(tab.id, task);
+                        }
+                    });
+                }
+
+                if (currentTabId !== tab.id) {
+                    switchToTab(tab.id);
+                }
+            }
+        } else if (item.type === 'plan_calendar') {
+            if (typeof PlanModule !== 'undefined' && PlanModule.restoreDeletedCalendar) {
+                await PlanModule.restoreDeletedCalendar(item.data, item.index);
+            }
+        } else if (item.type === 'callback' && typeof item.restore === 'function') {
+            await item.restore();
+        }
+    } catch (err) {
+        console.error('[Undo] Failed to restore deleted item:', err);
+    }
+
     renderTabs();
     renderTasks();
     saveData();
@@ -1683,9 +1701,164 @@ function deleteTask(taskId) {
         }
 
         tab.tasks.splice(taskIndex, 1);
+        if (typeof PlanModule !== 'undefined' && PlanModule.removeTaskFromPlanner) {
+            PlanModule.removeTaskFromPlanner(taskId);
+        }
         renderTasks();
         saveData();
     }
+}
+
+function formatLocalDateKey(date = new Date()) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function isTaskInPlanner(task) {
+    if (!task) return false;
+    if (task.plannerStartDate) return true;
+    if (typeof PlanModule !== 'undefined' && PlanModule.getTaskPlannerDates) {
+        return !!PlanModule.getTaskPlannerDates(task.id);
+    }
+    return false;
+}
+
+function buildPlannerMenuItem(task) {
+    if (!enablePlan || !task) return '';
+
+    if (isTaskInPlanner(task)) {
+        return `
+            <button class="task-menu-item remove-from-planner-item" data-task-id="${task.id}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                    <line x1="8" y1="2" x2="8" y2="18" />
+                    <line x1="16" y1="6" x2="16" y2="22" />
+                </svg>
+                ${t('removeFromPlanner')}
+            </button>
+        `;
+    }
+
+    return `
+            <button class="task-menu-item add-to-planner-item" data-task-id="${task.id}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                    <line x1="8" y1="2" x2="8" y2="18" />
+                    <line x1="16" y1="6" x2="16" y2="22" />
+                </svg>
+                ${t('addToPlanner')}
+            </button>
+    `;
+}
+
+function removeTaskFromPlannerMenu(taskId) {
+    const context = getTaskContext(taskId);
+    if (!context) return;
+
+    const { task } = context;
+    if (typeof PlanModule !== 'undefined' && PlanModule.removeTaskFromPlanner) {
+        PlanModule.removeTaskFromPlanner(taskId);
+    }
+
+    delete task.plannerStartDate;
+    delete task.plannerEndDate;
+    saveData();
+    renderTasks();
+}
+
+function showAddToPlannerModal(taskId) {
+    const context = getTaskContext(taskId);
+    if (!context) return;
+
+    const { task } = context;
+    if (typeof PlanModule === 'undefined' || !PlanModule.upsertTaskPlannerEntry) {
+        alert('Planner is not available.');
+        return;
+    }
+
+    const existingDates = PlanModule.getTaskPlannerDates?.(taskId);
+    const todayKey = formatLocalDateKey();
+    const startDefault = task.plannerStartDate || existingDates?.startDate || todayKey;
+    const endDefault = task.plannerEndDate || existingDates?.endDate || startDefault;
+
+    const modalHtml = `
+        <div id="add-to-planner-modal" class="modal-overlay">
+            <div class="modal-content">
+                <h3>${t('addToPlannerTitle')}</h3>
+                <p style="margin: 0 0 16px; color: var(--text-secondary); font-size: 13px;">${escapeHtml(task.text)}</p>
+                <label style="display: block; margin-bottom: 12px; font-size: 13px; font-weight: 600;">
+                    ${t('plannerStartDate')}
+                    <input type="date" id="planner-start-date" class="bc-select" value="${startDefault}" style="width: 100%; margin-top: 6px;">
+                </label>
+                <label style="display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600;">
+                    ${t('plannerEndDate')}
+                    <input type="date" id="planner-end-date" class="bc-select" value="${endDefault}" style="width: 100%; margin-top: 6px;">
+                </label>
+                <p style="margin: 0 0 16px; color: var(--text-secondary); font-size: 12px;">${t('plannerDateHint')}</p>
+                <div class="modal-buttons">
+                    <button id="cancel-planner-btn" class="modal-btn cancel-btn">${t('cancel')}</button>
+                    <button id="confirm-planner-btn" class="modal-btn create-btn">${t('addToPlannerTitle')}</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modal = document.getElementById('add-to-planner-modal');
+    const startInput = document.getElementById('planner-start-date');
+    const endInput = document.getElementById('planner-end-date');
+    const cancelBtn = document.getElementById('cancel-planner-btn');
+    const confirmBtn = document.getElementById('confirm-planner-btn');
+
+    const closeModal = () => modal.remove();
+
+    const syncEndDateMin = () => {
+        endInput.min = startInput.value || '';
+        if (startInput.value && endInput.value && endInput.value < startInput.value) {
+            endInput.value = startInput.value;
+        }
+    };
+
+    startInput.addEventListener('change', () => {
+        if (!startInput.value) return;
+        endInput.value = startInput.value;
+        syncEndDateMin();
+    });
+
+    endInput.addEventListener('change', syncEndDateMin);
+    syncEndDateMin();
+
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    confirmBtn.addEventListener('click', () => {
+        const startDate = startInput.value;
+        const endDate = endInput.value || startDate;
+        if (!startDate) return;
+
+        PlanModule.upsertTaskPlannerEntry({
+            taskId,
+            text: task.text,
+            startDate,
+            endDate,
+        });
+
+        task.plannerStartDate = startDate;
+        task.plannerEndDate = endDate;
+        saveData();
+        closeModal();
+        renderTasks();
+    });
 }
 
 function showMoveTaskModal(taskId) {
@@ -3044,6 +3217,8 @@ function switchView(viewName) {
 
 // Expose switchView globally so plan module can call it
 window.switchView = switchView;
+window.queueUndoAction = queueUndoAction;
+window.showUndoForDeletion = showUndoForDeletion;
 
 // Show plan toolbar button when plan mode is enabled in settings.
 function updatePlanButtonVisibility() {
@@ -3053,6 +3228,7 @@ function updatePlanButtonVisibility() {
     } else {
         viewPlanBtn.classList.add('hidden');
     }
+    renderTasks();
 }
 
 function getAllFavouriteTasks() {
@@ -3563,6 +3739,7 @@ function createTaskElement(task) {
     // Build task menu HTML
     const taskMenuHtml = `
         <div class="task-menu hidden" data-task-id="${task.id}">
+            ${buildPlannerMenuItem(task)}
             <button class="task-menu-item move-task-item" data-task-id="${task.id}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 3v12"/>
@@ -4243,11 +4420,20 @@ function setupEventListeners() {
 
     // Undo Events
     if (undoBtn) {
-        undoBtn.addEventListener('click', performUndo);
+        undoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void performUndo();
+        });
     }
 
     if (closeUndoBtn) {
-        closeUndoBtn.addEventListener('click', hideUndoToast);
+        closeUndoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            lastDeletedItem = null;
+            hideUndoToast();
+        });
     }
 
     connectBcBtn.addEventListener('click', async () => {
@@ -4816,6 +5002,18 @@ function setupEventListeners() {
             const menu = e.target.closest('.task-menu');
             closeTaskMenu(menu);
         }
+        // Add to planner action from menu
+        else if (e.target.classList.contains('add-to-planner-item') || e.target.closest('.add-to-planner-item')) {
+            showAddToPlannerModal(taskId);
+            const menu = e.target.closest('.task-menu');
+            closeTaskMenu(menu);
+        }
+        // Remove from planner action from menu
+        else if (e.target.classList.contains('remove-from-planner-item') || e.target.closest('.remove-from-planner-item')) {
+            removeTaskFromPlannerMenu(taskId);
+            const menu = e.target.closest('.task-menu');
+            closeTaskMenu(menu);
+        }
         else if (e.target.classList.contains('focus-btn') || e.target.closest('.focus-btn')) {
             focusTask(taskId, e.target.closest('.focus-btn'));
         } else if (e.target.classList.contains('task-checkbox') || e.target.closest('.task-checkbox')) {
@@ -4916,6 +5114,18 @@ function setupEventListeners() {
         // Move action from menu
         else if (e.target.classList.contains('move-task-item') || e.target.closest('.move-task-item')) {
             showMoveTaskModal(taskId);
+            const menu = e.target.closest('.task-menu');
+            closeTaskMenu(menu);
+        }
+        // Add to planner action from menu
+        else if (e.target.classList.contains('add-to-planner-item') || e.target.closest('.add-to-planner-item')) {
+            showAddToPlannerModal(taskId);
+            const menu = e.target.closest('.task-menu');
+            closeTaskMenu(menu);
+        }
+        // Remove from planner action from menu
+        else if (e.target.classList.contains('remove-from-planner-item') || e.target.closest('.remove-from-planner-item')) {
+            removeTaskFromPlannerMenu(taskId);
             const menu = e.target.closest('.task-menu');
             closeTaskMenu(menu);
         }
@@ -6711,6 +6921,10 @@ function editTaskText(taskId, textElement) {
             }
 
             saveData();
+
+            if (typeof PlanModule !== 'undefined' && PlanModule.updateTaskPlannerText) {
+                PlanModule.updateTaskPlannerText(taskId, task.text);
+            }
 
             // Sync to other windows (e.g. macOS focus panel)
             reddIpc.send('task-updated', { taskId, text: task.text });
