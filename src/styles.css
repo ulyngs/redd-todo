@@ -319,6 +319,38 @@ h3,
     display: none;
 }
 
+.title-bar-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    -webkit-app-region: no-drag;
+}
+
+.title-bar-settings-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.title-bar-settings-btn:hover {
+    color: var(--text-primary);
+    background: var(--hover-bg);
+}
+
+.title-bar-settings-btn:focus {
+    outline: none;
+}
+
 /* View Switcher — segmented-control style tab group */
 .view-switcher {
     display: flex;
@@ -540,7 +572,6 @@ h3,
     background: transparent;
     border-bottom: 1px solid var(--border-color);
     position: relative;
-    /* For absolute positioning of settings button if needed */
 }
 
 .tabs {
@@ -549,8 +580,6 @@ h3,
     gap: 2px;
     overflow-x: auto;
     align-items: flex-end;
-    margin-right: 16px;
-    /* Space for settings button */
 }
 
 .settings-btn {
@@ -1749,15 +1778,6 @@ body.is-reordering * {
     font-size: 12px;
 }
 
-.settings-inline-btn {
-    margin-left: 4px !important;
-}
-
-.settings-inline-btn svg {
-    width: 19px;
-    height: 19px;
-}
-
 .footer .heart {
     color: var(--redd-coral);
     font-size: 14px;
@@ -1861,7 +1881,6 @@ body.is-reordering * {
 #settings-modal .modal-content {
     width: min(520px, calc(100vw - 40px));
     max-width: 520px;
-    --settings-control-width: 140px;
 }
 
 .settings-modal-header {
@@ -1928,6 +1947,7 @@ body.is-reordering * {
 }
 
 .settings-panel-rows > .settings-row:not(.hidden) + .settings-row:not(.hidden),
+.settings-panel-rows > .settings-select-pair + .settings-row:not(.hidden),
 .settings-panel-rows > .settings-panel-info:not(.hidden) + .settings-row:not(.hidden),
 .settings-panel-rows > .settings-row:not(.hidden) + .settings-panel-info:not(.hidden) {
     border-top: 1px solid var(--border-color-medium);
@@ -1970,17 +1990,40 @@ body.is-reordering * {
     min-width: 0;
 }
 
-#settings-modal .settings-row-control:has(#theme-select),
-#settings-modal .settings-row-control:has(#language-select) {
-    width: var(--settings-control-width);
-    flex-shrink: 0;
+.settings-select-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: center;
 }
 
-#settings-modal .settings-row-control #theme-select,
-#settings-modal .settings-row-control #language-select {
-    width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
+.settings-select-pair > .settings-row {
+    display: contents;
+}
+
+.settings-select-pair .settings-row-label,
+.settings-select-pair .settings-row-control {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.settings-select-pair .settings-row-label {
+    padding-left: 14px;
+    padding-right: 12px;
+}
+
+.settings-select-pair .settings-row-control {
+    padding-right: 14px;
+    width: auto;
+    justify-self: stretch;
+}
+
+.settings-select-pair > .settings-row + .settings-row .settings-row-label,
+.settings-select-pair > .settings-row + .settings-row .settings-row-control {
+    border-top: 1px solid var(--border-color-medium);
+}
+
+.settings-select-pair .settings-select {
+    width: auto;
 }
 
 #settings-modal .settings-row-control.settings-blocklists-io-btns {
@@ -2035,8 +2078,7 @@ body.is-reordering * {
 #settings-modal .settings-select {
     display: block;
     box-sizing: border-box;
-    width: 100%;
-    padding: 8px 38px 8px 12px;
+    padding: 8px 30px 8px 10px;
     border: 1px solid var(--border-color-medium);
     border-radius: 8px;
     background-color: var(--modal-bg);

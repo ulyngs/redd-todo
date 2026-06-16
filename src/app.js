@@ -216,6 +216,7 @@ let isFocusMode = false;
 let isDoneCollapsed = false; // New state for done section
 let doneMaxHeight = 140; // New state for done section resize
 let enableGroups = false; // Feature toggle for tab groups
+let enablePlan = false; // Feature toggle for plan mode
 let focusStartTime = null;
 let previousFocusStartTime = null;
 let focusDuration = null; // Expected duration in minutes for the current focus session
@@ -233,8 +234,6 @@ let preFocusMainWindowSize = null; // Restore size after in-window focus mode
 let currentView = 'lists'; // 'lists', 'favourites', or 'plan'
 let favouritesOrder = []; // Order of favourite task IDs for custom sorting
 let planModuleLoaded = false; // Track if plan module has been initialized
-/** When false, plan UI is hidden and entering plan view is blocked (no settings toggle). */
-const PLAN_MODE_ENABLED = false;
 let currentLang = 'en'; // Current language
 
 /** EULA / legal onboarding (persisted in redd-todo-data)
@@ -285,7 +284,9 @@ const translations = {
         themeDark: 'Dark',
         themeSystem: 'Auto',
         enableTabGroups: 'Tab Groups',
+        enablePlanMode: 'Calendar View (Danish style)',
         tabGroupsInfo: 'Organize your to-do lists into groups (shown in a top bar).',
+        planModeInfo: 'A Danish-style monthly calendar you can sync with important events from any external calendar, for a bird\u2019s-eye view of the months ahead.',
         dataManagement: 'Data',
         dataManagementDesc: 'Backup or restore your data.',
         exportBackup: 'Export Backup',
@@ -361,7 +362,9 @@ const translations = {
         themeDark: 'Mørk',
         themeSystem: 'Auto',
         enableTabGroups: 'Fanegrupper',
+        enablePlanMode: 'Kalendervisning (dansk stil)',
         tabGroupsInfo: 'Organiser dine to-do lister i grupper (vist i en topbar).',
+        planModeInfo: 'En dansk-inspireret m\u00e5nedskalender, du kan synkronisere med vigtige begivenheder fra enhver ekstern kalender \u2014 et fugleperspektiv over m\u00e5nederne forude.',
         dataManagement: 'Data',
         dataManagementDesc: 'Sikkerhedskopier eller gendan dine data.',
         exportBackup: 'Eksporter sikkerhedskopi',
@@ -697,10 +700,45 @@ function applyTranslations() {
     const settingsBtn = document.getElementById('settings-btn');
     if (settingsBtn) settingsBtn.title = t('settingsTooltip');
 
+    if (viewPlanBtn) viewPlanBtn.title = t('enablePlanMode');
+
     // Plan module - update labels if loaded
     if (planModuleLoaded && typeof PlanModule !== 'undefined' && PlanModule.refresh) {
         PlanModule.refresh();
     }
+
+    syncSettingsSelectWidths();
+}
+
+function syncSettingsSelectWidths() {
+    const languageSelectEl = document.getElementById('language-select');
+    const themeSelectEl = document.getElementById('theme-select');
+    if (!languageSelectEl || !themeSelectEl) return;
+
+    const measureSelectContentWidth = (select) => {
+        const selectedIndex = select.selectedIndex;
+        let maxWidth = 0;
+        for (let i = 0; i < select.options.length; i++) {
+            select.selectedIndex = i;
+            select.style.width = 'auto';
+            maxWidth = Math.max(maxWidth, select.offsetWidth);
+        }
+        select.selectedIndex = selectedIndex;
+        return maxWidth;
+    };
+
+    languageSelectEl.style.width = '';
+    themeSelectEl.style.width = '';
+
+    const width = Math.max(
+        measureSelectContentWidth(languageSelectEl),
+        measureSelectContentWidth(themeSelectEl)
+    );
+    if (width <= 0) return;
+
+    const px = `${width}px`;
+    languageSelectEl.style.width = px;
+    themeSelectEl.style.width = px;
 }
 
 function initLanguage() {
@@ -976,11 +1014,13 @@ function finishCommonInit() {
     updatePlanButtonVisibility();
 
     let savedView = localStorage.getItem('currentView');
-    if (!PLAN_MODE_ENABLED && savedView === 'plan') {
+    if (!enablePlan && savedView === 'plan') {
         savedView = 'lists';
         localStorage.setItem('currentView', 'lists');
     }
-    if (savedView === 'favourites') {
+    if (savedView === 'plan' && enablePlan) {
+        switchView('plan');
+    } else if (savedView === 'favourites') {
         switchView('favourites');
     } else {
         switchView('lists');
@@ -1317,11 +1357,13 @@ function applySerializedAppState(serializedState) {
             updatePlanButtonVisibility();
 
             let savedView = localStorage.getItem('currentView');
-            if (!PLAN_MODE_ENABLED && savedView === 'plan') {
+            if (!enablePlan && savedView === 'plan') {
                 savedView = 'lists';
                 localStorage.setItem('currentView', 'lists');
             }
-            if (savedView === 'favourites') {
+            if (savedView === 'plan' && enablePlan) {
+                switchView('plan');
+            } else if (savedView === 'favourites') {
                 switchView('favourites');
             } else {
                 switchView('lists');
@@ -2930,7 +2972,7 @@ function renderTabs() {
 }
 
 function switchView(viewName) {
-    if (viewName === 'plan' && !PLAN_MODE_ENABLED) {
+    if (viewName === 'plan' && !enablePlan) {
         viewName = 'lists';
     }
     if (currentView === viewName) return;
@@ -3003,10 +3045,10 @@ function switchView(viewName) {
 // Expose switchView globally so plan module can call it
 window.switchView = switchView;
 
-// Show plan toolbar button only when plan mode is built-in enabled.
+// Show plan toolbar button when plan mode is enabled in settings.
 function updatePlanButtonVisibility() {
     if (!viewPlanBtn) return;
-    if (PLAN_MODE_ENABLED) {
+    if (enablePlan) {
         viewPlanBtn.classList.remove('hidden');
     } else {
         viewPlanBtn.classList.add('hidden');
@@ -4094,6 +4136,11 @@ function setupEventListeners() {
             groupsToggle.checked = enableGroups;
         }
 
+        const planToggle = document.getElementById('enable-plan-toggle');
+        if (planToggle) {
+            planToggle.checked = enablePlan;
+        }
+
         // Show current version
         const versionEl = document.getElementById('current-app-version');
         if (versionEl) {
@@ -4107,6 +4154,8 @@ function setupEventListeners() {
                 versionEl.textContent = `${t('yourVersion')}: Error`;
             }
         }
+
+        requestAnimationFrame(() => syncSettingsSelectWidths());
     });
 
     // Groups toggle listener
@@ -4131,6 +4180,19 @@ function setupEventListeners() {
                     // Re-select current group to filter tabs correctly
                     switchToGroup(currentGroupId);
                 }
+            }
+        });
+    }
+
+    const planToggle = document.getElementById('enable-plan-toggle');
+    if (planToggle) {
+        planToggle.addEventListener('change', (e) => {
+            enablePlan = e.target.checked;
+            saveData();
+            updatePlanButtonVisibility();
+
+            if (!enablePlan && currentView === 'plan') {
+                switchView('lists');
             }
         });
     }
@@ -7239,6 +7301,7 @@ function saveData() {
         groups: groups,
         currentGroupId: currentGroupId,
         enableGroups: enableGroups,
+        enablePlan: enablePlan,
         favouritesOrder: favouritesOrder,
         rebrandOnboardingShown,
         eulaAccepted,
@@ -7298,6 +7361,7 @@ function loadData() {
             groups = data.groups || {};
             currentGroupId = data.currentGroupId || null;
             enableGroups = data.enableGroups !== undefined ? data.enableGroups : (Object.keys(groups).length > 0); // Default to true if groups exist, else false
+            enablePlan = data.enablePlan !== undefined ? data.enablePlan : false;
             favouritesOrder = data.favouritesOrder || [];
             rebrandOnboardingShown = data.rebrandOnboardingShown === true;
             eulaAccepted = data.eulaAccepted === true;
@@ -8314,7 +8378,7 @@ function restoreUiPrefsFromBackup(uiPrefs) {
     }
     if (typeof uiPrefs.currentView === 'string' && uiPrefs.currentView.length > 0) {
         let view = uiPrefs.currentView;
-        if (!PLAN_MODE_ENABLED && view === 'plan') {
+        if (!enablePlan && view === 'plan') {
             view = 'lists';
         }
         localStorage.setItem('currentView', view);
