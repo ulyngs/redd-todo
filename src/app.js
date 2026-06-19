@@ -310,6 +310,8 @@ const translations = {
         appleReminders: 'Apple Reminders',
         connectAppleReminders: 'Apple Reminders',
         connectedAppleReminders: 'Apple Reminders: Connected',
+        remindersContinue: 'Continue',
+        remindersContinuing: 'Continuing...',
         remindersInfo: 'Sync tasks with Apple Reminders.',
         connectBasecamp: 'Basecamp',
         connectedBasecamp: 'Basecamp: Connected',
@@ -394,6 +396,8 @@ const translations = {
         appleReminders: 'Apple Påmindelser',
         connectAppleReminders: 'Apple Påmindelser',
         connectedAppleReminders: 'Apple Påmindelser: Forbundet',
+        remindersContinue: 'Fortsæt',
+        remindersContinuing: 'Fortsætter...',
         remindersInfo: 'Importer opgaver fra Apple Påmindelser.',
         connectBasecamp: 'Basecamp',
         connectedBasecamp: 'Basecamp: Forbundet',
@@ -811,7 +815,7 @@ function applyTranslations() {
 
     const remindersConnectBtn = document.getElementById('reminders-connect-btn');
     if (remindersConnectBtn && !remindersConnectBtn.disabled) {
-        remindersConnectBtn.textContent = t('connect');
+        remindersConnectBtn.textContent = t('remindersContinue');
     }
 
     const oauthConnectBtn = document.getElementById('oauth-connect-btn');
@@ -4567,8 +4571,8 @@ function setupEventListeners() {
 
             remindersConnectBtn.addEventListener('click', async () => {
                 try {
-                    console.log('[Reminders] Connect clicked');
-                    remindersConnectBtn.textContent = 'Connecting...';
+                    console.log('[Reminders] Continue clicked');
+                    remindersConnectBtn.textContent = t('remindersContinuing');
                     remindersConnectBtn.disabled = true;
 
                     // Try to fetch lists to trigger permission prompt
@@ -4600,7 +4604,7 @@ function setupEventListeners() {
                             alert('Could not connect to Reminders. Please check permissions.' + (errMsg ? ` (${errMsg})` : ''));
                         }
                         remindersConnectBtn.disabled = false;
-                        remindersConnectBtn.textContent = t('connect');
+                        remindersConnectBtn.textContent = t('remindersContinue');
                     }
                 } catch (error) {
                     console.error(error);
@@ -4610,7 +4614,7 @@ function setupEventListeners() {
                         alert('Failed to connect to Reminders: ' + error);
                     }
                     remindersConnectBtn.disabled = false;
-                    remindersConnectBtn.textContent = t('connect');
+                    remindersConnectBtn.textContent = t('remindersContinue');
                 }
             });
         }
@@ -4624,9 +4628,9 @@ function setupEventListeners() {
             updateRemindersUI();
             updateSyncButtonState();
 
-            // Reset connect button state
+            // Reset continue button state
             remindersConnectBtn.disabled = false;
-            remindersConnectBtn.textContent = t('connect');
+            remindersConnectBtn.textContent = t('remindersContinue');
         });
     }
 
