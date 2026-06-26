@@ -4300,7 +4300,7 @@ input:checked+.slider:before {
     margin-bottom: 12px;
 }
 
-.enkelt-definition-pill {
+.redd-todo-tagline-pill {
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
@@ -4315,13 +4315,8 @@ input:checked+.slider:before {
     text-wrap: balance;
 }
 
-.enkelt-definition-word {
+.redd-todo-tagline-phrase {
     font-weight: 600;
-}
-
-.enkelt-definition-sep {
-    margin: 0 0.35em;
-    opacity: 0.55;
 }
 
 .legal-onboarding-content {
@@ -4476,7 +4471,7 @@ input:checked+.slider:before {
     border-color: var(--border-color-medium);
 }
 
-[data-theme="dark"] .enkelt-definition-pill {
+[data-theme="dark"] .redd-todo-tagline-pill {
     background: rgba(255, 255, 255, 0.08);
 }
 

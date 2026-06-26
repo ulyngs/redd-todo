@@ -1,10 +1,10 @@
 // Calendar Sync Module for Plan Mode
-// Fetches and parses ICS calendar feeds, filtering events whose description starts with ENKELT or REDD-DO as the first word
+// Fetches and parses ICS calendar feeds, filtering events whose description starts with REDD-TODO, ENKELT, or legacy REDD-DO as the first word
 
 const CalendarSync = (function () {
     'use strict';
 
-    const CALENDAR_MARKERS = ['enkelt', 'redd-do'];
+    const CALENDAR_MARKERS = ['redd-todo', 'enkelt', 'redd-do'];
 
     function getDescriptionMarkerWord(text) {
         const desc = (text || '').trim().toLowerCase();
@@ -98,7 +98,7 @@ const CalendarSync = (function () {
         }
     }
 
-    // Filter events whose description begins with ENKELT or legacy REDD-DO as the first word
+    // Filter events whose description begins with REDD-TODO, ENKELT, or legacy REDD-DO as the first word
     // AND within date range: 2 months ago to 1 year in the future
     function filterReddDoEvents(events) {
         const now = new Date();
@@ -120,11 +120,11 @@ const CalendarSync = (function () {
         });
     }
 
-    // Extract display text from description (remove "ENKELT" or legacy "REDD-DO" prefix)
+    // Extract display text from description (remove REDD-TODO, ENKELT, or legacy REDD-DO prefix)
     function getDisplayText(event) {
         const desc = (event.description || '').trim();
         // Remove marker prefix (case-insensitive) and any following whitespace/punctuation
-        const cleaned = desc.replace(/^(enkelt|redd-do)[\s:,-]*/i, '').trim();
+        const cleaned = desc.replace(/^(redd-todo|enkelt|redd-do)[\s:,-]*/i, '').trim();
         // If there's remaining text, use it; otherwise fall back to summary
         return cleaned || event.summary || 'Calendar Event';
     }
@@ -264,7 +264,7 @@ const CalendarSync = (function () {
         console.log('[CalendarSync] Parsed events:', allEvents.length);
 
         const filteredEvents = filterReddDoEvents(allEvents);
-        console.log('[CalendarSync] Filtered ENKELT/REDD-DO events:', filteredEvents.length);
+        console.log('[CalendarSync] Filtered REDD-TODO/ENKELT/REDD-DO events:', filteredEvents.length);
 
         const notes = [];
         const lines = [];

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Enkelt",
-  "version": "2.7.3",
+  "productName": "ReDD To-Do",
+  "version": "2.7.4",
   "identifier": "com.redd.do",
   "build": {
     "frontendDist": "../src"
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Enkelt",
+        "title": "ReDD To-Do",
         "width": 540,
         "height": 600,
         "minWidth": 460,
@@ -49,6 +49,8 @@
     ],
     "category": "Productivity",
     "copyright": "Copyright © 2026 Reduce Digital Distraction Ltd",
+    "shortDescription": "ReDD To-Do: Goals in Sight",
+    "longDescription": "ReDD To-Do: Goals in Sight helps you stay focused with a calm, distraction-free todo app, focus mode, and time tracking. Your data lives on your device — nothing is collected.",
     "macOS": {
       "entitlements": null,
       "exceptionDomain": "",
@@ -73,7 +75,8 @@
     "deep-link": {
       "desktop": {
         "schemes": [
-          "redddo"
+          "redddo",
+          "reddtodo"
         ]
       }
     }

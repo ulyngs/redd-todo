@@ -66,7 +66,7 @@ exports.handler = async function (event, context) {
             const localhostPort = getLocalCallbackPort(state);
             if (localhostPort) {
                 const localhostUrl = `http://127.0.0.1:${localhostPort}/callback?${params.toString()}`;
-                const fallbackUrl = `redddo://oauth-callback?${params.toString()}`;
+                const fallbackUrl = `reddtodo://oauth-callback?${params.toString()}`;
                 return {
                     statusCode: 200,
                     headers: {
@@ -77,7 +77,7 @@ exports.handler = async function (event, context) {
                         localhostUrl,
                         fallbackUrl,
                         success: true,
-                        message: 'Sending Basecamp authentication back to Enkelt...'
+                        message: 'Sending Basecamp authentication back to ReDD To-Do...'
                     })
                 };
             }
@@ -85,7 +85,7 @@ exports.handler = async function (event, context) {
             return {
                 statusCode: 302,
                 headers: {
-                    Location: `redddo://oauth-callback?${params.toString()}`
+                    Location: `reddtodo://oauth-callback?${params.toString()}`
                 }
             };
 
@@ -100,7 +100,7 @@ exports.handler = async function (event, context) {
             const localhostPort = getLocalCallbackPort(state);
             if (localhostPort) {
                 const localhostUrl = `http://127.0.0.1:${localhostPort}/callback?${errorParams.toString()}`;
-                const fallbackUrl = `redddo://oauth-callback?${errorParams.toString()}`;
+                const fallbackUrl = `reddtodo://oauth-callback?${errorParams.toString()}`;
                 return {
                     statusCode: 200,
                     headers: {
@@ -119,7 +119,7 @@ exports.handler = async function (event, context) {
             return {
                 statusCode: 302,
                 headers: {
-                    Location: `redddo://oauth-callback?${errorParams.toString()}`
+                    Location: `reddtodo://oauth-callback?${errorParams.toString()}`
                 }
             };
         }
@@ -185,8 +185,8 @@ function escapeHtml(value) {
 
 function buildLocalBridgePage({ localhostUrl, fallbackUrl, success, message }) {
     const safeLocalhostUrl = JSON.stringify(localhostUrl);
-    const title = success ? 'Connecting Enkelt' : 'Authentication Issue';
-    const primaryLabel = success ? 'Continue in Enkelt' : 'Return to Enkelt';
+    const title = success ? 'Connecting ReDD To-Do' : 'Authentication Issue';
+    const primaryLabel = success ? 'Continue in ReDD To-Do' : 'Return to ReDD To-Do';
     const secondaryLabel = 'Use legacy fallback';
 
     return `<!doctype html>
@@ -264,7 +264,7 @@ function buildLocalBridgePage({ localhostUrl, fallbackUrl, success, message }) {
       }, { once: true });
 
       setTimeout(() => {
-        statusEl.textContent = 'If Enkelt did not open, use the button above.';
+        statusEl.textContent = 'If ReDD To-Do did not open, use the button above.';
         primaryLink.focus();
       }, 1500);
     </script>

@@ -305,7 +305,7 @@ try {
   }
 
   // 2) Locate generated .app.
-  const productName = appStoreConfig.productName || 'Enkelt';
+  const productName = appStoreConfig.productName || 'ReDD To-Do';
   const appBundlePath = path.join(
     repoRoot,
     'src-tauri',
@@ -373,7 +373,7 @@ try {
   // 5) Build MAS upload package (.pkg) for Transporter.
   const outputDir = path.join(repoRoot, 'for-distribution');
   fs.mkdirSync(outputDir, { recursive: true });
-  const pkgPath = path.join(outputDir, `${productName}.pkg`);
+  const pkgPath = path.join(outputDir, 'ReDD-To-Do.pkg');
   if (fs.existsSync(pkgPath)) fs.rmSync(pkgPath, { force: true });
 
   runOrThrow('productbuild', [

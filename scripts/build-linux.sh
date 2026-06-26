@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET_TRIPLE="x86_64-unknown-linux-gnu"
-IMAGE_NAME="redd-do-linux-builder:latest"
+IMAGE_NAME="redd-todo-linux-builder:latest"
 DOCKERFILE_PATH="${ROOT_DIR}/scripts/docker/linux-builder.Dockerfile"
 
 if [[ "$(uname -s)" == "Linux" ]]; then
@@ -50,7 +50,7 @@ docker run --rm \
   "${IMAGE_NAME}" \
   bash -lc "
     set -euo pipefail
-    TMP_BUILD_DIR=/tmp/redd-do-linux-build
+    TMP_BUILD_DIR=/tmp/redd-todo-linux-build
     rm -rf \${TMP_BUILD_DIR}
     mkdir -p \${TMP_BUILD_DIR}
     cp -a /workspace/. \${TMP_BUILD_DIR}/repo

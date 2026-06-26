@@ -100,7 +100,9 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             // Handle deep link URL passed to running instance
-            if let Some(url) = argv.iter().find(|arg| arg.starts_with("redddo://")) {
+            if let Some(url) = argv.iter().find(|arg| {
+                arg.starts_with("redddo://") || arg.starts_with("reddtodo://")
+            }) {
                 log::info!("[Deep Link] Received URL from new instance: {}", url);
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.emit("deep-link-received", url);
@@ -140,14 +142,14 @@ pub fn run() {
                 let app_handle = app.handle();
 
                 let about_metadata = AboutMetadataBuilder::new()
-                    .name(Some("Enkelt"))
+                    .name(Some("ReDD To-Do"))
                     .version(Some(env!("CARGO_PKG_VERSION")))
                     .authors(Some(vec![
                         "The Reduce Digital Distraction Project".to_string()
                     ]))
                     .comments(Some(
                         "Get back to that thing you meant to do.\n\n\
-                        Enkelt is a calm, distraction-free todo app with focus \
+                        ReDD To-Do is a calm, distraction-free todo app with focus \
                         mode and time tracking. Your data lives on your device — \
                         nothing is collected.\n\n\
                         Built by the Reduce Digital Distraction Project, a \
@@ -164,11 +166,11 @@ pub fn run() {
 
                 let about_item = PredefinedMenuItem::about(
                     app_handle,
-                    Some("About Enkelt"),
+                    Some("About ReDD To-Do"),
                     Some(about_metadata),
                 )?;
 
-                let app_submenu = SubmenuBuilder::new(app_handle, "Enkelt")
+                let app_submenu = SubmenuBuilder::new(app_handle, "ReDD To-Do")
                     .item(&about_item)
                     .separator()
                     .services()

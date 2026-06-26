@@ -95,7 +95,7 @@ if (!appleId || !teamId || !appSpecificPassword) {
 
 const tauriConfig = getTauriConfig();
 const version = tauriConfig.version;
-const productName = tauriConfig.productName || 'Enkelt';
+const productName = tauriConfig.productName || 'ReDD To-Do';
 if (!version) {
   fail('Missing version in src-tauri/tauri.conf.json');
 }
@@ -106,7 +106,7 @@ if (!sourceDmgPath) {
 }
 
 fs.mkdirSync(distDir, { recursive: true });
-const outputDmgPath = path.join(distDir, `enkelt-${version}-universal.dmg`);
+const outputDmgPath = path.join(distDir, `redd-todo-${version}-universal.dmg`);
 
 const appIdentity =
   tauriConfig?.bundle?.macOS?.signingIdentity ||
@@ -120,8 +120,8 @@ if (!fs.existsSync(entitlementsPath)) {
   fail(`Missing entitlements file: ${entitlementsPath}`);
 }
 
-const tempMountPoint = path.join('/tmp', `redd-do-dmg-mount-${Date.now()}`);
-const tempStageDir = path.join('/tmp', `redd-do-dmg-stage-${Date.now()}`);
+const tempMountPoint = path.join('/tmp', `redd-todo-dmg-mount-${Date.now()}`);
+const tempStageDir = path.join('/tmp', `redd-todo-dmg-stage-${Date.now()}`);
 fs.mkdirSync(tempMountPoint, { recursive: true });
 fs.mkdirSync(tempStageDir, { recursive: true });
 

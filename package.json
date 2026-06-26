@@ -1,7 +1,7 @@
 {
   "name": "redd-todo",
-  "version": "2.7.3",
-  "description": "Enkelt: To-Do & Floating Task Pin - keep your goals in sight and get back to what you wanted to do",
+  "version": "2.7.4",
+  "description": "ReDD To-Do: Goals in Sight - keep your goals in sight and get back to what you wanted to do",
   "scripts": {
     "dev": "tauri dev",
     "tauri:build:mas-app": "APP_STORE=1 CI=true tauri build --target universal-apple-darwin --bundles app --config src-tauri/tauri.appstore.temp.conf.json",

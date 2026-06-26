@@ -256,6 +256,7 @@ let eulaRevisionPendingAccept = null;
 let eulaListenersAttached = false;
 let windowControlsInitialized = false;
 let rebrandOnboardingShown = false;
+let rebrandReddTodoOnboardingShown = false;
 let distributionChannel = 'desktop';
 
 // Translations
@@ -339,15 +340,15 @@ const translations = {
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
-            'ReDD Do is now <span class="rebrand-onboarding-title-brand">Enkelt</span>',
+            'Enkelt is now <span class="rebrand-onboarding-title-brand">ReDD To-Do</span>',
         rebrandOnboardingSubtitle:
             'All functionality is unchanged — it\u2019s just a new name that reflects what the app is for.',
-        rebrandOnboardingWord: 'en·kelt',
-        rebrandOnboardingIpa: '/ˈɛŋ.kəl/',
-        rebrandOnboardingLanguage: 'Danish',
-        rebrandOnboardingPartOfSpeech: 'noun',
+        rebrandOnboardingWord: 'Goals in Sight',
+        rebrandOnboardingIpa: '',
+        rebrandOnboardingLanguage: 'ReDD To-Do',
+        rebrandOnboardingPartOfSpeech: 'tagline',
         rebrandOnboardingDefinitionHtml:
-            '<em class="rebrand-definition-quote">\u201csimple; single.\u201d</em> Keep one clear task in sight, so you can focus on what matters most.',
+            '<em class="rebrand-definition-quote">\u201cGoals in Sight.\u201d</em> Keep your goals in sight and get back to what you wanted to do.',
         rebrandOnboardingContinueBtn: 'Continue',
     },
     da: {
@@ -425,15 +426,15 @@ const translations = {
         // Time
         minutes: 'm',
         rebrandOnboardingTitleHtml:
-            'ReDD Do hedder nu <span class="rebrand-onboarding-title-brand">Enkelt</span>',
+            'Enkelt hedder nu <span class="rebrand-onboarding-title-brand">ReDD To-Do</span>',
         rebrandOnboardingSubtitle:
             'Al funktionalitet er u\u00e6ndret \u2014 det er bare et nyt navn, der afspejler, hvad appen er til.',
-        rebrandOnboardingWord: 'en·kelt',
-        rebrandOnboardingIpa: '/ˈɛŋ.kəl/',
-        rebrandOnboardingLanguage: 'Dansk',
-        rebrandOnboardingPartOfSpeech: 'substantiv',
+        rebrandOnboardingWord: 'Goals in Sight',
+        rebrandOnboardingIpa: '',
+        rebrandOnboardingLanguage: 'ReDD To-Do',
+        rebrandOnboardingPartOfSpeech: 'tagline',
         rebrandOnboardingDefinitionHtml:
-            '<em class="rebrand-definition-quote">\u201csimpel; enkelt.\u201d</em> \u00c9n opgave ad gangen i sigte \u2014 holdt enkelt, s\u00e5 du kan fokusere p\u00e5 det, der betyder mest.',
+            '<em class="rebrand-definition-quote">\u201cGoals in Sight.\u201d</em> Hold dine m\u00e5l i sigte, og kom tilbage til det, du ville.',
         rebrandOnboardingContinueBtn: 'Fortsæt',
     }
 };
@@ -879,7 +880,7 @@ function hasLegacyReddDoData() {
 }
 
 function shouldShowRebrandOnboarding() {
-    return isStoreUpgradeChannel() && hasLegacyReddDoData() && !rebrandOnboardingShown;
+    return isStoreUpgradeChannel() && hasLegacyReddDoData() && !rebrandReddTodoOnboardingShown;
 }
 
 function hideRebrandOnboarding() {
@@ -897,7 +898,11 @@ function applyRebrandOnboardingLanguage() {
     if (word) word.textContent = t('rebrandOnboardingWord');
 
     const ipa = document.getElementById('rebrand-onboarding-ipa');
-    if (ipa) ipa.textContent = t('rebrandOnboardingIpa');
+    if (ipa) {
+        const ipaText = t('rebrandOnboardingIpa');
+        ipa.textContent = ipaText;
+        ipa.hidden = !ipaText;
+    }
 
     const language = document.getElementById('rebrand-onboarding-language');
     if (language) language.textContent = t('rebrandOnboardingLanguage');
@@ -920,6 +925,7 @@ function showRebrandOnboarding() {
 }
 
 function persistRebrandOnboardingShown() {
+    rebrandReddTodoOnboardingShown = true;
     rebrandOnboardingShown = true;
     saveData();
 }
@@ -7492,7 +7498,7 @@ if (reddIsTauri && typeof tauriAPI !== 'undefined') {
 
         try {
             const parsed = new URL(url);
-            if (parsed.protocol !== 'redddo:' || parsed.hostname !== 'oauth-callback') {
+            if ((parsed.protocol !== 'redddo:' && parsed.protocol !== 'reddtodo:') || parsed.hostname !== 'oauth-callback') {
                 console.log('[Basecamp OAuth] Ignoring non-OAuth deep link');
                 return;
             }
@@ -7592,6 +7598,7 @@ function saveData() {
         enablePlan: enablePlan,
         favouritesOrder: favouritesOrder,
         rebrandOnboardingShown,
+        rebrandReddTodoOnboardingShown,
         eulaAccepted,
         eulaAcceptedVersion,
         eulaAcceptedAt
@@ -7652,6 +7659,7 @@ function loadData() {
             enablePlan = data.enablePlan !== undefined ? data.enablePlan : false;
             favouritesOrder = data.favouritesOrder || [];
             rebrandOnboardingShown = data.rebrandOnboardingShown === true;
+            rebrandReddTodoOnboardingShown = data.rebrandReddTodoOnboardingShown === true;
             eulaAccepted = data.eulaAccepted === true;
             eulaAcceptedVersion = data.eulaAcceptedVersion != null ? String(data.eulaAcceptedVersion) : null;
             eulaAcceptedAt = data.eulaAcceptedAt != null ? data.eulaAcceptedAt : null;
@@ -8695,7 +8703,7 @@ function exportData() {
 
         // Format date: YYYY-MM-DD
         const date = new Date().toISOString().split('T')[0];
-        a.download = `enkelt-backup-${date}.json`;
+        a.download = `redd-todo-backup-${date}.json`;
         a.href = url;
         a.click();
 

@@ -144,7 +144,7 @@ fn start_local_callback_server(app: AppHandle, client_id: String) {
                             let response = tiny_http::Response::from_string(
                                 "<html><body style=\"font-family: system-ui; text-align: center; padding-top: 50px;\">
                                 <h1>Authentication successful!</h1>
-                                <p>You can close this window and return to Enkelt.</p>
+                                <p>You can close this window and return to ReDD To-Do.</p>
                                 <script>window.close()</script>
                                 </body></html>"
                             ).with_header(
@@ -289,7 +289,7 @@ fn start_local_token_bridge_server(app: AppHandle) -> Result<u16, String> {
 
                     let response = tiny_http::Response::from_string(build_callback_html(
                         true,
-                        "Authentication successful. You can return to Enkelt.",
+                        "Authentication successful. You can return to ReDD To-Do.",
                     ))
                     .with_header(
                         tiny_http::Header::from_bytes(

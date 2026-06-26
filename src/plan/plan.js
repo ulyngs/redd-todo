@@ -595,8 +595,8 @@ const PlanModule = (function () {
         saveData();
     }
 
-    function getEnkeltTasksChipLabel() {
-        return currentLanguage === 'da' ? 'Enkelt-opgaver' : 'Enkelt tasks';
+    function getReddTodoTasksChipLabel() {
+        return currentLanguage === 'da' ? 'ReDD To-Do-opgaver' : 'ReDD To-Do tasks';
     }
 
     function appendChipColorPopover(colorWrapper, colorDot, currentColor, applyColor) {
@@ -657,7 +657,7 @@ const PlanModule = (function () {
         });
     }
 
-    function renderEnkeltTasksChip(togglesContainer, eyeOpenSVG, eyeClosedSVG) {
+    function renderReddTodoTasksChip(togglesContainer, eyeOpenSVG, eyeClosedSVG) {
         if (!hasTaskPlannerEntries()) return;
 
         if (taskChipSettings.visible === undefined) taskChipSettings.visible = true;
@@ -665,11 +665,11 @@ const PlanModule = (function () {
 
         const chip = document.createElement('div');
         chip.className = 'plan-calendar-toggle plan-task-chip' + (taskChipSettings.visible ? '' : ' hidden-cal');
-        chip.title = 'Toggle Enkelt tasks • Change color';
+        chip.title = 'Toggle ReDD To-Do tasks • Change color';
 
         chip.innerHTML = `
             <span class="calendar-toggle-eye">${taskChipSettings.visible ? eyeOpenSVG : eyeClosedSVG}</span>
-            <span class="calendar-name">${getEnkeltTasksChipLabel()}</span>
+            <span class="calendar-name">${getReddTodoTasksChipLabel()}</span>
             <span class="calendar-toggle-color" title="Change task color">
                 <span class="calendar-color-dot" style="background: ${chipColor}"></span>
             </span>
@@ -920,7 +920,7 @@ const PlanModule = (function () {
                         <input type="text" class="plan-calendar-url-input" placeholder="ICS URL (https:// or webcal://)">
                         <button class="plan-calendar-add-save-btn">Add Calendar</button>
                     </div>
-                    <p class="plan-calendar-hint">Events whose description starts with ENKELT or REDD-DO as the first word will be shown</p>
+                    <p class="plan-calendar-hint">Events whose description starts with REDD-TODO, ENKELT, or REDD-DO as the first word will be shown</p>
                     <div class="plan-calendar-status"></div>
                 </div>
             </div>
@@ -2250,7 +2250,7 @@ const PlanModule = (function () {
         const el = document.createElement('span');
         el.className = 'plan-note-text freeform';
 
-        // Add class for synced planner events (calendars + Enkelt tasks)
+        // Add class for synced planner events (calendars + ReDD To-Do tasks)
         if (note.source === 'calendar' || note.source === 'task') {
             el.classList.add('calendar-event');
         }
@@ -4160,7 +4160,7 @@ const PlanModule = (function () {
                 togglesContainer.appendChild(chip);
             });
 
-            renderEnkeltTasksChip(togglesContainer, eyeOpenSVG, eyeClosedSVG);
+            renderReddTodoTasksChip(togglesContainer, eyeOpenSVG, eyeClosedSVG);
         }
         refreshCalendarToggles = renderCalendarToggles;
         syncAllCalendarsFn = syncAllCalendars;

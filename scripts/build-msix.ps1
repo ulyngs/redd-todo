@@ -41,7 +41,7 @@ if (-not $IdentityName -or -not $Publisher) {
     exit 1
 }
 
-Write-Host "  App: Enkelt v$AppVersion" -ForegroundColor White
+Write-Host "  App: ReDD To-Do v$AppVersion" -ForegroundColor White
 Write-Host "  Architecture: $Architecture" -ForegroundColor White
 Write-Host "  Identity: $IdentityName" -ForegroundColor White
 Write-Host ""
@@ -53,7 +53,7 @@ $msixArch = $archMap[$Architecture]
 $target = $tauriTarget[$Architecture]
 
 # Find the built Tauri exe
-$tauriExe = Join-Path $ProjectRoot "src-tauri\target\$target\release\redd-do.exe"
+$tauriExe = Join-Path $ProjectRoot "src-tauri\target\$target\release\redd-todo.exe"
 if (-not (Test-Path $tauriExe)) {
     Write-Host "ERROR: Tauri exe not found at $tauriExe" -ForegroundColor Red
     Write-Host "Run 'npm run build:win' first." -ForegroundColor Yellow
@@ -158,7 +158,7 @@ $manifest = @"
     ProcessorArchitecture="$msixArch" />
   
   <Properties>
-    <DisplayName>Enkelt</DisplayName>
+    <DisplayName>ReDD To-Do</DisplayName>
     <PublisherDisplayName>$PublisherDisplayName</PublisherDisplayName>
     <Logo>Assets\StoreLogo.scale-100.png</Logo>
   </Properties>
@@ -174,8 +174,8 @@ $manifest = @"
   <Applications>
     <Application Id="App" Executable="redd-todo.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements 
-        DisplayName="Enkelt" 
-        Description="Keep your goals in sight and get back to what you wanted to do"
+        DisplayName="ReDD To-Do" 
+        Description="ReDD To-Do: Goals in Sight — keep your goals in sight and get back to what you wanted to do"
         BackgroundColor="transparent" 
         Square150x150Logo="Assets\Square150x150Logo.scale-100.png"
         Square44x44Logo="Assets\Square44x44Logo.scale-100.png">
@@ -196,8 +196,7 @@ Write-Host "  [3/4] Staging files..." -ForegroundColor Gray
 
 # Copy the Tauri exe
 Copy-Item $tauriExe $stagingDir
-Rename-Item (Join-Path $stagingDir "redd-do.exe") "redd-todo.exe"
-Write-Host "    Copied redd-do.exe -> redd-todo.exe ($([math]::Round((Get-Item $tauriExe).Length / 1MB, 1)) MB)" -ForegroundColor Gray
+Write-Host "    Copied redd-todo.exe ($([math]::Round((Get-Item $tauriExe).Length / 1MB, 1)) MB)" -ForegroundColor Gray
 
 # Copy WebView2Loader.dll if present
 $wv2Loader = Join-Path $ProjectRoot "src-tauri\target\$target\release\WebView2Loader.dll"
@@ -218,7 +217,7 @@ Write-Host "  [4/4] Creating MSIX package..." -ForegroundColor Gray
 # Output path
 $distDir = Join-Path $ProjectRoot "for-distribution\$target"
 if (-not (Test-Path $distDir)) { New-Item -ItemType Directory -Path $distDir | Out-Null }
-$msixPath = Join-Path $distDir "Enkelt_${MsixVersion}_${msixArch}.msix"
+$msixPath = Join-Path $distDir "ReDD-To-Do_${MsixVersion}_${msixArch}.msix"
 
 # Run makeappx
 & $makeappx.FullName pack /d $stagingDir /p $msixPath /o
