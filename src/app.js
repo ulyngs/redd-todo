@@ -343,12 +343,6 @@ const translations = {
             'Enkelt is now <span class="rebrand-onboarding-title-brand">ReDD To-Do</span>',
         rebrandOnboardingSubtitle:
             'All functionality is unchanged — it\u2019s just a new name that reflects what the app is for.',
-        rebrandOnboardingWord: 'Goals in Sight',
-        rebrandOnboardingIpa: '',
-        rebrandOnboardingLanguage: 'ReDD To-Do',
-        rebrandOnboardingPartOfSpeech: 'tagline',
-        rebrandOnboardingDefinitionHtml:
-            '<em class="rebrand-definition-quote">\u201cGoals in Sight.\u201d</em> Keep your goals in sight and get back to what you wanted to do.',
         rebrandOnboardingContinueBtn: 'Continue',
     },
     da: {
@@ -429,12 +423,6 @@ const translations = {
             'Enkelt hedder nu <span class="rebrand-onboarding-title-brand">ReDD To-Do</span>',
         rebrandOnboardingSubtitle:
             'Al funktionalitet er u\u00e6ndret \u2014 det er bare et nyt navn, der afspejler, hvad appen er til.',
-        rebrandOnboardingWord: 'Goals in Sight',
-        rebrandOnboardingIpa: '',
-        rebrandOnboardingLanguage: 'ReDD To-Do',
-        rebrandOnboardingPartOfSpeech: 'tagline',
-        rebrandOnboardingDefinitionHtml:
-            '<em class="rebrand-definition-quote">\u201cGoals in Sight.\u201d</em> Hold dine m\u00e5l i sigte, og kom tilbage til det, du ville.',
         rebrandOnboardingContinueBtn: 'Fortsæt',
     }
 };
@@ -893,25 +881,6 @@ function applyRebrandOnboardingLanguage() {
 
     const subtitle = document.getElementById('rebrand-onboarding-subtitle');
     if (subtitle) subtitle.textContent = t('rebrandOnboardingSubtitle');
-
-    const word = document.getElementById('rebrand-onboarding-word');
-    if (word) word.textContent = t('rebrandOnboardingWord');
-
-    const ipa = document.getElementById('rebrand-onboarding-ipa');
-    if (ipa) {
-        const ipaText = t('rebrandOnboardingIpa');
-        ipa.textContent = ipaText;
-        ipa.hidden = !ipaText;
-    }
-
-    const language = document.getElementById('rebrand-onboarding-language');
-    if (language) language.textContent = t('rebrandOnboardingLanguage');
-
-    const partOfSpeech = document.getElementById('rebrand-onboarding-part-of-speech');
-    if (partOfSpeech) partOfSpeech.textContent = t('rebrandOnboardingPartOfSpeech');
-
-    const definition = document.getElementById('rebrand-onboarding-definition');
-    if (definition) definition.innerHTML = t('rebrandOnboardingDefinitionHtml');
 
     const continueBtn = document.getElementById('rebrand-onboarding-continue-btn');
     if (continueBtn) continueBtn.textContent = t('rebrandOnboardingContinueBtn');

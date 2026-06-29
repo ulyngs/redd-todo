@@ -4495,89 +4495,11 @@ input:checked+.slider:before {
 
 .rebrand-onboarding-subtitle {
     max-width: 26em;
-    margin: 0 auto 14px;
+    margin: 0 auto 28px;
     color: var(--text-muted);
     font-size: 15px;
     line-height: 1.5;
     text-wrap: balance;
-}
-
-.rebrand-definition-card {
-    margin-top: 6px;
-    margin-bottom: 18px;
-    padding: 18px 20px;
-    border: 1px solid var(--border-color);
-    border-left: 3px solid var(--accent-color);
-    border-radius: 12px;
-    background: rgba(30, 45, 62, 0.06);
-    text-align: left;
-}
-
-[data-theme="dark"] .rebrand-definition-card {
-    background: rgba(255, 255, 255, 0.04);
-}
-
-.rebrand-definition-title-line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.45em 0.65em;
-    margin-bottom: 2px;
-}
-
-.rebrand-definition-word {
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 22px;
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--text-primary);
-}
-
-.rebrand-definition-ipa {
-    font-size: 14px;
-    line-height: 1.3;
-    color: var(--text-muted);
-}
-
-.rebrand-definition-meta-line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.35em;
-    margin-bottom: 10px;
-}
-
-.rebrand-definition-language {
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1.3;
-    color: var(--accent-color);
-}
-
-.rebrand-definition-part-of-speech {
-    font-size: 13px;
-    font-style: italic;
-    line-height: 1.3;
-    color: var(--text-muted);
-}
-
-.rebrand-definition-body {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.55;
-    color: var(--text-secondary);
-    text-wrap: pretty;
-}
-
-#rebrand-onboarding .rebrand-definition-body .rebrand-definition-quote {
-    font-family: Georgia, 'Times New Roman', serif;
-    font-style: italic;
-    font-weight: 400;
-    color: var(--text-primary);
-}
-
-[data-theme="dark"] #rebrand-onboarding .rebrand-definition-body .rebrand-definition-quote {
-    color: #ffffff;
 }
 
 .rebrand-onboarding-continue-btn {
