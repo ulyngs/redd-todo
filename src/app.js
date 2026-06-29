@@ -8650,36 +8650,106 @@ function restoreUiPrefsFromBackup(uiPrefs) {
     }
 }
 
-function exportData() {
+function buildBackupExportPayload() {
+    saveData();
+    const exportObj = JSON.parse(localStorage.getItem('redd-todo-data'));
+    if (!exportObj) {
+        throw new Error('No data to export.');
+    }
+    exportObj.planData = collectPlanDataForBackup();
+    exportObj.uiPrefs = collectUiPrefsForBackup();
+    return exportObj;
+}
+
+async function exportData() {
     try {
-        const todoData = localStorage.getItem('redd-todo-data');
-        if (!todoData) {
-            alert('No data to export!');
+        const exportJson = `${JSON.stringify(buildBackupExportPayload(), null, 2)}\n`;
+        const filename = `redd-todo-backup-${new Date().toISOString().split('T')[0]}.json`;
+
+        if (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.saveTextFile) {
+            await tauriAPI.saveTextFile({
+                title: 'Export ReDD To-Do Backup',
+                defaultPath: filename,
+                contents: exportJson
+            });
             return;
         }
 
-        // Parse the main data
-        const exportObj = JSON.parse(todoData);
-
-        // Add all plan mode data (manual notes/lines/groups and calendar sync config).
-        exportObj.planData = collectPlanDataForBackup();
-        // Add UI preferences.
-        exportObj.uiPrefs = collectUiPrefsForBackup();
-
-        const blob = new Blob([JSON.stringify(exportObj)], { type: 'application/json' });
+        const blob = new Blob([exportJson], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-
-        // Format date: YYYY-MM-DD
-        const date = new Date().toISOString().split('T')[0];
-        a.download = `redd-todo-backup-${date}.json`;
+        a.download = filename;
         a.href = url;
         a.click();
-
         URL.revokeObjectURL(url);
     } catch (e) {
         console.error('Export failed:', e);
         alert('Failed to export data.');
+    }
+}
+
+async function restoreBackupData(data) {
+    if (!data.tabs) {
+        throw new Error('Invalid backup file format.');
+    }
+
+    const settingsWereOpen = settingsModal && !settingsModal.classList.contains('hidden');
+    settingsModal?.classList.add('hidden');
+
+    const confirmRestore = await showConfirmModal(
+        'Restore Backup',
+        'This will overwrite your current data and reload the app. Proceed?',
+        'Restore',
+        'Cancel'
+    );
+
+    if (!confirmRestore) {
+        if (settingsWereOpen) {
+            settingsModal.classList.remove('hidden');
+        }
+        return;
+    }
+
+    const planData = data.planData;
+    const uiPrefs = data.uiPrefs;
+    delete data.planData;
+    delete data.uiPrefs;
+
+    localStorage.setItem('redd-todo-data', JSON.stringify(data));
+    localStorage.removeItem('redd-task-data');
+
+    clearAllPlanStorage();
+    if (planData) {
+        Object.keys(planData).forEach(shortKey => {
+            const fullKey = PLAN_STORAGE_PREFIX + shortKey;
+            const value = planData[shortKey];
+            localStorage.setItem(
+                fullKey,
+                typeof value === 'string' ? value : JSON.stringify(value)
+            );
+        });
+    }
+
+    restoreUiPrefsFromBackup(uiPrefs);
+    window.location.reload();
+}
+
+async function importDataFromFilePicker() {
+    try {
+        if (reddIsTauri && typeof tauriAPI !== 'undefined' && tauriAPI.openTextFile) {
+            const content = await tauriAPI.openTextFile({
+                title: 'Import ReDD To-Do Backup'
+            });
+            if (!content) return;
+            await restoreBackupData(JSON.parse(content));
+            return;
+        }
+
+        document.getElementById('import-file-input')?.click();
+    } catch (err) {
+        console.error('Import failed:', err);
+        alert('Failed to import data: ' + err.message);
+        document.getElementById('import-file-input').value = '';
     }
 }
 
@@ -8689,93 +8759,50 @@ function importData(file) {
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
-            const content = e.target.result;
-            const data = JSON.parse(content);
-
-            // Simple validation: check if it looks like our data structure
-            // Just checking if 'tabs' exists is a decent heuristic for now
-            if (!data.tabs) {
-                throw new Error('Invalid backup file format.');
-            }
-
-            const confirmRestore = await showConfirmModal(
-                'Restore Backup',
-                'This will overwrite all your current data with the backup.\n\nAre you sure you want to proceed?',
-                'Restore',
-                'Cancel'
-            );
-
-            if (confirmRestore) {
-                // Extract plan data before saving main data
-                const planData = data.planData;
-                const uiPrefs = data.uiPrefs;
-                delete data.planData; // Remove from main data object
-                delete data.uiPrefs; // Remove from main data object
-
-                // Save main to-do data to localStorage
-                localStorage.setItem('redd-todo-data', JSON.stringify(data));
-
-                // Clear old key too just in case to avoid confusion
-                localStorage.removeItem('redd-task-data');
-
-                // Restore plan mode data if present
-                clearAllPlanStorage();
-                if (planData) {
-                    Object.keys(planData).forEach(shortKey => {
-                        const fullKey = PLAN_STORAGE_PREFIX + shortKey;
-                        const value = planData[shortKey];
-                        localStorage.setItem(
-                            fullKey,
-                            typeof value === 'string' ? value : JSON.stringify(value)
-                        );
-                    });
-                }
-
-                // Restore UI preferences if present
-                restoreUiPrefsFromBackup(uiPrefs);
-
-                alert('Backup restored successfully! The app will now reload.');
-                window.location.reload();
-            } else {
-                // Reset file input so same file can be selected again if needed
-                document.getElementById('import-file-input').value = '';
-            }
-
+            await restoreBackupData(JSON.parse(e.target.result));
         } catch (err) {
             console.error('Import failed:', err);
             alert('Failed to import data: ' + err.message);
+        } finally {
             document.getElementById('import-file-input').value = '';
         }
     };
     reader.readAsText(file);
 }
 
-// Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-
-    // Data Management Listeners
+function setupDataBackupButtons() {
     const exportBtn = document.getElementById('export-data-btn');
     const importBtn = document.getElementById('import-data-btn');
     const fileInput = document.getElementById('import-file-input');
 
-    if (exportBtn) {
-        exportBtn.addEventListener('click', exportData);
-    }
-
-    if (importBtn) {
-        importBtn.addEventListener('click', () => {
-            if (fileInput) fileInput.click();
+    if (exportBtn && !exportBtn.dataset.bound) {
+        exportBtn.dataset.bound = '1';
+        exportBtn.addEventListener('click', () => {
+            void exportData();
         });
     }
 
-    if (fileInput) {
+    if (importBtn && !importBtn.dataset.bound) {
+        importBtn.dataset.bound = '1';
+        importBtn.addEventListener('click', () => {
+            void importDataFromFilePicker();
+        });
+    }
+
+    if (fileInput && !fileInput.dataset.bound) {
+        fileInput.dataset.bound = '1';
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 importData(e.target.files[0]);
             }
         });
     }
+}
+
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    initApp();
+    setupDataBackupButtons();
 });
 
 // Close task menus when clicking outside

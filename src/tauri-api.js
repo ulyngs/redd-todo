@@ -266,6 +266,50 @@ const tauriAPI = {
             console.error('[Tauri HTTP] Fetch error:', e);
             throw e;
         }
+    },
+
+    async saveTextFile({ title, defaultPath, contents, filters }) {
+        if (!this.isTauri) return null;
+
+        const dialog = window.__TAURI__?.dialog;
+        const fs = window.__TAURI__?.fs;
+        if (!dialog?.save || !fs?.writeTextFile) {
+            console.error('Tauri dialog/fs plugins are not available');
+            return null;
+        }
+
+        const selectedPath = await dialog.save({
+            title,
+            defaultPath,
+            filters: filters || [{ name: 'JSON', extensions: ['json'] }]
+        });
+        if (!selectedPath || typeof selectedPath !== 'string') return null;
+
+        await fs.writeTextFile(selectedPath, contents);
+        return selectedPath;
+    },
+
+    async openTextFile({ title, filters }) {
+        if (!this.isTauri) return null;
+
+        const dialog = window.__TAURI__?.dialog;
+        const fs = window.__TAURI__?.fs;
+        if (!dialog?.open || !fs?.readTextFile) {
+            console.error('Tauri dialog/fs plugins are not available');
+            return null;
+        }
+
+        const selectedPath = await dialog.open({
+            multiple: false,
+            title,
+            filters: filters || [
+                { name: 'JSON', extensions: ['json'] },
+                { name: 'All files', extensions: ['*'] }
+            ]
+        });
+        if (!selectedPath || typeof selectedPath !== 'string') return null;
+
+        return fs.readTextFile(selectedPath);
     }
 };
 

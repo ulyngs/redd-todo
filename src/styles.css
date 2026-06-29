@@ -1865,6 +1865,10 @@ body.is-reordering * {
     backdrop-filter: blur(4px);
 }
 
+#confirm-modal {
+    z-index: 1100;
+}
+
 .modal-content {
     background: var(--modal-bg);
     border: 1px solid var(--border-color-medium);
