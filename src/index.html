@@ -289,18 +289,6 @@
             <div class="footer">
                 <span class="footer-text">Made with <span class="heart">♥</span> by <a href="https://reddfocus.org"
                         target="_blank">reddfocus.org</a></span>
-                <div class="footer-zoom-control" id="footer-zoom-control" role="group" aria-label="UI zoom">
-                    <button type="button" class="footer-zoom-btn zoom-out-btn" id="footer-zoom-out" title="Zoom out"
-                        aria-label="Zoom out">−</button>
-                    <svg class="footer-zoom-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="11" cy="11" r="7"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <span class="footer-zoom-value zoom-value" id="footer-zoom-value">100%</span>
-                    <button type="button" class="footer-zoom-btn zoom-in-btn" id="footer-zoom-in" title="Zoom in"
-                        aria-label="Zoom in">+</button>
-                </div>
             </div>
         </div>
 
@@ -434,13 +422,26 @@
                                     </div>
                                 </div>
                                 <div class="settings-row">
-                                    <label class="settings-row-label" for="theme-select" data-i18n="settingsAppearance">Theme</label>
+                                    <label class="settings-row-label" for="theme-select" data-i18n="settingsTheme">Theme</label>
                                     <div class="settings-row-control">
                                         <select id="theme-select" class="settings-select">
                                             <option value="system" data-i18n="themeSystem">Auto</option>
                                             <option value="light" data-i18n="themeLight">Light</option>
                                             <option value="dark" data-i18n="themeDark">Dark</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="settings-row">
+                                    <span id="settings-zoom-label" class="settings-row-label">Zoom level</span>
+                                    <div class="settings-row-control">
+                                        <div class="settings-zoom-control" id="settings-zoom-control" role="group"
+                                            aria-labelledby="settings-zoom-label">
+                                            <button type="button" class="zoom-btn zoom-out-btn" id="settings-zoom-out"
+                                                title="Zoom out" aria-label="Zoom out">−</button>
+                                            <span class="zoom-value" id="settings-zoom-value">100%</span>
+                                            <button type="button" class="zoom-btn zoom-in-btn" id="settings-zoom-in"
+                                                title="Zoom in" aria-label="Zoom in">+</button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="settings-row">

@@ -273,7 +273,8 @@ const translations = {
         // Settings modal
         settings: 'Settings',
         settingsGeneral: 'General',
-        settingsAppearance: 'Theme',
+        settingsTheme: 'Theme',
+        zoomLevel: 'Zoom level',
         settingsFeatures: 'Features',
         settingsDataHint: 'Save a backup or restore from a file.',
         exportLabel: 'Export',
@@ -282,7 +283,6 @@ const translations = {
         language: 'Language',
         languagePickerCurrent: 'Current language',
         languagePickerSwitch: 'Switch to',
-        themeMode: 'Light/dark mode',
         themeLight: 'Light',
         themeDark: 'Dark',
         themeSystem: 'Auto',
@@ -357,7 +357,8 @@ const translations = {
         // Settings modal
         settings: 'Indstillinger',
         settingsGeneral: 'Generelt',
-        settingsAppearance: 'Tema',
+        settingsTheme: 'Tema',
+        zoomLevel: 'Zoomniveau',
         settingsFeatures: 'Funktioner',
         settingsDataHint: 'Gem en sikkerhedskopi eller gendan fra en fil.',
         exportLabel: 'Eksporter',
@@ -366,7 +367,6 @@ const translations = {
         language: 'Sprog',
         languagePickerCurrent: 'Nuværende sprog',
         languagePickerSwitch: 'Skift til',
-        themeMode: 'Lys/mørk tilstand',
         themeLight: 'Lys',
         themeDark: 'Mørk',
         themeSystem: 'Auto',
@@ -801,6 +801,9 @@ function applyTranslations() {
 
     const importBtnLabel = document.getElementById('import-data-btn-label');
     if (importBtnLabel) importBtnLabel.textContent = t('importLabel');
+
+    const settingsZoomLabel = document.getElementById('settings-zoom-label');
+    if (settingsZoomLabel) settingsZoomLabel.textContent = t('zoomLevel');
 
     const remindersConnectBtn = document.getElementById('reminders-connect-btn');
     if (remindersConnectBtn && !remindersConnectBtn.disabled) {

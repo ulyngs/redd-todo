@@ -1,4 +1,4 @@
-// UI zoom — matches redd-block: native webview zoom on desktop, footer controls, keyboard shortcuts.
+// UI zoom — native webview zoom on desktop (macOS/Windows), settings control, keyboard shortcuts.
 // Uses window.__TAURI__ (no bundler in this app).
 
 const UI_ZOOM_MIN = 0.8;
@@ -51,7 +51,7 @@ function persistUiZoom(scale) {
     localStorage.setItem(UI_ZOOM_STORAGE_KEY, String(clamped));
 }
 
-function syncFooterZoomControl(scale) {
+function syncZoomControl(scale) {
     const pct = `${Math.round(scale * 100)}%`;
     document.querySelectorAll('.zoom-value').forEach((el) => {
         el.textContent = pct;
@@ -66,7 +66,7 @@ function syncFooterZoomControl(scale) {
 
 function applyUiZoom(scale) {
     const clamped = clampUiZoom(scale);
-    syncFooterZoomControl(clamped);
+    syncZoomControl(clamped);
 
     if (isTauriDesktop()) {
         const webview = getCurrentWebview();
@@ -88,13 +88,12 @@ function applyUiZoom(scale) {
     document.documentElement.style.zoom = String(clamped);
 }
 
-function setupFooterZoomControl() {
-    document.querySelectorAll('.footer-zoom-control').forEach((control) => {
-        if (control.dataset.bound === '1') return;
-        control.dataset.bound = '1';
-        control.querySelector('.zoom-out-btn')?.addEventListener('click', () => zoomUiOut());
-        control.querySelector('.zoom-in-btn')?.addEventListener('click', () => zoomUiIn());
-    });
+function setupSettingsZoomControl() {
+    const control = document.getElementById('settings-zoom-control');
+    if (!control || control.dataset.bound === '1') return;
+    control.dataset.bound = '1';
+    control.querySelector('.zoom-out-btn')?.addEventListener('click', () => zoomUiOut());
+    control.querySelector('.zoom-in-btn')?.addEventListener('click', () => zoomUiIn());
 }
 
 function showUiZoomToast(scale) {
@@ -157,7 +156,7 @@ function onZoomKeydown(e) {
 }
 
 export function setupUiZoomShortcuts() {
-    setupFooterZoomControl();
+    setupSettingsZoomControl();
     applyUiZoom(getSavedUiZoom());
 
     document.addEventListener('keydown', onZoomKeydown);
