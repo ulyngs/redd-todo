@@ -131,6 +131,15 @@ pub fn run() {
                 }
             }
 
+            if let Some(main_window) = app.get_webview_window("main") {
+                let main_for_close = main_window.clone();
+                main_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { .. } = event {
+                        flush_webview_persisted_state(&main_for_close);
+                    }
+                });
+            }
+
             // On macOS, build a custom menu that includes Zoom In / Zoom Out
             // under the Window menu so users discover the keyboard shortcuts.
             // (Tauri's default menu doesn't expose them.)
@@ -303,6 +312,11 @@ pub fn run() {
             start_basecamp_auth,
             handle_oauth_callback,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                flush_all_webview_persisted_state(app_handle);
+            }
+        });
 }

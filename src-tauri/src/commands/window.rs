@@ -1,7 +1,28 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use tauri::WebviewWindowBuilder;
-use tauri::{command, Emitter, LogicalPosition, Manager, WebviewUrl};
+use tauri::{command, AppHandle, Emitter, LogicalPosition, Manager, WebviewUrl, WebviewWindow};
+
+const FLUSH_PERSISTED_STATE_JS: &str = r#"
+try {
+  if (typeof window.__reddFlushPersistedState === 'function') {
+    window.__reddFlushPersistedState();
+  }
+} catch (e) {
+  console.error('[flushPersistedState]', e);
+}
+"#;
+
+/// Ask every webview to flush localStorage before process exit.
+pub fn flush_all_webview_persisted_state(app: &AppHandle) {
+    for (_, window) in app.webview_windows() {
+        flush_webview_persisted_state(&window);
+    }
+}
+
+pub fn flush_webview_persisted_state(window: &WebviewWindow) {
+    let _ = window.eval(FLUSH_PERSISTED_STATE_JS);
+}
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
     CollectionBehavior, ManagerExt, PanelBuilder, PanelLevel, StyleMask, TrackingAreaOptions,
@@ -201,6 +222,7 @@ pub fn window_maximize(window: tauri::WebviewWindow) -> Result<(), String> {
 /// Close the window
 #[command]
 pub fn window_close(window: tauri::WebviewWindow) -> Result<(), String> {
+    flush_webview_persisted_state(&window);
     window.close().map_err(|e| e.to_string())
 }
 

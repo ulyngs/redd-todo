@@ -651,6 +651,18 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 window.addEventListener('storage', (e) => {
     if (e.key === 'theme') {
         applyTheme(e.newValue || 'system');
+        return;
+    }
+    // Keep focus panel in sync when the main window saves task changes.
+    if (e.key === 'redd-todo-data' && e.newValue) {
+        loadData();
+        if (!isFocusPanelWindow) {
+            renderGroups();
+            renderTabs();
+            renderTasks();
+            updateBasecampUI();
+            updateRemindersUI();
+        }
     }
 });
 
@@ -2131,6 +2143,12 @@ function animateTaskUncompleteToActive(taskId, sourceElement) {
 function toggleTask(taskId) {
     console.log('=== TOGGLE TASK START ===');
     console.log('Task ID:', taskId);
+
+    // Focus panel loads its own snapshot at open; reload before mutating so we
+    // don't overwrite completions made in the main window.
+    if (isFocusPanelWindow) {
+        loadData();
+    }
 
     const context = getTaskContext(taskId);
     if (!context) {
@@ -5421,6 +5439,7 @@ function setupEventListeners() {
         if (completingViaHome && completedTaskId) {
             // Focus-panel completion on macOS (fullscreen + non-fullscreen):
             // go straight home, then complete in main window.
+            stopFocusTimer();
             reddIpc.send('exit-fullscreen-focus-to-home', {
                 taskId: completedTaskId,
                 completeOnHome: true,
@@ -5463,7 +5482,11 @@ function setupEventListeners() {
                 const context = getTaskContext(focusedTaskId);
                 if (context) {
                     context.task.actualDuration = elapsed;
-                    saveData();
+                    if (isFocusPanelWindow) {
+                        mergeFocusedTaskPatchIntoStorage(focusedTaskId, { actualDuration: elapsed });
+                    } else {
+                        saveData();
+                    }
                     toggleTask(focusedTaskId);
                 }
             } else {
@@ -5474,7 +5497,11 @@ function setupEventListeners() {
                         const t = tabs[tabId].tasks.find(task => task.text === name && !task.completed);
                         if (t) {
                             t.actualDuration = elapsed;
-                            saveData();
+                            if (isFocusPanelWindow) {
+                                mergeFocusedTaskPatchIntoStorage(t.id, { actualDuration: elapsed });
+                            } else {
+                                saveData();
+                            }
                             toggleTask(t.id);
                             break;
                         }
@@ -5728,7 +5755,14 @@ function setupEventListeners() {
                                     // Debounce save
                                     if (focusQuillInstance.saveTimeout) clearTimeout(focusQuillInstance.saveTimeout);
                                     focusQuillInstance.saveTimeout = setTimeout(() => {
-                                        saveData();
+                                        if (isFocusPanelWindow) {
+                                            mergeFocusedTaskPatchIntoStorage(focusedTaskId, {
+                                                notes: content,
+                                                notesChangedAt: new Date().toISOString()
+                                            });
+                                        } else {
+                                            saveData();
+                                        }
                                     }, 1000);
                                 }
                             }
@@ -5896,9 +5930,14 @@ function setupEventListeners() {
 // Focus mode functions
 function persistCurrentFocusTaskTime() {
     if (!focusedTaskId || !isFocusMode || !focusStartTime) return;
+    const timeSpent = Date.now() - focusStartTime;
+    if (isFocusPanelWindow) {
+        mergeFocusedTaskPatchIntoStorage(focusedTaskId, { timeSpent });
+        return;
+    }
     const context = getTaskContext(focusedTaskId);
     if (!context) return;
-    context.task.timeSpent = Date.now() - focusStartTime;
+    context.task.timeSpent = timeSpent;
     saveData();
 }
 
@@ -7423,18 +7462,13 @@ reddIpc.on('focus-status-changed', (event, payload) => {
         if (context) {
             if (typeof elapsedMs === 'number' && Number.isFinite(elapsedMs)) {
                 context.task.actualDuration = elapsedMs;
-                saveData();
             }
-            // Show main window state first, then animate/check off shortly after.
-            renderTasks();
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    const liveContext = getTaskContext(closedTaskId);
-                    if (liveContext && !liveContext.task.completed) {
-                        toggleTask(closedTaskId);
-                    }
-                }, 350);
-            });
+            if (!context.task.completed) {
+                toggleTask(closedTaskId);
+            } else {
+                saveData();
+                renderTasks();
+            }
             return;
         }
     }
@@ -7555,6 +7589,41 @@ reddIpc.on('basecamp-auth-error', (event, errorMessage) => {
 });
 
 // Data persistence
+/** Patch a single task in localStorage without rewriting the full tabs snapshot.
+ *  Used by the macOS focus panel so periodic saves can't clobber main-window edits. */
+function mergeFocusedTaskPatchIntoStorage(taskId, patch) {
+    if (!taskId || !patch || typeof patch !== 'object') return false;
+    try {
+        const raw = localStorage.getItem('redd-todo-data');
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (!data.tabs) return false;
+
+        let updated = false;
+        for (const tab of Object.values(data.tabs)) {
+            if (!tab?.tasks) continue;
+            const storedTask = tab.tasks.find(t => t.id === taskId);
+            if (storedTask) {
+                Object.assign(storedTask, patch);
+                updated = true;
+                break;
+            }
+        }
+        if (!updated) return false;
+
+        localStorage.setItem('redd-todo-data', JSON.stringify(data));
+
+        const liveContext = getTaskContext(taskId);
+        if (liveContext) {
+            Object.assign(liveContext.task, patch);
+        }
+        return true;
+    } catch (e) {
+        console.error('[mergeFocusedTaskPatchIntoStorage] failed:', e);
+        return false;
+    }
+}
+
 function saveData() {
     const data = {
         tabs: tabs,
@@ -7588,6 +7657,43 @@ function saveData() {
 
     localStorage.setItem('redd-todo-data', nextState);
 }
+
+/** Best-effort flush before quit/hide — rewrites localStorage so WebKit commits to disk. */
+function flushPersistedState() {
+    try {
+        if (isFocusMode && focusedTaskId) {
+            persistCurrentFocusTaskTime();
+        }
+
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key) keys.push(key);
+        }
+        for (const key of keys) {
+            const raw = localStorage.getItem(key);
+            if (raw != null) {
+                localStorage.setItem(key, raw);
+            }
+        }
+    } catch (e) {
+        console.error('[flushPersistedState] failed:', e);
+    }
+}
+
+function registerPersistFlushHandlers() {
+    const flush = () => flushPersistedState();
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            flush();
+        }
+    });
+    window.__reddFlushPersistedState = flushPersistedState;
+}
+
+registerPersistFlushHandlers();
 
 function loadData() {
     try {
