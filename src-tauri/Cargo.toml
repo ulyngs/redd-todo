@@ -1,6 +1,6 @@
 [package]
 name = "redd-todo"
-version = "2.7.5"
+version = "2.7.6"
 description = "ReDD To-Do: Goals in Sight - keep your goals in sight and get back to what you wanted to do"
 authors = ["The Reduce Digital Distraction Project <team@reddfocus.org>"]
 license = "CC-BY-NC-ND-3.0"
