@@ -93,6 +93,13 @@ const reddIpc = {
                         console.log('[Tauri OAuth] Command completed');
                     } catch (e) {
                         console.error('[Tauri OAuth] Command failed:', e);
+                        // Don't leave the button stuck on "Connecting..." if the
+                        // command rejects without emitting basecamp-auth-error.
+                        const btn = document.getElementById('oauth-connect-btn');
+                        if (btn) {
+                            btn.textContent = t('connect');
+                            btn.disabled = false;
+                        }
                     }
                 },
                 'window-drag-start': () => tauriAPI.startDrag(),
@@ -7543,6 +7550,10 @@ if (reddIsTauri && typeof tauriAPI !== 'undefined') {
                 console.error('[Basecamp OAuth] Error from callback:', error);
                 const errorDesc = parsed.searchParams.get('error_description') || error;
                 alert(`Basecamp authentication failed: ${errorDesc}`);
+                if (oauthConnectBtn) {
+                    oauthConnectBtn.textContent = t('connect');
+                    oauthConnectBtn.disabled = false;
+                }
                 return;
             }
 
@@ -7561,10 +7572,18 @@ if (reddIsTauri && typeof tauriAPI !== 'undefined') {
                 try {
                     await fetchBasecampIdentity();
                     console.log('[Basecamp OAuth] Identity fetched, account ID:', basecampConfig.accountId);
-                    saveData();
-                    updateBasecampUI();
                 } catch (e) {
                     console.error('[Basecamp OAuth] Failed to fetch identity:', e);
+                }
+
+                basecampConfig.isConnected = true;
+                saveData();
+                updateBasecampUI();
+                updateSyncButtonState();
+
+                if (oauthConnectBtn) {
+                    oauthConnectBtn.textContent = t('connect');
+                    oauthConnectBtn.disabled = false;
                 }
             } else {
                 console.error('[Basecamp OAuth] No access token in callback');

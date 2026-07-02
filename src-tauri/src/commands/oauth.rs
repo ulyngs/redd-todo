@@ -70,23 +70,35 @@ pub async fn start_basecamp_auth(app: AppHandle) -> Result<(), String> {
         // Small delay to ensure server is ready
         std::thread::sleep(std::time::Duration::from_millis(100));
     } else {
-        let bridge_port = start_local_token_bridge_server(app.clone())?;
-        let state = format!("{LOCAL_CALLBACK_STATE_PREFIX}{bridge_port}");
-        auth_url.push_str("&state=");
-        auth_url.push_str(&urlencoding::encode(&state));
+        // Prefer the localhost bridge; if it can't start (e.g. sandbox restrictions),
+        // omit the state param so the Netlify callback falls back to the deep link.
+        match start_local_token_bridge_server(app.clone()) {
+            Ok(bridge_port) => {
+                let state = format!("{LOCAL_CALLBACK_STATE_PREFIX}{bridge_port}");
+                auth_url.push_str("&state=");
+                auth_url.push_str(&urlencoding::encode(&state));
 
-        log::info!(
-            "[Basecamp OAuth] Added localhost bridge on port {} with state {}",
-            bridge_port,
-            state
-        );
+                log::info!(
+                    "[Basecamp OAuth] Added localhost bridge on port {} with state {}",
+                    bridge_port,
+                    state
+                );
 
-        // Give the bridge thread a moment to start listening before the browser redirects back.
-        std::thread::sleep(std::time::Duration::from_millis(100));
+                // Give the bridge thread a moment to start listening before the browser redirects back.
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(e) => {
+                log::warn!(
+                    "[Basecamp OAuth] Localhost bridge unavailable ({}), falling back to deep link callback",
+                    e
+                );
+            }
+        }
     }
 
-    // Open browser for OAuth
-    if let Err(e) = open::that(&auth_url) {
+    // Open browser for OAuth. Uses NSWorkspace on macOS: spawning /usr/bin/open
+    // fails inside the App Sandbox (Mac App Store builds).
+    if let Err(e) = crate::opener::open_external(&auth_url) {
         let error_msg = format!("Failed to open browser: {}", e);
         if let Some(window) = app.get_webview_window("main") {
             let _ = window.emit("basecamp-auth-error", &error_msg);

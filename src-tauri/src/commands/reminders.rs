@@ -911,15 +911,9 @@ pub fn open_reminders_privacy_settings() -> Result<(), String> {
 
     #[cfg(target_os = "macos")]
     {
-        let status = Command::new("open")
-            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders")
-            .status()
-            .map_err(|e| format!("Failed to open Reminders privacy settings: {}", e))?;
-
-        if status.success() {
-            Ok(())
-        } else {
-            Err("Failed to open Reminders privacy settings".to_string())
-        }
+        // NSWorkspace instead of spawning `open`: works in sandboxed MAS builds.
+        crate::opener::open_external(
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders",
+        )
     }
 }

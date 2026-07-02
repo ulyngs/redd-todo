@@ -196,13 +196,21 @@ const tauriAPI = {
         return unlisten;
     },
 
-    // Shell - open URL in default browser
+    // Shell - open URL in default browser.
+    // Goes through our Rust command (NSWorkspace on macOS) rather than the
+    // opener plugin, which spawns /usr/bin/open and fails in sandboxed
+    // Mac App Store builds. Falls back to the plugin if the command is missing.
     async openExternal(url) {
         if (!this.isTauri) {
             window.open(url, '_blank');
             return;
         }
-        return window.__TAURI__.opener.openUrl(url);
+        try {
+            return await this.invoke('open_external_url', { url });
+        } catch (e) {
+            console.warn('open_external_url failed, falling back to opener plugin:', e);
+            return window.__TAURI__.opener.openUrl(url);
+        }
     },
 
     // Clipboard operations

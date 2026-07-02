@@ -1,4 +1,5 @@
 mod commands;
+mod opener;
 
 use commands::app::*;
 use commands::oauth::*;
@@ -17,7 +18,7 @@ fn emit_menu_zoom(app: &tauri::AppHandle, event: &str) {
 /// Open a URL (https, mailto, etc.) in the user's default handler.
 #[cfg(target_os = "macos")]
 fn open_url(_app: &tauri::AppHandle, url: &str) {
-    if let Err(e) = open::that_detached(url) {
+    if let Err(e) = opener::open_external(url) {
         log::warn!("Failed to open {url}: {e}");
     }
 }
@@ -280,6 +281,7 @@ pub fn run() {
             // App commands
             get_app_version,
             get_distribution_channel,
+            open_external_url,
             // Reminders commands
             fetch_reminders_lists,
             fetch_reminders_tasks,

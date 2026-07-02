@@ -3653,6 +3653,7 @@ dependencies = [
  "dotenvy",
  "log",
  "objc2",
+ "objc2-app-kit",
  "objc2-event-kit",
  "objc2-foundation",
  "open",

@@ -42,7 +42,8 @@ tauri-plugin-fs = "2"
 block2 = "0.6"
 objc2-event-kit = { version = "0.3", features = ["EKEventStore", "EKReminder", "EKCalendar", "EKCalendarItem", "EKSource"] }
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["NSArray", "NSDate", "NSError", "NSObject", "NSString"] }
+objc2-app-kit = { version = "0.3", features = ["NSWorkspace"] }
+objc2-foundation = { version = "0.3", features = ["NSArray", "NSDate", "NSError", "NSObject", "NSString", "NSURL"] }
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
 
 [features]
