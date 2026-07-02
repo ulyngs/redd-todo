@@ -1996,6 +1996,28 @@ function showMoveTaskModal(taskId) {
     });
 }
 
+/** Wait until an active-list task row has layout (needed after main window un-hides). */
+function runWhenActiveTaskRowIsLaidOut(taskId, callback, frameBudget = 12) {
+    let frames = 0;
+    const tick = () => {
+        frames += 1;
+        const taskElement = tasksContainer?.querySelector(`.task-item[data-task-id="${taskId}"]`);
+        if (taskElement) {
+            const { width, height } = taskElement.getBoundingClientRect();
+            if (width > 0 && height > 0) {
+                callback();
+                return;
+            }
+        }
+        if (frames < frameBudget) {
+            requestAnimationFrame(tick);
+        } else {
+            callback();
+        }
+    };
+    requestAnimationFrame(tick);
+}
+
 function animateTaskCompletionToDone(taskId, sourceElement) {
     if (!sourceElement || !doneTasksContainer) {
         renderTasks();
@@ -2021,63 +2043,65 @@ function animateTaskCompletionToDone(taskId, sourceElement) {
     document.body.appendChild(party);
     setTimeout(() => party.remove(), 1000);
 
-    // Let strikethrough + celebration register first.
-    setTimeout(() => {
-        const startRect = sourceElement.getBoundingClientRect();
-        const ghost = sourceElement.cloneNode(true);
-        ghost.classList.add('task-completion-ghost');
-        ghost.style.position = 'fixed';
-        ghost.style.left = `${startRect.left}px`;
-        ghost.style.top = `${startRect.top}px`;
-        ghost.style.width = `${startRect.width}px`;
-        ghost.style.height = `${startRect.height}px`;
-        ghost.style.margin = '0';
-        ghost.style.pointerEvents = 'none';
-        ghost.style.zIndex = '2500';
-        ghost.style.transformOrigin = 'top left';
-        ghost.style.transition = 'transform 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms ease';
-        document.body.appendChild(ghost);
-
-        // Keep source row from flashing while the list re-renders.
-        sourceElement.style.opacity = '0';
-        sourceElement.style.pointerEvents = 'none';
-
-        animationHiddenTargetTaskId = taskId;
-        animationHiddenTargetCompletedState = true;
-        renderTasks();
-
+    // Start the move on the next paint — strikethrough is already applied in toggleTask.
+    requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            const targetElement = doneTasksContainer.querySelector(`.task-item[data-task-id="${taskId}"]`);
-            if (!targetElement) {
-                animationHiddenTargetTaskId = null;
-                animationHiddenTargetCompletedState = null;
-                ghost.remove();
-                return;
-            }
+            const startRect = sourceElement.getBoundingClientRect();
+            const ghost = sourceElement.cloneNode(true);
+            ghost.classList.add('task-completion-ghost');
+            ghost.style.position = 'fixed';
+            ghost.style.left = `${startRect.left}px`;
+            ghost.style.top = `${startRect.top}px`;
+            ghost.style.width = `${startRect.width}px`;
+            ghost.style.height = `${startRect.height}px`;
+            ghost.style.margin = '0';
+            ghost.style.pointerEvents = 'none';
+            ghost.style.zIndex = '2500';
+            ghost.style.transformOrigin = 'top left';
+            ghost.style.transition = 'transform 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms ease';
+            document.body.appendChild(ghost);
 
-            const targetRect = targetElement.getBoundingClientRect();
-            targetElement.style.visibility = 'hidden';
+            // Keep source row from flashing while the list re-renders.
+            sourceElement.style.opacity = '0';
+            sourceElement.style.pointerEvents = 'none';
 
-            const dx = targetRect.left - startRect.left;
-            const dy = targetRect.top - startRect.top;
-            const scaleX = startRect.width > 0 ? targetRect.width / startRect.width : 1;
-            const scaleY = startRect.height > 0 ? targetRect.height / startRect.height : 1;
+            animationHiddenTargetTaskId = taskId;
+            animationHiddenTargetCompletedState = true;
+            renderTasks();
 
-            ghost.style.transition = 'transform 430ms cubic-bezier(0.22, 1, 0.36, 1), opacity 430ms ease';
             requestAnimationFrame(() => {
-                ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`;
-                ghost.style.opacity = '0.98';
-            });
+                const targetElement = doneTasksContainer.querySelector(`.task-item[data-task-id="${taskId}"]`);
+                if (!targetElement) {
+                    animationHiddenTargetTaskId = null;
+                    animationHiddenTargetCompletedState = null;
+                    ghost.remove();
+                    return;
+                }
 
-            setTimeout(() => {
-                ghost.remove();
-                targetElement.classList.remove('animation-target-hidden');
-                animationHiddenTargetTaskId = null;
-                animationHiddenTargetCompletedState = null;
-                renderTasks();
-            }, 460);
+                const targetRect = targetElement.getBoundingClientRect();
+                targetElement.style.visibility = 'hidden';
+
+                const dx = targetRect.left - startRect.left;
+                const dy = targetRect.top - startRect.top;
+                const scaleX = startRect.width > 0 ? targetRect.width / startRect.width : 1;
+                const scaleY = startRect.height > 0 ? targetRect.height / startRect.height : 1;
+
+                ghost.style.transition = 'transform 430ms cubic-bezier(0.22, 1, 0.36, 1), opacity 430ms ease';
+                requestAnimationFrame(() => {
+                    ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`;
+                    ghost.style.opacity = '0.98';
+                });
+
+                setTimeout(() => {
+                    ghost.remove();
+                    targetElement.classList.remove('animation-target-hidden');
+                    animationHiddenTargetTaskId = null;
+                    animationHiddenTargetCompletedState = null;
+                    renderTasks();
+                }, 460);
+            });
         });
-    }, 800);
+    });
 }
 
 function animateTaskUncompleteToActive(taskId, sourceElement) {
@@ -7462,13 +7486,17 @@ reddIpc.on('focus-status-changed', (event, payload) => {
         if (context) {
             if (typeof elapsedMs === 'number' && Number.isFinite(elapsedMs)) {
                 context.task.actualDuration = elapsedMs;
-            }
-            if (!context.task.completed) {
-                toggleTask(closedTaskId);
-            } else {
                 saveData();
-                renderTasks();
             }
+            // Main window was hidden during focus — render the list, then complete as
+            // soon as the row is laid out (no fixed delay).
+            renderTasks();
+            runWhenActiveTaskRowIsLaidOut(closedTaskId, () => {
+                const liveContext = getTaskContext(closedTaskId);
+                if (liveContext && !liveContext.task.completed) {
+                    toggleTask(closedTaskId);
+                }
+            });
             return;
         }
     }

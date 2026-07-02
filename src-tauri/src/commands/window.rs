@@ -839,6 +839,8 @@ pub fn exit_fullscreen_focus_to_home(
         }
 
         if let Some(main_window) = app.get_webview_window("main") {
+            let _ = main_window.show();
+            let _ = main_window.set_focus();
             let _ = main_window.emit(
                 "focus-status-changed",
                 serde_json::json!({
@@ -848,8 +850,6 @@ pub fn exit_fullscreen_focus_to_home(
                     "elapsedMs": elapsed_ms
                 }),
             );
-            let _ = main_window.show();
-            let _ = main_window.set_focus();
         }
         return Ok(());
     }
